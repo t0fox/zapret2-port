@@ -9,8 +9,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BACKEND = ROOT / "openwrt/orchestra/files/usr/share/rpcd/ucode/zapret2.orchestra"
-ACL = ROOT / "openwrt/orchestra/files/usr/share/rpcd/acl.d/zapret2-orchestra.json"
+BACKEND = ROOT / "openwrt/zapret2-orchestra/files/usr/share/rpcd/ucode/zapret2.orchestra"
+ACL = ROOT / "openwrt/zapret2-orchestra/files/usr/share/rpcd/acl.d/zapret2-orchestra.json"
 class StatusContractTest(unittest.TestCase):
     def setUp(self) -> None:
         self.source = BACKEND.read_text(encoding="utf-8")

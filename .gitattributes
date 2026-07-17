@@ -1,0 +1,8 @@
+* text=auto
+*.sh text eol=lf
+*.lua text eol=lf
+*.json text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+**/Makefile text eol=lf
+openwrt/** text eol=lf

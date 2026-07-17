@@ -49,4 +49,6 @@ class TlsRuntimeStaticTests(unittest.TestCase):
     def test_router_upstream_was_not_replaced(self):
         router = ROOT / "router-baseline" / "opt" / "zapret2" / "lua"
         desktop = ROOT / "reference" / "desktop-orchestra" / "lua"
+        if not router.is_dir():
+            self.skipTest("router-baseline is local untracked evidence and is unavailable")
         self.assertEqual((router / "zapret-auto.lua").read_bytes(), (desktop / "zapret-auto.lua").read_bytes())

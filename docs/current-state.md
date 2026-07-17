@@ -1,7 +1,8 @@
 # Current state (confirmed from baseline)
 
 **Updated:** 2026-07-17  
-**Source of truth:** `router-baseline/` + `reference/desktop-orchestra/` only.
+**Source of truth:** dynamically verified OpenWrt observations plus local
+untracked `router-baseline/` evidence and `reference/desktop-orchestra/`.
 
 ---
 
@@ -14,7 +15,8 @@
 | nfqws2 version | 0.9.20260307 (git d3b3011) | `runtime/nfqws2-version.txt` |
 | Lua compat | **5** (router) | `nfqws2-version.txt`; `zapret-lib.lua` L1 |
 | Init wrapper | remittor `/etc/init.d/zapret2` | `etc/init.d/zapret2` |
-| Service at snapshot | **inactive** | `runtime/service-status.txt` |
+| Zapret2 package | `zapret2-0.9.20260307-r1` | dynamically verified |
+| Service state | **stopped intentionally** | dynamically verified |
 
 ---
 
@@ -27,6 +29,7 @@
 | Shell config | `/opt/zapret2/config` |
 | UCI | `/etc/config/zapret2` |
 | Init (wrapper) | `/etc/init.d/zapret2` |
+| nfqws2 PID | `/var/run/nfqws2_1.pid` |
 | Init (original) | `/opt/zapret2/init.d/openwrt/zapret2` (inventory only) |
 | Hostlist user | `/opt/zapret2/ipset/zapret-hosts-user.txt` |
 | Logs | `/tmp/zapret2+…` per UCI `DAEMON_LOG_FILE` |
@@ -76,7 +79,7 @@ Present on router: `zapret-antidpi.lua`, `zapret-auto.lua`, `zapret-lib.lua`, `z
 
 | Item | Status |
 |------|--------|
-| NFQUEUE number (user claim: 300) | NOT CAPTURED — absent from `nft-ruleset.txt` snapshot |
+| NFQUEUE number | `300` (confirmed in runtime scripts) |
 | Queue bypass flag | NOT CAPTURED |
 | Exact nfqws2 argv | NOT CAPTURED — `nfqws2-process.txt` missing |
 | Default `--lua-init` chain | NOT CAPTURED — need `linux_daemons.sh` |
@@ -92,7 +95,9 @@ Present on router: `zapret-antidpi.lua`, `zapret-auto.lua`, `zapret-lib.lua`, `z
 | Upstream Lua API for orchestrators | CONFIRMED on router (`circular`, `orchestrate`) |
 | Orchestra modules on router | UNAVAILABLE (not installed) |
 | orchestra-extra hook | INFERRED via UCI `NFQWS2_OPT` + extra `--lua-init` |
-| TLS MVP | Lua runtime prototype retained; control plane not implemented; **NO DEPLOY** |
+| Read-only control plane | `status` and `validate` implemented and dynamically verified via rpcd/ucode |
+| Package layout | `openwrt/zapret2-orchestra`; not built with a real OpenWrt SDK |
+| TLS MVP | Lua runtime prototype retained and not deployed |
 
 ## Local implementation progress
 
@@ -102,13 +107,16 @@ in-memory SLM, protected manual-lock adapter, TLS detector wrappers and the
 `circular_quality` selector.  It uses only the upstream symbols documented in
 `remittor-runtime-contract.md`.
 
-The unsuitable Python control-plane prototype was removed from the OpenWrt
-tree. Target control-plane code must use verified OpenWrt-native components
-(ucode/rpcd or a minimal BusyBox-compatible wrapper). Python remains allowed
-only for local tests and build tooling.
+The read-only control plane is an rpcd/ucode backend in
+`openwrt/zapret2-orchestra`. The verified target has `ucode`, `rpcd-mod-ucode`,
+`ucode-mod-fs`, and `ucode-mod-uci` installed; its package exposes only
+`status` and `validate`.
 
-This is not deployable: the exact remittor argv/queue integration remains
-unknown, and neither standalone Lua nor target nfqws2 has executed the runtime.
-No UCI apply, service call, router connection, or deployment has occurred.
+The read-only backend was manually copied to the router; `status` and
+`validate` were dynamically verified, and rpcd was restarted. Zapret2 remained
+stopped. No UCI was written, no Zapret2 service action was executed, and the
+firewall and NFQUEUE were not changed. TLS Lua was not installed. `QNUM=300`
+is a confirmed configuration value from the runtime scripts, not evidence of
+an active NFQUEUE.
 
 See `router-desktop-compatibility.md`, `tls-mvp-design.md`.
