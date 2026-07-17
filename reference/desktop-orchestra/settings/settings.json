@@ -1,0 +1,5241 @@
+{
+  "version": 1,
+  "program": {
+    "dpi_autostart": true,
+    "gui_autostart_enabled": false,
+    "strategy_launch_method": "orchestra",
+    "selected_source_preset_file_name_winws1": "",
+    "selected_source_preset_file_name_winws2": "ALL TCP & UDP discord_urgent_sni.txt",
+    "auto_update_enabled": true,
+    "remove_github_api": true,
+    "discord_auto_restart": true,
+    "max_blocked": false,
+    "russian_state_media_blocked": false,
+    "defender_disabled": false
+  },
+  "window": {
+    "x": 319,
+    "y": 31,
+    "width": 1278,
+    "height": 844,
+    "maximized": false,
+    "opacity": 100,
+    "tray_close_mode": "normal"
+  },
+  "appearance": {
+    "display_mode": "dark",
+    "ui_language": "ru",
+    "mica_enabled": true,
+    "accent_color": null,
+    "follow_windows_accent": false,
+    "tinted_background": false,
+    "tinted_background_intensity": 15,
+    "background_preset": "standard",
+    "rkn_background": null,
+    "animations_enabled": false,
+    "smooth_scroll_enabled": false,
+    "editor_smooth_scroll_enabled": false,
+    "sidebar_icon_style": "windows11_fluent",
+    "garland_enabled": false,
+    "snowflakes_enabled": false,
+    "selected_theme": ""
+  },
+  "warnings": {
+    "tray_hint_shown": false,
+    "disable_telega_warning": false,
+    "disable_kaspersky_warning": false,
+    "isp_dns_info_shown": true,
+    "tg_proxy_deeplink_done": false
+  },
+  "telegram_proxy": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 1353,
+    "mode": "mtproxy",
+    "upstream_enabled": true,
+    "upstream_host": "",
+    "upstream_port": 1080,
+    "upstream_preset_id": "",
+    "upstream_mode": "fallback",
+    "upstream_udp_enabled": false,
+    "upstream_user": "",
+    "upstream_pass": "",
+    "cloudflare_enabled": false,
+    "cloudflare_domains": [],
+    "cloudflare_worker_enabled": false,
+    "cloudflare_worker_domains": [],
+    "mtproxy_secret": "ad1c0eef41f78a457c5c9b7c47f636f8",
+    "dc_ip": [],
+    "pool_size": 4,
+    "buffer_kb": 256,
+    "fake_tls_domain": "",
+    "proxy_protocol": false
+  },
+  "dns": {
+    "force_dns_enabled": false,
+    "dns_crash_count": 0,
+    "custom_servers": []
+  },
+  "hosts": {
+    "bootstrap_signature": "v3",
+    "active_domains": [],
+    "selection": {
+      "Notion": "comss_dns"
+    }
+  },
+  "premium": {
+    "device_id": "50c51fc7a0319830520cdd494947026e",
+    "device_token": null,
+    "last_check": null,
+    "last_network_failure_ts": null,
+    "pair_code": null,
+    "pair_expires_at": null,
+    "premium_cache": null
+  },
+  "ui_state": {
+    "sidebar_expanded": true
+  },
+  "profile_strategy_state": {
+    "version": 1,
+    "profiles": {}
+  },
+  "user_profiles": {
+    "version": 1,
+    "profiles": {}
+  },
+  "orchestra": {
+    "settings": {
+      "strict_detection": true,
+      "keep_debug_file": false,
+      "auto_restart_on_discord_fail": true,
+      "discord_fails_for_restart": 3,
+      "lock_successes": 3,
+      "unlock_fails": 3
+    },
+    "whitelist": {
+      "user_domains": []
+    },
+    "locked": {
+      "tls": {},
+      "http": {},
+      "quic": {
+        "[tls] mozilla.cloudflare-dns.com": 3,
+        "[tls] dns.google.com": 3,
+        "[tls] discord.com": 5,
+        "[unknown] discord.com": 2,
+        "[tls] www.youtube.com": 3,
+        "[tls] cdn.discordapp.com": 5,
+        "[tls] gateway.discord.gg": 5,
+        "[tls] rutracker.org": 5,
+        "[tls] events.7tv.io": 11,
+        "[tls] live.bhvrdbd.com": 2,
+        "[tls] osi.office.net": 3,
+        "[tls] svc.cloud.microsoft": 3,
+        "[tls] data.msn.com": 2,
+        "[tls] 7tv.io": 3,
+        "[tls] exp.notion.com": 94,
+        "[tls] chat.twitch.tv": 3,
+        "[tls] us-west-2.amazonaws.com": 2,
+        "[quic] discord.com": 3,
+        "[tls] catalog.gamepass.com": 3,
+        "[unknown] udp 203.23.0.0": 7,
+        "[tls] yastatic.net": 4,
+        "[tls] cloudflare-ech.com": 15,
+        "[tls] c.youtube.com": 2,
+        "[tls] pub-71ebeef63bbd4131a5876b8a44c21c95.r2.dev": 2,
+        "[tls] ntp.msn.com": 3,
+        "[tls] steamcommunity.com": 9,
+        "[quic] nel.cloudflare.com": 2,
+        "[tls] codex.sale": 3,
+        "[tls] github.githubassets.com": 2,
+        "[tls] cdn-banners.exitlag.com": 2,
+        "[tls] gql.twitch.tv": 2,
+        "[quic] chrome.cloudflare-dns.com": 2,
+        "[tls] chrome.cloudflare-dns.com": 31,
+        "[tls] cloudflare-dns.com": 3,
+        "[quic] www.google.com": 2,
+        "[tls] ab.chatgpt.com": 5,
+        "[tls] sfunpay.com": 30,
+        "[tls] dns.comss.one": 66,
+        "[tls] app.notion.com": 122,
+        "[tls] static-cdn.jtvnw.net": 7,
+        "[tls] marketplace.visualstudio.com": 3,
+        "[tls] chatgpt.com": 3,
+        "[tls] nel.cloudflare.com": 12,
+        "[tls] chat.openai.com": 5,
+        "[tls] api.github.com": 2,
+        "[tls] optimizationguide-pa.googleapis.com": 4,
+        "[tls] update.googleapis.com": 7,
+        "[tls] safebrowsing.googleapis.com": 4,
+        "[tls] agentrouter.org": 40,
+        "[quic] accounts.google.com": 2,
+        "[tls] www.google.com": 2,
+        "[tls] clients.google.com": 3,
+        "[tls] accounts.google.com": 5,
+        "[tls] assets.msn.com": 15,
+        "[quic] clients.google.com": 2,
+        "[quic] update.googleapis.com": 2,
+        "[tls] api.openai.com": 3
+      },
+      "discord": {
+        "[discord] discord voice": 2
+      },
+      "wireguard": {},
+      "mtproto": {},
+      "dns": {},
+      "stun": {},
+      "unknown": {}
+    },
+    "user_locked": {
+      "tls": [],
+      "http": [],
+      "quic": [],
+      "discord": [],
+      "wireguard": [],
+      "mtproto": [],
+      "dns": [],
+      "stun": [],
+      "unknown": []
+    },
+    "user_blocked": {
+      "tls": {},
+      "http": {},
+      "quic": {},
+      "discord": {},
+      "wireguard": {},
+      "mtproto": {},
+      "dns": {},
+      "stun": {},
+      "unknown": {}
+    },
+    "history": {
+      "discord.com": {
+        "2": {
+          "successes": 27,
+          "failures": 11
+        },
+        "3": {
+          "successes": 5,
+          "failures": 7
+        },
+        "4": {
+          "successes": 0,
+          "failures": 4
+        },
+        "5": {
+          "successes": 11,
+          "failures": 2
+        }
+      },
+      "google.com": {
+        "2": {
+          "successes": 67,
+          "failures": 35
+        },
+        "3": {
+          "successes": 286,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 7,
+          "failures": 0
+        }
+      },
+      "146.75.0.0": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "cloudflare-dns.com": {
+        "2": {
+          "successes": 28,
+          "failures": 5
+        },
+        "3": {
+          "successes": 279,
+          "failures": 2
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 17,
+          "failures": 3
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 0,
+          "failures": 1
+        },
+        "12": {
+          "successes": 0,
+          "failures": 1
+        },
+        "13": {
+          "successes": 0,
+          "failures": 1
+        },
+        "14": {
+          "successes": 0,
+          "failures": 1
+        },
+        "15": {
+          "successes": 0,
+          "failures": 1
+        },
+        "16": {
+          "successes": 0,
+          "failures": 1
+        },
+        "17": {
+          "successes": 13,
+          "failures": 3
+        },
+        "18": {
+          "successes": 5,
+          "failures": 3
+        },
+        "19": {
+          "successes": 0,
+          "failures": 1
+        },
+        "20": {
+          "successes": 0,
+          "failures": 1
+        },
+        "21": {
+          "successes": 0,
+          "failures": 1
+        },
+        "22": {
+          "successes": 0,
+          "failures": 1
+        },
+        "23": {
+          "successes": 0,
+          "failures": 1
+        },
+        "24": {
+          "successes": 0,
+          "failures": 1
+        },
+        "25": {
+          "successes": 0,
+          "failures": 1
+        },
+        "26": {
+          "successes": 0,
+          "failures": 1
+        },
+        "27": {
+          "successes": 0,
+          "failures": 1
+        },
+        "28": {
+          "successes": 0,
+          "failures": 1
+        },
+        "29": {
+          "successes": 0,
+          "failures": 1
+        },
+        "30": {
+          "successes": 0,
+          "failures": 1
+        },
+        "31": {
+          "successes": 4,
+          "failures": 3
+        },
+        "32": {
+          "successes": 0,
+          "failures": 1
+        },
+        "33": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "cloudflare-ech.com": {
+        "1": {
+          "successes": 14,
+          "failures": 3
+        },
+        "2": {
+          "successes": 2,
+          "failures": 3
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        },
+        "4": {
+          "successes": 2,
+          "failures": 2
+        },
+        "5": {
+          "successes": 0,
+          "failures": 2
+        },
+        "6": {
+          "successes": 0,
+          "failures": 2
+        },
+        "7": {
+          "successes": 0,
+          "failures": 2
+        },
+        "8": {
+          "successes": 0,
+          "failures": 2
+        },
+        "9": {
+          "successes": 0,
+          "failures": 2
+        },
+        "10": {
+          "successes": 0,
+          "failures": 2
+        },
+        "11": {
+          "successes": 0,
+          "failures": 2
+        },
+        "12": {
+          "successes": 0,
+          "failures": 2
+        },
+        "13": {
+          "successes": 2,
+          "failures": 2
+        },
+        "14": {
+          "successes": 0,
+          "failures": 2
+        },
+        "15": {
+          "successes": 6,
+          "failures": 4
+        },
+        "16": {
+          "successes": 0,
+          "failures": 2
+        },
+        "17": {
+          "successes": 0,
+          "failures": 2
+        },
+        "18": {
+          "successes": 1,
+          "failures": 2
+        },
+        "19": {
+          "successes": 0,
+          "failures": 2
+        },
+        "20": {
+          "successes": 0,
+          "failures": 2
+        },
+        "21": {
+          "successes": 0,
+          "failures": 2
+        },
+        "22": {
+          "successes": 0,
+          "failures": 2
+        },
+        "23": {
+          "successes": 0,
+          "failures": 2
+        },
+        "24": {
+          "successes": 0,
+          "failures": 2
+        },
+        "25": {
+          "successes": 0,
+          "failures": 2
+        },
+        "26": {
+          "successes": 0,
+          "failures": 2
+        },
+        "27": {
+          "successes": 0,
+          "failures": 2
+        },
+        "28": {
+          "successes": 0,
+          "failures": 2
+        },
+        "29": {
+          "successes": 0,
+          "failures": 2
+        },
+        "30": {
+          "successes": 0,
+          "failures": 2
+        },
+        "31": {
+          "successes": 0,
+          "failures": 1
+        },
+        "32": {
+          "successes": 0,
+          "failures": 1
+        },
+        "33": {
+          "successes": 2,
+          "failures": 1
+        },
+        "34": {
+          "successes": 0,
+          "failures": 1
+        },
+        "35": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "discord.gg": {
+        "2": {
+          "successes": 4,
+          "failures": 3
+        },
+        "3": {
+          "successes": 1,
+          "failures": 3
+        },
+        "4": {
+          "successes": 0,
+          "failures": 2
+        },
+        "5": {
+          "successes": 5,
+          "failures": 0
+        }
+      },
+      "amazonaws.com": {
+        "2": {
+          "successes": 39,
+          "failures": 1
+        },
+        "3": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "notionusercontent.com": {
+        "1": {
+          "successes": 5,
+          "failures": 6
+        },
+        "2": {
+          "successes": 2,
+          "failures": 3
+        },
+        "3": {
+          "successes": 3,
+          "failures": 2
+        },
+        "4": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "discordapp.com": {
+        "2": {
+          "successes": 0,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 4,
+          "failures": 0
+        }
+      },
+      "telegram.org": {
+        "2": {
+          "successes": 5,
+          "failures": 4
+        },
+        "3": {
+          "successes": 2,
+          "failures": 3
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "googlevideo.com": {
+        "2": {
+          "successes": 17,
+          "failures": 35
+        },
+        "3": {
+          "successes": 7,
+          "failures": 10
+        },
+        "4": {
+          "successes": 3,
+          "failures": 5
+        },
+        "5": {
+          "successes": 0,
+          "failures": 4
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 2,
+          "failures": 1
+        }
+      },
+      "youtube.com": {
+        "2": {
+          "successes": 20,
+          "failures": 32
+        },
+        "3": {
+          "successes": 6,
+          "failures": 9
+        },
+        "4": {
+          "successes": 2,
+          "failures": 10
+        },
+        "5": {
+          "successes": 0,
+          "failures": 7
+        },
+        "6": {
+          "successes": 0,
+          "failures": 5
+        },
+        "7": {
+          "successes": 0,
+          "failures": 5
+        },
+        "8": {
+          "successes": 8,
+          "failures": 6
+        },
+        "9": {
+          "successes": 0,
+          "failures": 4
+        },
+        "10": {
+          "successes": 1,
+          "failures": 3
+        }
+      },
+      "youtu.be": {
+        "2": {
+          "successes": 0,
+          "failures": 2
+        },
+        "3": {
+          "successes": 1,
+          "failures": 2
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 1,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "notion.com": {
+        "1": {
+          "successes": 12,
+          "failures": 15
+        },
+        "2": {
+          "successes": 2,
+          "failures": 7
+        },
+        "3": {
+          "successes": 3,
+          "failures": 5
+        },
+        "4": {
+          "successes": 2,
+          "failures": 5
+        },
+        "5": {
+          "successes": 1,
+          "failures": 5
+        },
+        "6": {
+          "successes": 0,
+          "failures": 4
+        },
+        "7": {
+          "successes": 0,
+          "failures": 4
+        },
+        "8": {
+          "successes": 0,
+          "failures": 4
+        },
+        "9": {
+          "successes": 0,
+          "failures": 4
+        },
+        "10": {
+          "successes": 0,
+          "failures": 4
+        },
+        "11": {
+          "successes": 0,
+          "failures": 4
+        },
+        "12": {
+          "successes": 0,
+          "failures": 4
+        },
+        "13": {
+          "successes": 1,
+          "failures": 4
+        },
+        "14": {
+          "successes": 0,
+          "failures": 4
+        },
+        "15": {
+          "successes": 0,
+          "failures": 4
+        },
+        "16": {
+          "successes": 0,
+          "failures": 4
+        },
+        "17": {
+          "successes": 0,
+          "failures": 4
+        },
+        "18": {
+          "successes": 0,
+          "failures": 4
+        },
+        "19": {
+          "successes": 0,
+          "failures": 4
+        },
+        "20": {
+          "successes": 0,
+          "failures": 4
+        },
+        "21": {
+          "successes": 0,
+          "failures": 4
+        },
+        "22": {
+          "successes": 0,
+          "failures": 4
+        },
+        "23": {
+          "successes": 0,
+          "failures": 4
+        },
+        "24": {
+          "successes": 0,
+          "failures": 4
+        },
+        "25": {
+          "successes": 0,
+          "failures": 4
+        },
+        "26": {
+          "successes": 0,
+          "failures": 4
+        },
+        "27": {
+          "successes": 0,
+          "failures": 4
+        },
+        "28": {
+          "successes": 0,
+          "failures": 4
+        },
+        "29": {
+          "successes": 0,
+          "failures": 4
+        },
+        "30": {
+          "successes": 2,
+          "failures": 4
+        },
+        "31": {
+          "successes": 0,
+          "failures": 4
+        },
+        "32": {
+          "successes": 0,
+          "failures": 4
+        },
+        "33": {
+          "successes": 2,
+          "failures": 4
+        },
+        "34": {
+          "successes": 0,
+          "failures": 4
+        },
+        "35": {
+          "successes": 2,
+          "failures": 3
+        },
+        "36": {
+          "successes": 1,
+          "failures": 3
+        },
+        "37": {
+          "successes": 0,
+          "failures": 3
+        },
+        "38": {
+          "successes": 0,
+          "failures": 3
+        },
+        "39": {
+          "successes": 0,
+          "failures": 3
+        },
+        "40": {
+          "successes": 0,
+          "failures": 3
+        },
+        "41": {
+          "successes": 0,
+          "failures": 3
+        },
+        "42": {
+          "successes": 0,
+          "failures": 3
+        },
+        "43": {
+          "successes": 0,
+          "failures": 3
+        },
+        "44": {
+          "successes": 0,
+          "failures": 3
+        },
+        "45": {
+          "successes": 0,
+          "failures": 3
+        },
+        "46": {
+          "successes": 0,
+          "failures": 3
+        },
+        "47": {
+          "successes": 0,
+          "failures": 3
+        },
+        "48": {
+          "successes": 0,
+          "failures": 3
+        },
+        "49": {
+          "successes": 0,
+          "failures": 3
+        },
+        "50": {
+          "successes": 0,
+          "failures": 3
+        },
+        "51": {
+          "successes": 0,
+          "failures": 3
+        },
+        "52": {
+          "successes": 0,
+          "failures": 3
+        },
+        "53": {
+          "successes": 0,
+          "failures": 3
+        },
+        "54": {
+          "successes": 0,
+          "failures": 3
+        },
+        "55": {
+          "successes": 0,
+          "failures": 3
+        },
+        "56": {
+          "successes": 0,
+          "failures": 3
+        },
+        "57": {
+          "successes": 0,
+          "failures": 3
+        },
+        "58": {
+          "successes": 0,
+          "failures": 3
+        },
+        "59": {
+          "successes": 0,
+          "failures": 3
+        },
+        "60": {
+          "successes": 0,
+          "failures": 3
+        },
+        "61": {
+          "successes": 0,
+          "failures": 3
+        },
+        "62": {
+          "successes": 0,
+          "failures": 3
+        },
+        "63": {
+          "successes": 0,
+          "failures": 3
+        },
+        "64": {
+          "successes": 0,
+          "failures": 3
+        },
+        "65": {
+          "successes": 0,
+          "failures": 3
+        },
+        "66": {
+          "successes": 1,
+          "failures": 3
+        },
+        "67": {
+          "successes": 0,
+          "failures": 3
+        },
+        "68": {
+          "successes": 0,
+          "failures": 2
+        },
+        "69": {
+          "successes": 0,
+          "failures": 2
+        },
+        "70": {
+          "successes": 0,
+          "failures": 2
+        },
+        "71": {
+          "successes": 0,
+          "failures": 2
+        },
+        "72": {
+          "successes": 0,
+          "failures": 2
+        },
+        "73": {
+          "successes": 0,
+          "failures": 2
+        },
+        "74": {
+          "successes": 0,
+          "failures": 2
+        },
+        "75": {
+          "successes": 0,
+          "failures": 2
+        },
+        "76": {
+          "successes": 0,
+          "failures": 2
+        },
+        "77": {
+          "successes": 0,
+          "failures": 2
+        },
+        "78": {
+          "successes": 0,
+          "failures": 2
+        },
+        "79": {
+          "successes": 0,
+          "failures": 2
+        },
+        "80": {
+          "successes": 0,
+          "failures": 2
+        },
+        "81": {
+          "successes": 0,
+          "failures": 2
+        },
+        "82": {
+          "successes": 0,
+          "failures": 2
+        },
+        "83": {
+          "successes": 0,
+          "failures": 2
+        },
+        "84": {
+          "successes": 0,
+          "failures": 2
+        },
+        "85": {
+          "successes": 0,
+          "failures": 2
+        },
+        "86": {
+          "successes": 0,
+          "failures": 2
+        },
+        "87": {
+          "successes": 0,
+          "failures": 2
+        },
+        "88": {
+          "successes": 0,
+          "failures": 2
+        },
+        "89": {
+          "successes": 0,
+          "failures": 2
+        },
+        "90": {
+          "successes": 0,
+          "failures": 2
+        },
+        "91": {
+          "successes": 0,
+          "failures": 2
+        },
+        "92": {
+          "successes": 0,
+          "failures": 2
+        },
+        "93": {
+          "successes": 0,
+          "failures": 2
+        },
+        "94": {
+          "successes": 4,
+          "failures": 4
+        },
+        "95": {
+          "successes": 0,
+          "failures": 2
+        },
+        "96": {
+          "successes": 0,
+          "failures": 2
+        },
+        "97": {
+          "successes": 0,
+          "failures": 2
+        },
+        "98": {
+          "successes": 0,
+          "failures": 2
+        },
+        "99": {
+          "successes": 0,
+          "failures": 2
+        },
+        "100": {
+          "successes": 0,
+          "failures": 2
+        },
+        "101": {
+          "successes": 0,
+          "failures": 2
+        },
+        "102": {
+          "successes": 0,
+          "failures": 2
+        },
+        "103": {
+          "successes": 0,
+          "failures": 2
+        },
+        "104": {
+          "successes": 0,
+          "failures": 2
+        },
+        "105": {
+          "successes": 0,
+          "failures": 2
+        },
+        "106": {
+          "successes": 0,
+          "failures": 2
+        },
+        "107": {
+          "successes": 0,
+          "failures": 2
+        },
+        "108": {
+          "successes": 0,
+          "failures": 2
+        },
+        "109": {
+          "successes": 0,
+          "failures": 2
+        },
+        "110": {
+          "successes": 0,
+          "failures": 2
+        },
+        "111": {
+          "successes": 0,
+          "failures": 2
+        },
+        "112": {
+          "successes": 0,
+          "failures": 2
+        },
+        "113": {
+          "successes": 2,
+          "failures": 2
+        },
+        "114": {
+          "successes": 0,
+          "failures": 2
+        },
+        "115": {
+          "successes": 0,
+          "failures": 2
+        },
+        "116": {
+          "successes": 0,
+          "failures": 2
+        },
+        "117": {
+          "successes": 0,
+          "failures": 2
+        },
+        "118": {
+          "successes": 0,
+          "failures": 2
+        },
+        "119": {
+          "successes": 0,
+          "failures": 2
+        },
+        "120": {
+          "successes": 0,
+          "failures": 2
+        },
+        "121": {
+          "successes": 0,
+          "failures": 2
+        },
+        "122": {
+          "successes": 8,
+          "failures": 5
+        },
+        "123": {
+          "successes": 0,
+          "failures": 2
+        },
+        "124": {
+          "successes": 0,
+          "failures": 2
+        },
+        "125": {
+          "successes": 0,
+          "failures": 2
+        },
+        "126": {
+          "successes": 0,
+          "failures": 2
+        },
+        "127": {
+          "successes": 0,
+          "failures": 2
+        },
+        "128": {
+          "successes": 0,
+          "failures": 2
+        },
+        "129": {
+          "successes": 0,
+          "failures": 2
+        },
+        "130": {
+          "successes": 0,
+          "failures": 2
+        },
+        "131": {
+          "successes": 0,
+          "failures": 2
+        },
+        "132": {
+          "successes": 0,
+          "failures": 2
+        },
+        "133": {
+          "successes": 0,
+          "failures": 2
+        },
+        "134": {
+          "successes": 1,
+          "failures": 2
+        },
+        "135": {
+          "successes": 0,
+          "failures": 2
+        },
+        "136": {
+          "successes": 0,
+          "failures": 2
+        },
+        "137": {
+          "successes": 0,
+          "failures": 1
+        },
+        "138": {
+          "successes": 0,
+          "failures": 1
+        },
+        "139": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "cloudflare.com": {
+        "2": {
+          "successes": 61,
+          "failures": 4
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 2,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 1,
+          "failures": 1
+        },
+        "12": {
+          "successes": 13,
+          "failures": 1
+        }
+      },
+      "ytimg.com": {
+        "2": {
+          "successes": 5,
+          "failures": 31
+        },
+        "3": {
+          "successes": 0,
+          "failures": 3
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 1,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 1,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 1,
+          "failures": 1
+        },
+        "11": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "rutracker.org": {
+        "2": {
+          "successes": 1,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 5,
+          "failures": 1
+        }
+      },
+      "battle.net": {
+        "1": {
+          "successes": 72,
+          "failures": 9
+        },
+        "2": {
+          "successes": 4,
+          "failures": 6
+        },
+        "3": {
+          "successes": 0,
+          "failures": 3
+        },
+        "4": {
+          "successes": 0,
+          "failures": 3
+        },
+        "5": {
+          "successes": 0,
+          "failures": 3
+        },
+        "6": {
+          "successes": 0,
+          "failures": 3
+        },
+        "7": {
+          "successes": 0,
+          "failures": 3
+        },
+        "8": {
+          "successes": 0,
+          "failures": 3
+        },
+        "9": {
+          "successes": 0,
+          "failures": 3
+        },
+        "10": {
+          "successes": 0,
+          "failures": 3
+        },
+        "11": {
+          "successes": 0,
+          "failures": 3
+        },
+        "12": {
+          "successes": 0,
+          "failures": 3
+        },
+        "13": {
+          "successes": 0,
+          "failures": 2
+        },
+        "14": {
+          "successes": 0,
+          "failures": 2
+        },
+        "15": {
+          "successes": 0,
+          "failures": 2
+        },
+        "16": {
+          "successes": 0,
+          "failures": 2
+        },
+        "17": {
+          "successes": 0,
+          "failures": 2
+        },
+        "18": {
+          "successes": 0,
+          "failures": 2
+        },
+        "19": {
+          "successes": 0,
+          "failures": 2
+        },
+        "20": {
+          "successes": 0,
+          "failures": 2
+        },
+        "21": {
+          "successes": 0,
+          "failures": 2
+        },
+        "22": {
+          "successes": 0,
+          "failures": 2
+        },
+        "23": {
+          "successes": 0,
+          "failures": 2
+        },
+        "24": {
+          "successes": 0,
+          "failures": 2
+        },
+        "25": {
+          "successes": 0,
+          "failures": 2
+        },
+        "26": {
+          "successes": 0,
+          "failures": 2
+        },
+        "27": {
+          "successes": 0,
+          "failures": 2
+        },
+        "28": {
+          "successes": 0,
+          "failures": 2
+        },
+        "29": {
+          "successes": 0,
+          "failures": 2
+        },
+        "30": {
+          "successes": 0,
+          "failures": 2
+        },
+        "31": {
+          "successes": 0,
+          "failures": 2
+        },
+        "32": {
+          "successes": 0,
+          "failures": 2
+        },
+        "33": {
+          "successes": 0,
+          "failures": 2
+        },
+        "34": {
+          "successes": 0,
+          "failures": 2
+        },
+        "35": {
+          "successes": 0,
+          "failures": 2
+        },
+        "36": {
+          "successes": 0,
+          "failures": 2
+        },
+        "37": {
+          "successes": 0,
+          "failures": 2
+        },
+        "38": {
+          "successes": 0,
+          "failures": 2
+        },
+        "39": {
+          "successes": 0,
+          "failures": 2
+        },
+        "40": {
+          "successes": 0,
+          "failures": 2
+        },
+        "41": {
+          "successes": 0,
+          "failures": 2
+        },
+        "42": {
+          "successes": 0,
+          "failures": 2
+        },
+        "43": {
+          "successes": 0,
+          "failures": 2
+        },
+        "44": {
+          "successes": 0,
+          "failures": 2
+        },
+        "45": {
+          "successes": 0,
+          "failures": 2
+        },
+        "46": {
+          "successes": 0,
+          "failures": 2
+        },
+        "47": {
+          "successes": 0,
+          "failures": 1
+        },
+        "48": {
+          "successes": 0,
+          "failures": 1
+        },
+        "49": {
+          "successes": 0,
+          "failures": 1
+        },
+        "50": {
+          "successes": 0,
+          "failures": 1
+        },
+        "51": {
+          "successes": 0,
+          "failures": 1
+        },
+        "52": {
+          "successes": 0,
+          "failures": 1
+        },
+        "53": {
+          "successes": 0,
+          "failures": 1
+        },
+        "54": {
+          "successes": 0,
+          "failures": 1
+        },
+        "55": {
+          "successes": 0,
+          "failures": 1
+        },
+        "56": {
+          "successes": 0,
+          "failures": 1
+        },
+        "57": {
+          "successes": 0,
+          "failures": 1
+        },
+        "58": {
+          "successes": 0,
+          "failures": 1
+        },
+        "59": {
+          "successes": 0,
+          "failures": 1
+        },
+        "60": {
+          "successes": 0,
+          "failures": 1
+        },
+        "61": {
+          "successes": 0,
+          "failures": 1
+        },
+        "62": {
+          "successes": 0,
+          "failures": 1
+        },
+        "63": {
+          "successes": 0,
+          "failures": 1
+        },
+        "64": {
+          "successes": 0,
+          "failures": 1
+        },
+        "65": {
+          "successes": 0,
+          "failures": 1
+        },
+        "66": {
+          "successes": 0,
+          "failures": 1
+        },
+        "67": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "x.com": {
+        "2": {
+          "successes": 0,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "spotify.com": {
+        "2": {
+          "successes": 13,
+          "failures": 9
+        },
+        "3": {
+          "successes": 4,
+          "failures": 2
+        }
+      },
+      "dns.google": {
+        "1": {
+          "successes": 20,
+          "failures": 0
+        }
+      },
+      "googleapis.com": {
+        "2": {
+          "successes": 20,
+          "failures": 107
+        },
+        "3": {
+          "successes": 1,
+          "failures": 3
+        },
+        "4": {
+          "successes": 13,
+          "failures": 5
+        },
+        "5": {
+          "successes": 1,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 8,
+          "failures": 1
+        }
+      },
+      "nvidia.com": {
+        "1": {
+          "successes": 11,
+          "failures": 9
+        },
+        "2": {
+          "successes": 7,
+          "failures": 8
+        },
+        "3": {
+          "successes": 3,
+          "failures": 6
+        },
+        "4": {
+          "successes": 4,
+          "failures": 5
+        },
+        "5": {
+          "successes": 1,
+          "failures": 2
+        },
+        "6": {
+          "successes": 1,
+          "failures": 2
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 1,
+          "failures": 1
+        },
+        "12": {
+          "successes": 0,
+          "failures": 1
+        },
+        "13": {
+          "successes": 0,
+          "failures": 1
+        },
+        "14": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "office.net": {
+        "1": {
+          "successes": 6,
+          "failures": 3
+        },
+        "2": {
+          "successes": 7,
+          "failures": 4
+        },
+        "3": {
+          "successes": 48,
+          "failures": 3
+        }
+      },
+      "lencr.org": {
+        "1": {
+          "successes": 2,
+          "failures": 3
+        },
+        "2": {
+          "successes": 0,
+          "failures": 3
+        },
+        "3": {
+          "successes": 0,
+          "failures": 3
+        },
+        "4": {
+          "successes": 0,
+          "failures": 3
+        },
+        "5": {
+          "successes": 0,
+          "failures": 2
+        },
+        "6": {
+          "successes": 0,
+          "failures": 2
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 0,
+          "failures": 1
+        },
+        "12": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "pki.goog": {
+        "1": {
+          "successes": 0,
+          "failures": 3
+        },
+        "2": {
+          "successes": 0,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        }
+      },
+      "discord.media": {
+        "2": {
+          "successes": 5,
+          "failures": 3
+        }
+      },
+      "104.29.0.0": {
+        "1": {
+          "successes": 60,
+          "failures": 0
+        }
+      },
+      "239.255.0.0": {
+        "1": {
+          "successes": 0,
+          "failures": 21
+        },
+        "2": {
+          "successes": 0,
+          "failures": 18
+        },
+        "3": {
+          "successes": 0,
+          "failures": 18
+        },
+        "4": {
+          "successes": 0,
+          "failures": 18
+        },
+        "5": {
+          "successes": 0,
+          "failures": 18
+        },
+        "6": {
+          "successes": 0,
+          "failures": 18
+        },
+        "7": {
+          "successes": 0,
+          "failures": 18
+        },
+        "8": {
+          "successes": 0,
+          "failures": 18
+        },
+        "9": {
+          "successes": 0,
+          "failures": 18
+        },
+        "10": {
+          "successes": 0,
+          "failures": 18
+        },
+        "11": {
+          "successes": 0,
+          "failures": 18
+        },
+        "12": {
+          "successes": 0,
+          "failures": 18
+        },
+        "13": {
+          "successes": 0,
+          "failures": 17
+        },
+        "14": {
+          "successes": 0,
+          "failures": 17
+        },
+        "15": {
+          "successes": 0,
+          "failures": 15
+        },
+        "16": {
+          "successes": 0,
+          "failures": 14
+        },
+        "17": {
+          "successes": 0,
+          "failures": 12
+        },
+        "18": {
+          "successes": 0,
+          "failures": 12
+        },
+        "19": {
+          "successes": 0,
+          "failures": 12
+        },
+        "20": {
+          "successes": 0,
+          "failures": 12
+        },
+        "21": {
+          "successes": 0,
+          "failures": 13
+        },
+        "22": {
+          "successes": 0,
+          "failures": 12
+        },
+        "23": {
+          "successes": 0,
+          "failures": 9
+        },
+        "24": {
+          "successes": 0,
+          "failures": 9
+        },
+        "25": {
+          "successes": 0,
+          "failures": 9
+        },
+        "26": {
+          "successes": 0,
+          "failures": 9
+        },
+        "27": {
+          "successes": 0,
+          "failures": 9
+        },
+        "28": {
+          "successes": 0,
+          "failures": 9
+        },
+        "29": {
+          "successes": 0,
+          "failures": 9
+        },
+        "30": {
+          "successes": 0,
+          "failures": 9
+        },
+        "31": {
+          "successes": 0,
+          "failures": 9
+        },
+        "32": {
+          "successes": 0,
+          "failures": 9
+        },
+        "33": {
+          "successes": 0,
+          "failures": 9
+        },
+        "34": {
+          "successes": 0,
+          "failures": 9
+        },
+        "35": {
+          "successes": 0,
+          "failures": 9
+        },
+        "36": {
+          "successes": 0,
+          "failures": 9
+        },
+        "37": {
+          "successes": 0,
+          "failures": 9
+        },
+        "38": {
+          "successes": 0,
+          "failures": 9
+        },
+        "39": {
+          "successes": 0,
+          "failures": 9
+        },
+        "40": {
+          "successes": 0,
+          "failures": 9
+        },
+        "41": {
+          "successes": 0,
+          "failures": 9
+        },
+        "42": {
+          "successes": 0,
+          "failures": 9
+        },
+        "43": {
+          "successes": 0,
+          "failures": 9
+        },
+        "44": {
+          "successes": 0,
+          "failures": 9
+        },
+        "45": {
+          "successes": 0,
+          "failures": 9
+        },
+        "46": {
+          "successes": 0,
+          "failures": 9
+        },
+        "47": {
+          "successes": 0,
+          "failures": 9
+        },
+        "48": {
+          "successes": 0,
+          "failures": 9
+        },
+        "49": {
+          "successes": 0,
+          "failures": 9
+        },
+        "50": {
+          "successes": 0,
+          "failures": 10
+        },
+        "51": {
+          "successes": 0,
+          "failures": 9
+        },
+        "52": {
+          "successes": 0,
+          "failures": 9
+        },
+        "53": {
+          "successes": 0,
+          "failures": 9
+        },
+        "54": {
+          "successes": 0,
+          "failures": 9
+        },
+        "55": {
+          "successes": 0,
+          "failures": 9
+        },
+        "56": {
+          "successes": 0,
+          "failures": 9
+        },
+        "57": {
+          "successes": 0,
+          "failures": 9
+        },
+        "58": {
+          "successes": 0,
+          "failures": 9
+        },
+        "59": {
+          "successes": 0,
+          "failures": 9
+        },
+        "60": {
+          "successes": 0,
+          "failures": 9
+        },
+        "61": {
+          "successes": 0,
+          "failures": 9
+        },
+        "62": {
+          "successes": 0,
+          "failures": 9
+        },
+        "63": {
+          "successes": 0,
+          "failures": 9
+        },
+        "64": {
+          "successes": 0,
+          "failures": 9
+        },
+        "65": {
+          "successes": 0,
+          "failures": 9
+        },
+        "66": {
+          "successes": 0,
+          "failures": 9
+        },
+        "67": {
+          "successes": 0,
+          "failures": 9
+        }
+      },
+      "twitch.tv": {
+        "2": {
+          "successes": 42,
+          "failures": 13
+        },
+        "3": {
+          "successes": 59,
+          "failures": 5
+        },
+        "4": {
+          "successes": 3,
+          "failures": 4
+        },
+        "5": {
+          "successes": 3,
+          "failures": 3
+        },
+        "6": {
+          "successes": 2,
+          "failures": 1
+        },
+        "7": {
+          "successes": 1,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "cloud.microsoft": {
+        "1": {
+          "successes": 3,
+          "failures": 3
+        },
+        "2": {
+          "successes": 9,
+          "failures": 4
+        },
+        "3": {
+          "successes": 36,
+          "failures": 2
+        }
+      },
+      "gamepass.com": {
+        "1": {
+          "successes": 6,
+          "failures": 3
+        },
+        "2": {
+          "successes": 4,
+          "failures": 3
+        },
+        "3": {
+          "successes": 16,
+          "failures": 10
+        },
+        "4": {
+          "successes": 2,
+          "failures": 2
+        },
+        "5": {
+          "successes": 2,
+          "failures": 1
+        },
+        "6": {
+          "successes": 2,
+          "failures": 1
+        },
+        "7": {
+          "successes": 1,
+          "failures": 1
+        },
+        "8": {
+          "successes": 1,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 1,
+          "failures": 1
+        },
+        "12": {
+          "successes": 1,
+          "failures": 1
+        },
+        "13": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "7tv.io": {
+        "1": {
+          "successes": 2,
+          "failures": 4
+        },
+        "2": {
+          "successes": 1,
+          "failures": 4
+        },
+        "3": {
+          "successes": 224,
+          "failures": 18
+        },
+        "4": {
+          "successes": 0,
+          "failures": 3
+        },
+        "5": {
+          "successes": 3,
+          "failures": 3
+        },
+        "6": {
+          "successes": 7,
+          "failures": 5
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 13,
+          "failures": 2
+        }
+      },
+      "7tv.app": {
+        "1": {
+          "successes": 1,
+          "failures": 4
+        },
+        "2": {
+          "successes": 1,
+          "failures": 1
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "ovh.net": {
+        "1": {
+          "successes": 0,
+          "failures": 1
+        },
+        "2": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "industrialport.net": {
+        "1": {
+          "successes": 0,
+          "failures": 1
+        },
+        "2": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "audioeye.com": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "windowsupdate.com": {
+        "1": {
+          "successes": 0,
+          "failures": 3
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "getmilana.ai": {
+        "1": {
+          "successes": 7,
+          "failures": 2
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "discord voice": {
+        "2": {
+          "successes": 4,
+          "failures": 0
+        }
+      },
+      "blizzard.com": {
+        "1": {
+          "successes": 56,
+          "failures": 0
+        }
+      },
+      "akamaized.net": {
+        "1": {
+          "successes": 7,
+          "failures": 0
+        }
+      },
+      "notion.so": {
+        "1": {
+          "successes": 2,
+          "failures": 3
+        },
+        "2": {
+          "successes": 1,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "steampowered.com": {
+        "1": {
+          "successes": 14,
+          "failures": 3
+        },
+        "2": {
+          "successes": 0,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "xboxlive.com": {
+        "1": {
+          "successes": 20,
+          "failures": 6
+        },
+        "2": {
+          "successes": 2,
+          "failures": 2
+        },
+        "3": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "epicgames.com": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "epicgames.dev": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        },
+        "2": {
+          "successes": 1,
+          "failures": 1
+        },
+        "3": {
+          "successes": 2,
+          "failures": 1
+        },
+        "4": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "github.com": {
+        "1": {
+          "successes": 31,
+          "failures": 3
+        },
+        "2": {
+          "successes": 5,
+          "failures": 3
+        },
+        "3": {
+          "successes": 35,
+          "failures": 4
+        },
+        "4": {
+          "successes": 0,
+          "failures": 2
+        },
+        "5": {
+          "successes": 1,
+          "failures": 2
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "steaminventoryhelper.com": {
+        "1": {
+          "successes": 18,
+          "failures": 8
+        },
+        "2": {
+          "successes": 1,
+          "failures": 4
+        },
+        "3": {
+          "successes": 1,
+          "failures": 3
+        },
+        "4": {
+          "successes": 1,
+          "failures": 3
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "steamcommunity.com": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        },
+        "2": {
+          "successes": 37,
+          "failures": 26
+        },
+        "3": {
+          "successes": 8,
+          "failures": 5
+        },
+        "4": {
+          "successes": 0,
+          "failures": 2
+        },
+        "5": {
+          "successes": 2,
+          "failures": 2
+        },
+        "6": {
+          "successes": 1,
+          "failures": 1
+        },
+        "7": {
+          "successes": 2,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 11,
+          "failures": 6
+        }
+      },
+      "155.133.0.0": {
+        "1": {
+          "successes": 11,
+          "failures": 0
+        }
+      },
+      "162.254.0.0": {
+        "1": {
+          "successes": 8,
+          "failures": 0
+        }
+      },
+      "103.28.0.0": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "185.25.0.0": {
+        "1": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "103.10.0.0": {
+        "1": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "146.66.0.0": {
+        "1": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "205.196.0.0": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "45.121.0.0": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "bhvrdbd.com": {
+        "1": {
+          "successes": 0,
+          "failures": 1
+        },
+        "2": {
+          "successes": 12,
+          "failures": 0
+        }
+      },
+      "3.249.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "13.215.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "52.64.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "15.164.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "52.28.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "54.95.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "3.88.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "56.125.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "43.198.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "44.248.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "18.217.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "15.157.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "13.57.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "18.133.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "3.6.0.0": {
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "geforce.com": {
+        "1": {
+          "successes": 2,
+          "failures": 3
+        },
+        "2": {
+          "successes": 2,
+          "failures": 2
+        },
+        "3": {
+          "successes": 1,
+          "failures": 1
+        },
+        "4": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "bingapis.com": {
+        "1": {
+          "successes": 3,
+          "failures": 3
+        },
+        "2": {
+          "successes": 3,
+          "failures": 3
+        }
+      },
+      "githubassets.com": {
+        "1": {
+          "successes": 18,
+          "failures": 3
+        },
+        "2": {
+          "successes": 6,
+          "failures": 1
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "githubusercontent.com": {
+        "1": {
+          "successes": 6,
+          "failures": 8
+        },
+        "2": {
+          "successes": 5,
+          "failures": 4
+        },
+        "3": {
+          "successes": 0,
+          "failures": 3
+        },
+        "4": {
+          "successes": 1,
+          "failures": 2
+        },
+        "5": {
+          "successes": 0,
+          "failures": 2
+        },
+        "6": {
+          "successes": 2,
+          "failures": 2
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "bing.com": {
+        "1": {
+          "successes": 11,
+          "failures": 3
+        },
+        "2": {
+          "successes": 3,
+          "failures": 3
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        },
+        "4": {
+          "successes": 1,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 1,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "scorecardresearch.com": {
+        "1": {
+          "successes": 2,
+          "failures": 2
+        },
+        "2": {
+          "successes": 1,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "msn.com": {
+        "1": {
+          "successes": 14,
+          "failures": 5
+        },
+        "2": {
+          "successes": 14,
+          "failures": 8
+        },
+        "3": {
+          "successes": 6,
+          "failures": 3
+        },
+        "4": {
+          "successes": 4,
+          "failures": 3
+        },
+        "5": {
+          "successes": 0,
+          "failures": 3
+        },
+        "6": {
+          "successes": 0,
+          "failures": 2
+        },
+        "7": {
+          "successes": 13,
+          "failures": 10
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 0,
+          "failures": 1
+        },
+        "12": {
+          "successes": 0,
+          "failures": 1
+        },
+        "13": {
+          "successes": 0,
+          "failures": 1
+        },
+        "14": {
+          "successes": 2,
+          "failures": 1
+        },
+        "15": {
+          "successes": 4,
+          "failures": 2
+        }
+      },
+      "cloudfront.net": {
+        "1": {
+          "successes": 4,
+          "failures": 1
+        }
+      },
+      "localizeapi.com": {
+        "1": {
+          "successes": 4,
+          "failures": 1
+        }
+      },
+      "steamdb.info": {
+        "1": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "website-files.com": {
+        "1": {
+          "successes": 2,
+          "failures": 1
+        }
+      },
+      "onetrust.com": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "vknext.net": {
+        "1": {
+          "successes": 3,
+          "failures": 1
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "betterttv.net": {
+        "1": {
+          "successes": 6,
+          "failures": 6
+        },
+        "2": {
+          "successes": 0,
+          "failures": 3
+        },
+        "3": {
+          "successes": 1,
+          "failures": 3
+        },
+        "4": {
+          "successes": 1,
+          "failures": 3
+        },
+        "5": {
+          "successes": 2,
+          "failures": 2
+        },
+        "6": {
+          "successes": 1,
+          "failures": 2
+        },
+        "7": {
+          "successes": 1,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "twitchcdn.net": {
+        "2": {
+          "successes": 4,
+          "failures": 1
+        },
+        "3": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "ttvnw.net": {
+        "1": {
+          "successes": 3,
+          "failures": 2
+        },
+        "2": {
+          "successes": 1,
+          "failures": 1
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 1,
+          "failures": 1
+        },
+        "12": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "live-video.net": {
+        "1": {
+          "successes": 17,
+          "failures": 4
+        },
+        "2": {
+          "successes": 3,
+          "failures": 2
+        },
+        "3": {
+          "successes": 2,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "frankerfacez.com": {
+        "1": {
+          "successes": 1,
+          "failures": 2
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        },
+        "3": {
+          "successes": 1,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "jtvnw.net": {
+        "1": {
+          "successes": 5,
+          "failures": 2
+        },
+        "2": {
+          "successes": 1,
+          "failures": 2
+        },
+        "3": {
+          "successes": 1,
+          "failures": 2
+        },
+        "4": {
+          "successes": 1,
+          "failures": 2
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 5,
+          "failures": 2
+        }
+      },
+      "gstatic.com": {
+        "2": {
+          "successes": 12,
+          "failures": 7
+        },
+        "3": {
+          "successes": 1,
+          "failures": 2
+        },
+        "4": {
+          "successes": 1,
+          "failures": 2
+        }
+      },
+      "yastatic.net": {
+        "1": {
+          "successes": 9,
+          "failures": 1
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        },
+        "3": {
+          "successes": 1,
+          "failures": 1
+        },
+        "4": {
+          "successes": 9,
+          "failures": 5
+        }
+      },
+      "returnyoutubedislikeapi.com": {
+        "1": {
+          "successes": 9,
+          "failures": 3
+        },
+        "2": {
+          "successes": 0,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "azureedge.net": {
+        "1": {
+          "successes": 5,
+          "failures": 1
+        }
+      },
+      "splunkcloud.com": {
+        "1": {
+          "successes": 8,
+          "failures": 2
+        },
+        "2": {
+          "successes": 2,
+          "failures": 2
+        },
+        "3": {
+          "successes": 1,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 1,
+          "failures": 1
+        },
+        "6": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "bitwarden.com": {
+        "1": {
+          "successes": 7,
+          "failures": 2
+        },
+        "2": {
+          "successes": 2,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "gist.build": {
+        "1": {
+          "successes": 35,
+          "failures": 0
+        }
+      },
+      "windows.com": {
+        "1": {
+          "successes": 125,
+          "failures": 2
+        },
+        "2": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "ggpht.com": {
+        "2": {
+          "successes": 2,
+          "failures": 8
+        }
+      },
+      "steamstatic.com": {
+        "1": {
+          "successes": 10,
+          "failures": 1
+        }
+      },
+      "sentry.io": {
+        "1": {
+          "successes": 40,
+          "failures": 1
+        }
+      },
+      "customer.io": {
+        "1": {
+          "successes": 3,
+          "failures": 1
+        }
+      },
+      "yandex.net": {
+        "1": {
+          "successes": 7,
+          "failures": 0
+        }
+      },
+      "vkuseraudio.ru": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        },
+        "2": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "ext-twitch.tv": {
+        "1": {
+          "successes": 3,
+          "failures": 1
+        }
+      },
+      "ajay.app": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "zg-59581ae03bf87b94aaf44136.invalid": {
+        "1": {
+          "successes": 0,
+          "failures": 2
+        },
+        "2": {
+          "successes": 0,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        },
+        "4": {
+          "successes": 0,
+          "failures": 2
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "zg-c321bcdb7cfeeaafa32b4f7c.invalid": {
+        "1": {
+          "successes": 17,
+          "failures": 2
+        },
+        "2": {
+          "successes": 2,
+          "failures": 2
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "github.io": {
+        "1": {
+          "successes": 4,
+          "failures": 1
+        }
+      },
+      "exp-tas.com": {
+        "1": {
+          "successes": 13,
+          "failures": 1
+        },
+        "2": {
+          "successes": 2,
+          "failures": 1
+        },
+        "3": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "scdn.co": {
+        "2": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "discordapp.net": {
+        "2": {
+          "successes": 2,
+          "failures": 1
+        },
+        "3": {
+          "successes": 1,
+          "failures": 1
+        },
+        "4": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "20.101.0.0": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "vkuserphoto.ru": {
+        "1": {
+          "successes": 4,
+          "failures": 2
+        }
+      },
+      "userapi.com": {
+        "1": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "exitlag.net": {
+        "1": {
+          "successes": 71,
+          "failures": 3
+        },
+        "2": {
+          "successes": 2,
+          "failures": 2
+        },
+        "3": {
+          "successes": 3,
+          "failures": 1
+        },
+        "4": {
+          "successes": 1,
+          "failures": 1
+        },
+        "5": {
+          "successes": 1,
+          "failures": 1
+        },
+        "6": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "exitlag.com": {
+        "1": {
+          "successes": 6,
+          "failures": 1
+        },
+        "2": {
+          "successes": 16,
+          "failures": 0
+        }
+      },
+      "r2.dev": {
+        "1": {
+          "successes": 9,
+          "failures": 1
+        },
+        "2": {
+          "successes": 12,
+          "failures": 0
+        }
+      },
+      "mixpanel.com": {
+        "1": {
+          "successes": 2,
+          "failures": 0
+        }
+      },
+      "steamserver.net": {
+        "1": {
+          "successes": 2,
+          "failures": 1
+        }
+      },
+      "203.23.0.0": {
+        "1": {
+          "successes": 20,
+          "failures": 15
+        },
+        "2": {
+          "successes": 16,
+          "failures": 12
+        },
+        "3": {
+          "successes": 13,
+          "failures": 11
+        },
+        "4": {
+          "successes": 120,
+          "failures": 65
+        },
+        "5": {
+          "successes": 0,
+          "failures": 3
+        },
+        "6": {
+          "successes": 20,
+          "failures": 8
+        },
+        "7": {
+          "successes": 51,
+          "failures": 24
+        }
+      },
+      "office.com": {
+        "1": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "roblox.com": {
+        "2": {
+          "successes": 14,
+          "failures": 6
+        },
+        "3": {
+          "successes": 0,
+          "failures": 2
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "msftconnecttest.com": {
+        "1": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "googletagmanager.com": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "google-analytics.com": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "notion-static.com": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "signalr.net": {
+        "1": {
+          "successes": 4,
+          "failures": 0
+        }
+      },
+      "34.110.0.0": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "codex.sale": {
+        "1": {
+          "successes": 6,
+          "failures": 1
+        },
+        "2": {
+          "successes": 1,
+          "failures": 1
+        },
+        "3": {
+          "successes": 104,
+          "failures": 2
+        }
+      },
+      "wizebot.tv": {
+        "1": {
+          "successes": 0,
+          "failures": 2
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "funpay.com": {
+        "1": {
+          "successes": 0,
+          "failures": 2
+        },
+        "2": {
+          "successes": 2,
+          "failures": 1
+        },
+        "3": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "sfunpay.com": {
+        "1": {
+          "successes": 0,
+          "failures": 1
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 0,
+          "failures": 1
+        },
+        "12": {
+          "successes": 0,
+          "failures": 1
+        },
+        "13": {
+          "successes": 0,
+          "failures": 1
+        },
+        "14": {
+          "successes": 0,
+          "failures": 1
+        },
+        "15": {
+          "successes": 0,
+          "failures": 1
+        },
+        "16": {
+          "successes": 0,
+          "failures": 1
+        },
+        "17": {
+          "successes": 0,
+          "failures": 1
+        },
+        "18": {
+          "successes": 0,
+          "failures": 1
+        },
+        "19": {
+          "successes": 0,
+          "failures": 1
+        },
+        "20": {
+          "successes": 0,
+          "failures": 1
+        },
+        "21": {
+          "successes": 0,
+          "failures": 1
+        },
+        "22": {
+          "successes": 0,
+          "failures": 1
+        },
+        "23": {
+          "successes": 0,
+          "failures": 1
+        },
+        "24": {
+          "successes": 0,
+          "failures": 1
+        },
+        "25": {
+          "successes": 0,
+          "failures": 1
+        },
+        "26": {
+          "successes": 0,
+          "failures": 1
+        },
+        "27": {
+          "successes": 0,
+          "failures": 1
+        },
+        "28": {
+          "successes": 0,
+          "failures": 1
+        },
+        "29": {
+          "successes": 0,
+          "failures": 1
+        },
+        "30": {
+          "successes": 5,
+          "failures": 0
+        }
+      },
+      "oaistatic.com": {
+        "1": {
+          "successes": 9,
+          "failures": 0
+        }
+      },
+      "77.111.102.204": {
+        "1": {
+          "successes": 7,
+          "failures": 0
+        }
+      },
+      "openai.com": {
+        "1": {
+          "successes": 11,
+          "failures": 2
+        },
+        "2": {
+          "successes": 2,
+          "failures": 2
+        },
+        "3": {
+          "successes": 16,
+          "failures": 1
+        },
+        "4": {
+          "successes": 1,
+          "failures": 1
+        },
+        "5": {
+          "successes": 16,
+          "failures": 0
+        }
+      },
+      "chatgpt.com": {
+        "1": {
+          "successes": 6,
+          "failures": 2
+        },
+        "2": {
+          "successes": 2,
+          "failures": 2
+        },
+        "3": {
+          "successes": 24,
+          "failures": 1
+        },
+        "4": {
+          "successes": 2,
+          "failures": 1
+        },
+        "5": {
+          "successes": 22,
+          "failures": 0
+        }
+      },
+      "gvt1.com": {
+        "1": {
+          "successes": 9,
+          "failures": 0
+        }
+      },
+      "vscode.dev": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "224.0.0.0": {
+        "1": {
+          "successes": 0,
+          "failures": 6
+        }
+      },
+      "t.me": {
+        "2": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "telesco.pe": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "sublimetext.com": {
+        "1": {
+          "successes": 0,
+          "failures": 1
+        }
+      },
+      "tome.ge": {
+        "1": {
+          "successes": 3,
+          "failures": 1
+        }
+      },
+      "agentrouter.org": {
+        "1": {
+          "successes": 3,
+          "failures": 1
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 2,
+          "failures": 1
+        },
+        "5": {
+          "successes": 0,
+          "failures": 1
+        },
+        "6": {
+          "successes": 0,
+          "failures": 1
+        },
+        "7": {
+          "successes": 0,
+          "failures": 1
+        },
+        "8": {
+          "successes": 0,
+          "failures": 1
+        },
+        "9": {
+          "successes": 0,
+          "failures": 1
+        },
+        "10": {
+          "successes": 0,
+          "failures": 1
+        },
+        "11": {
+          "successes": 0,
+          "failures": 1
+        },
+        "12": {
+          "successes": 0,
+          "failures": 1
+        },
+        "13": {
+          "successes": 1,
+          "failures": 1
+        },
+        "14": {
+          "successes": 0,
+          "failures": 1
+        },
+        "15": {
+          "successes": 0,
+          "failures": 1
+        },
+        "16": {
+          "successes": 0,
+          "failures": 1
+        },
+        "17": {
+          "successes": 0,
+          "failures": 1
+        },
+        "18": {
+          "successes": 0,
+          "failures": 1
+        },
+        "19": {
+          "successes": 0,
+          "failures": 1
+        },
+        "20": {
+          "successes": 0,
+          "failures": 1
+        },
+        "21": {
+          "successes": 0,
+          "failures": 1
+        },
+        "22": {
+          "successes": 0,
+          "failures": 1
+        },
+        "23": {
+          "successes": 0,
+          "failures": 1
+        },
+        "24": {
+          "successes": 0,
+          "failures": 1
+        },
+        "25": {
+          "successes": 0,
+          "failures": 1
+        },
+        "26": {
+          "successes": 0,
+          "failures": 1
+        },
+        "27": {
+          "successes": 0,
+          "failures": 1
+        },
+        "28": {
+          "successes": 0,
+          "failures": 1
+        },
+        "29": {
+          "successes": 0,
+          "failures": 1
+        },
+        "30": {
+          "successes": 0,
+          "failures": 1
+        },
+        "31": {
+          "successes": 0,
+          "failures": 1
+        },
+        "32": {
+          "successes": 0,
+          "failures": 1
+        },
+        "33": {
+          "successes": 0,
+          "failures": 1
+        },
+        "34": {
+          "successes": 0,
+          "failures": 1
+        },
+        "35": {
+          "successes": 0,
+          "failures": 1
+        },
+        "36": {
+          "successes": 0,
+          "failures": 1
+        },
+        "37": {
+          "successes": 0,
+          "failures": 1
+        },
+        "38": {
+          "successes": 0,
+          "failures": 1
+        },
+        "39": {
+          "successes": 0,
+          "failures": 1
+        },
+        "40": {
+          "successes": 12,
+          "failures": 1
+        }
+      },
+      "comss.one": {
+        "1": {
+          "successes": 3,
+          "failures": 1
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        },
+        "3": {
+          "successes": 0,
+          "failures": 1
+        },
+        "4": {
+          "successes": 0,
+          "failures": 1
+        },
+        "5": {
+          "successes": 12,
+          "failures": 3
+        },
+        "6": {
+          "successes": 1,
+          "failures": 1
+        },
+        "7": {
+          "successes": 1,
+          "failures": 1
+        },
+        "8": {
+          "successes": 1,
+          "failures": 1
+        },
+        "9": {
+          "successes": 1,
+          "failures": 1
+        },
+        "10": {
+          "successes": 1,
+          "failures": 1
+        },
+        "11": {
+          "successes": 0,
+          "failures": 1
+        },
+        "12": {
+          "successes": 0,
+          "failures": 1
+        },
+        "13": {
+          "successes": 0,
+          "failures": 1
+        },
+        "14": {
+          "successes": 0,
+          "failures": 1
+        },
+        "15": {
+          "successes": 0,
+          "failures": 1
+        },
+        "16": {
+          "successes": 0,
+          "failures": 1
+        },
+        "17": {
+          "successes": 0,
+          "failures": 1
+        },
+        "18": {
+          "successes": 0,
+          "failures": 1
+        },
+        "19": {
+          "successes": 0,
+          "failures": 1
+        },
+        "20": {
+          "successes": 0,
+          "failures": 1
+        },
+        "21": {
+          "successes": 0,
+          "failures": 1
+        },
+        "22": {
+          "successes": 0,
+          "failures": 1
+        },
+        "23": {
+          "successes": 0,
+          "failures": 1
+        },
+        "24": {
+          "successes": 0,
+          "failures": 1
+        },
+        "25": {
+          "successes": 0,
+          "failures": 1
+        },
+        "26": {
+          "successes": 0,
+          "failures": 1
+        },
+        "27": {
+          "successes": 0,
+          "failures": 1
+        },
+        "28": {
+          "successes": 0,
+          "failures": 1
+        },
+        "29": {
+          "successes": 0,
+          "failures": 1
+        },
+        "30": {
+          "successes": 7,
+          "failures": 5
+        },
+        "31": {
+          "successes": 1,
+          "failures": 1
+        },
+        "32": {
+          "successes": 0,
+          "failures": 1
+        },
+        "33": {
+          "successes": 2,
+          "failures": 1
+        },
+        "34": {
+          "successes": 2,
+          "failures": 1
+        },
+        "35": {
+          "successes": 1,
+          "failures": 1
+        },
+        "36": {
+          "successes": 0,
+          "failures": 1
+        },
+        "37": {
+          "successes": 0,
+          "failures": 1
+        },
+        "38": {
+          "successes": 0,
+          "failures": 1
+        },
+        "39": {
+          "successes": 0,
+          "failures": 1
+        },
+        "40": {
+          "successes": 0,
+          "failures": 1
+        },
+        "41": {
+          "successes": 0,
+          "failures": 1
+        },
+        "42": {
+          "successes": 0,
+          "failures": 1
+        },
+        "43": {
+          "successes": 0,
+          "failures": 1
+        },
+        "44": {
+          "successes": 0,
+          "failures": 1
+        },
+        "45": {
+          "successes": 0,
+          "failures": 1
+        },
+        "46": {
+          "successes": 0,
+          "failures": 1
+        },
+        "47": {
+          "successes": 0,
+          "failures": 1
+        },
+        "48": {
+          "successes": 0,
+          "failures": 1
+        },
+        "49": {
+          "successes": 0,
+          "failures": 1
+        },
+        "50": {
+          "successes": 0,
+          "failures": 1
+        },
+        "51": {
+          "successes": 0,
+          "failures": 1
+        },
+        "52": {
+          "successes": 0,
+          "failures": 1
+        },
+        "53": {
+          "successes": 0,
+          "failures": 1
+        },
+        "54": {
+          "successes": 0,
+          "failures": 1
+        },
+        "55": {
+          "successes": 0,
+          "failures": 1
+        },
+        "56": {
+          "successes": 0,
+          "failures": 1
+        },
+        "57": {
+          "successes": 0,
+          "failures": 1
+        },
+        "58": {
+          "successes": 0,
+          "failures": 1
+        },
+        "59": {
+          "successes": 0,
+          "failures": 1
+        },
+        "60": {
+          "successes": 0,
+          "failures": 1
+        },
+        "61": {
+          "successes": 0,
+          "failures": 1
+        },
+        "62": {
+          "successes": 0,
+          "failures": 1
+        },
+        "63": {
+          "successes": 0,
+          "failures": 1
+        },
+        "64": {
+          "successes": 0,
+          "failures": 1
+        },
+        "65": {
+          "successes": 0,
+          "failures": 1
+        },
+        "66": {
+          "successes": 10,
+          "failures": 3
+        },
+        "67": {
+          "successes": 2,
+          "failures": 1
+        },
+        "68": {
+          "successes": 1,
+          "failures": 1
+        }
+      },
+      "vscode-cdn.net": {
+        "1": {
+          "successes": 4,
+          "failures": 0
+        }
+      },
+      "visualstudio.com": {
+        "1": {
+          "successes": 1,
+          "failures": 1
+        },
+        "2": {
+          "successes": 1,
+          "failures": 1
+        },
+        "3": {
+          "successes": 10,
+          "failures": 0
+        }
+      },
+      "vscode-unpkg.net": {
+        "1": {
+          "successes": 1,
+          "failures": 0
+        }
+      },
+      "vsassets.io": {
+        "1": {
+          "successes": 10,
+          "failures": 1
+        },
+        "2": {
+          "successes": 0,
+          "failures": 1
+        },
+        "3": {
+          "successes": 2,
+          "failures": 0
+        }
+      }
+    }
+  },
+  "updater": {
+    "release_cache": {
+      "dev": {
+        "release_info": {
+          "version": "21.1.4.18",
+          "tag_name": "21.1.4.18",
+          "update_url": "https://github.com/youtubediscord/zapret/releases/download/21.1.4.18/Zapret2Setup_DEV_21_1_4_18.exe",
+          "file_name": "Zapret2Setup_DEV_21_1_4_18.exe",
+          "release_notes": "Zapret 21.1.4.18",
+          "prerelease": true,
+          "name": "Zapret 21.1.4.18 (Dev)",
+          "published_at": "2026-07-16T17:19:01Z",
+          "created_at": "2026-07-16T17:16:38Z",
+          "source": "GitHub API"
+        },
+        "cached_at": 1784271931.6987832
+      }
+    },
+    "rate_limit": {
+      "last_auto_check": 1784271931.7123954,
+      "auto_check_count": 2
+    },
+    "github_cache": {},
+    "github_rate_limit_reset": null,
+    "server_pool": {
+      "stats": {
+        "vps_super": {
+          "total_requests": 0,
+          "successful_requests": 0,
+          "failed_requests": 0,
+          "consecutive_failures": 0,
+          "avg_response_time": 0,
+          "last_success": null,
+          "last_failure": null,
+          "blocked_until": null
+        },
+        "vps0": {
+          "total_requests": 0,
+          "successful_requests": 0,
+          "failed_requests": 0,
+          "consecutive_failures": 0,
+          "avg_response_time": 0,
+          "last_success": null,
+          "last_failure": null,
+          "blocked_until": null
+        },
+        "vps2": {
+          "total_requests": 0,
+          "successful_requests": 0,
+          "failed_requests": 0,
+          "consecutive_failures": 0,
+          "avg_response_time": 0,
+          "last_success": null,
+          "last_failure": null,
+          "blocked_until": null
+        },
+        "vps3": {
+          "total_requests": 0,
+          "successful_requests": 0,
+          "failed_requests": 0,
+          "consecutive_failures": 0,
+          "avg_response_time": 0,
+          "last_success": null,
+          "last_failure": null,
+          "blocked_until": null
+        }
+      },
+      "selected_server_id": "vps0",
+      "selected_at": 1784239695
+    },
+    "release_manager": {
+      "vps_block_until": 0,
+      "server_stats": {
+        "GitHub API": {
+          "successes": 2,
+          "failures": 0,
+          "avg_response_time": 2.469367027282715,
+          "last_success": 1784271931.6225045,
+          "last_failure": null
+        }
+      }
+    }
+  },
+  "blockcheck": {
+    "user_domains": [],
+    "scan_resume": {
+      "domains": {
+        "tcp_https|discord.com": {
+          "next_index": 30
+        },
+        "udp_games|all|stun.l.google.com:19302": {
+          "next_index": 30
+        },
+        "tcp_https|cdn.discordapp.com": {
+          "next_index": 30
+        }
+      }
+    }
+  },
+  "folders": {
+    "version": 1,
+    "presets": {
+      "winws2": {
+        "version": 1,
+        "folders": {
+          "all-tcp-udp": {
+            "name": "ALL TCP & UDP",
+            "order": 0,
+            "collapsed": false,
+            "system": false
+          },
+          "common": {
+            "name": "Общие",
+            "order": 1,
+            "collapsed": false,
+            "system": true
+          },
+          "1-9-9": {
+            "name": "1.9.9",
+            "order": 2,
+            "collapsed": false,
+            "system": false
+          },
+          "game-filter": {
+            "name": "Game filter",
+            "order": 3,
+            "collapsed": false,
+            "system": false
+          },
+          "circular": {
+            "name": "Circular",
+            "order": 4,
+            "collapsed": false,
+            "system": false
+          }
+        },
+        "items": {
+          "ALL TCP & UDP discord_urgent_sni.txt": {
+            "folder_key": "all-tcp-udp",
+            "order": null,
+            "rating": 0
+          }
+        }
+      },
+      "winws1": {
+        "version": 1,
+        "folders": {
+          "all-sites": {
+            "name": "Все сайты",
+            "order": 0,
+            "collapsed": false,
+            "system": false
+          },
+          "1-9-9a": {
+            "name": "1.9.9a",
+            "order": 1,
+            "collapsed": false,
+            "system": false
+          },
+          "alt": {
+            "name": "ALT",
+            "order": 2,
+            "collapsed": false,
+            "system": false
+          },
+          "games": {
+            "name": "Игры",
+            "order": 3,
+            "collapsed": false,
+            "system": false
+          },
+          "youtube": {
+            "name": "YouTube",
+            "order": 4,
+            "collapsed": false,
+            "system": false
+          },
+          "discord": {
+            "name": "Discord",
+            "order": 5,
+            "collapsed": false,
+            "system": false
+          },
+          "providers": {
+            "name": "Провайдеры",
+            "order": 6,
+            "collapsed": false,
+            "system": false
+          },
+          "bolvan": {
+            "name": "Bolvan",
+            "order": 7,
+            "collapsed": false,
+            "system": false
+          },
+          "fake-tls": {
+            "name": "Fake TLS",
+            "order": 8,
+            "collapsed": false,
+            "system": false
+          },
+          "split-md5-ttl": {
+            "name": "Split / MD5 / TTL",
+            "order": 9,
+            "collapsed": false,
+            "system": false
+          },
+          "common": {
+            "name": "Общие",
+            "order": 10,
+            "collapsed": false,
+            "system": true
+          }
+        },
+        "items": {}
+      }
+    },
+    "profiles": {
+      "version": 1,
+      "folders": {
+        "youtube": {
+          "name": "YouTube",
+          "order": 0,
+          "collapsed": false,
+          "system": false
+        },
+        "discord": {
+          "name": "Discord",
+          "order": 1,
+          "collapsed": false,
+          "system": false
+        },
+        "github": {
+          "name": "GitHub",
+          "order": 2,
+          "collapsed": false,
+          "system": false
+        },
+        "messengers": {
+          "name": "Мессенджеры",
+          "order": 3,
+          "collapsed": false,
+          "system": false
+        },
+        "social": {
+          "name": "Соцсети",
+          "order": 4,
+          "collapsed": false,
+          "system": false
+        },
+        "games": {
+          "name": "Игры",
+          "order": 5,
+          "collapsed": false,
+          "system": false
+        },
+        "roblox": {
+          "name": "Roblox",
+          "order": 6,
+          "collapsed": false,
+          "system": false
+        },
+        "amazon": {
+          "name": "Amazon",
+          "order": 7,
+          "collapsed": false,
+          "system": false
+        },
+        "hosters": {
+          "name": "Хостеры",
+          "order": 8,
+          "collapsed": false,
+          "system": false
+        },
+        "sites": {
+          "name": "Сайты",
+          "order": 9,
+          "collapsed": false,
+          "system": false
+        },
+        "zapretkvn": {
+          "name": "ZapretKVN",
+          "order": 10,
+          "collapsed": false,
+          "system": false
+        },
+        "common": {
+          "name": "Общие",
+          "order": 11,
+          "collapsed": false,
+          "system": true
+        },
+        "all-sites": {
+          "name": "Все сайты",
+          "order": 12,
+          "collapsed": false,
+          "system": false
+        }
+      },
+      "items": {
+        "uid:f4fdcdf5611f4353b39de420c6640c06": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:5d9c79b294924c58a1b64faf7d2780c1": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:0cd76f2a7ce94425b910263dfc825b34": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:472e17ee0dff4d6fb836cb82a094e515": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:5f55e8d952214ad792b5373efafa496a": {
+          "folder_key": "youtube",
+          "order": null,
+          "rating": 0
+        },
+        "uid:2eb1cf804c12422c85b854c0c7d0e734": {
+          "folder_key": "youtube",
+          "order": null,
+          "rating": 0
+        },
+        "uid:5742d2398ea54c578eff08342720b2a2": {
+          "folder_key": "youtube",
+          "order": null,
+          "rating": 0
+        },
+        "uid:e441abce275a48f9b7d53e6ac46ffe62": {
+          "folder_key": "discord",
+          "order": null,
+          "rating": 0
+        },
+        "uid:95a4bfc1c43d4b90866a9e4859be82b9": {
+          "folder_key": "discord",
+          "order": null,
+          "rating": 0
+        },
+        "uid:8d163b8bdcba4b0aa32650fd7441662b": {
+          "folder_key": "discord",
+          "order": null,
+          "rating": 0
+        },
+        "uid:633e153e0d2746ef946fc07cb34344da": {
+          "folder_key": "discord",
+          "order": null,
+          "rating": 0
+        },
+        "uid:44174145a17646bd9d3be0eb397017f7": {
+          "folder_key": "discord",
+          "order": null,
+          "rating": 0
+        },
+        "uid:9005fbf55e08495db0b5347cacbfde08": {
+          "folder_key": "messengers",
+          "order": null,
+          "rating": 0
+        },
+        "uid:80ad94e7d1144533aae2701f7da77dcd": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:240b7c1736e44c678763b27a5e23afdb": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:a2e2a311b7374f4c8d1c42796d810a96": {
+          "folder_key": "games",
+          "order": null,
+          "rating": 0
+        },
+        "uid:e35c1c6e9db94cc4b5703b5360f070ab": {
+          "folder_key": "games",
+          "order": null,
+          "rating": 0
+        },
+        "uid:daf259d856d4496a893d7712e26e43a1": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:5f81134fb2544cef95ce6b2567e9cc66": {
+          "folder_key": "games",
+          "order": null,
+          "rating": 0
+        },
+        "uid:dbde0516a83647bdac8908825cf473b8": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:a68acae9ea6348cd8c8b28eaf1f4ee56": {
+          "folder_key": "roblox",
+          "order": null,
+          "rating": 0
+        },
+        "uid:b4984e4233c44d4ba9f68d9e39b71ceb": {
+          "folder_key": "games",
+          "order": null,
+          "rating": 0
+        },
+        "uid:5e148163c54747afb352fe3b5a485542": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:6ce425eb9da141c486f1afa5d3d397d7": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:43f97c3346f349fdae8fe4dfc6bc7ef2": {
+          "folder_key": "social",
+          "order": null,
+          "rating": 0
+        },
+        "uid:866ec0898e364fd7be5b2d6d33667ad3": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:0271f2074ed64e8eabecd90b4ed2c99c": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:870fe9caf5d6465aa83b9d484f31b697": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:25c175d1980142268e75aa72959acbf1": {
+          "folder_key": "messengers",
+          "order": null,
+          "rating": 0
+        },
+        "uid:a862f71f130c43e8b18ee6490c5f29ce": {
+          "folder_key": "messengers",
+          "order": null,
+          "rating": 0
+        },
+        "uid:b50a93d0fbb24eb2ad40cd149b06f062": {
+          "folder_key": "games",
+          "order": null,
+          "rating": 0
+        },
+        "uid:da3fdeca699749b2a452db5e5fb8e525": {
+          "folder_key": "sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:3b32a9ec16ae4b539821b021bbd426ee": {
+          "folder_key": "social",
+          "order": null,
+          "rating": 0
+        },
+        "uid:7a1e1ce8d6d740fe856ae43ef98a2979": {
+          "folder_key": "github",
+          "order": null,
+          "rating": 0
+        },
+        "uid:374fe992dcbe420c94cca199d2abcf8f": {
+          "folder_key": "github",
+          "order": null,
+          "rating": 0
+        },
+        "uid:5669da54bc8146139a1bd2dd3da02307": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:27c6200c365a46fca44f7dabef30b5c6": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:3f035782855d40eaa9a51308dd2610e6": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:44e0c104559a41cf84e816d65f38f960": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:4aff7e79d88a41829acd41f2c43bb74a": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:4a31f0113bfe4e86a25dc40853e2592e": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:fc561f4ee5124f0b814ab8d954beacf8": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:f65a9462f2fe4b17bfdb366dfd6f2ef5": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:19da108a49854230bb452b12ec69487c": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:f9676b4ca99f4475a09e7c432825abea": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:f65cb663cbbd4a4eb780d8567e52666c": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:dcd1c1a9c9594f80a286a79e1dc8f265": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:064d98a12c574e648acb32870fab3a4b": {
+          "folder_key": "amazon",
+          "order": null,
+          "rating": 0
+        },
+        "uid:fed421685f0d40f497fe228421eccc5b": {
+          "folder_key": "games",
+          "order": null,
+          "rating": 0
+        },
+        "uid:9c2275e483be4a31ab5f4eac2367bcc3": {
+          "folder_key": "games",
+          "order": null,
+          "rating": 0
+        },
+        "uid:ecd9d0cbe62048fdb81f74b7602e296b": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:041aa00f38394c4cba5f40e6b0b74c09": {
+          "folder_key": "zapretkvn",
+          "order": null,
+          "rating": 0
+        },
+        "uid:ca14166253794c62a02776a26b449947": {
+          "folder_key": "zapretkvn",
+          "order": null,
+          "rating": 0
+        },
+        "uid:69b17e47c1194f03a62a2a89304a2f16": {
+          "folder_key": "discord",
+          "order": null,
+          "rating": 0
+        },
+        "uid:27ce849652494e6b8fe1afbe695ea7a0": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:555c723916bc4074bb449b3a906c794c": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:c0a6e5b6586f49c7b3bf635d71aa6d9f": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:289fbbad89c34a688f1bf2e7784c9730": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:5584ca4af4284fb1ad3a8d309bac6817": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:71a353a835f94f038fccb8cdee7d8349": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:98dcf13b71724cf8a1cd8606f704e24a": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:12400a58a6f64cc7b54271faa028169b": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:f724a6253d0c4cfbad08a74bc7977a2b": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:86fcb81aebf14778bdbe20d7b91d4730": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:c5dac186feae4b008be9f32d6427c3da": {
+          "folder_key": "games",
+          "order": null,
+          "rating": 0
+        },
+        "uid:f831d46959224377870619b78a465b0b": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:550d1e901f6c427eae42c46a52fe270e": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:4c06047d10b346ccbf256062d62ca84e": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:a8934617cbcf4474bdc506d280421561": {
+          "folder_key": "hosters",
+          "order": null,
+          "rating": 0
+        },
+        "uid:eebd70df58c7434f8a570362f933cca4": {
+          "folder_key": "amazon",
+          "order": null,
+          "rating": 0
+        },
+        "uid:38f6376fb4f04b7286c9700de83e4e67": {
+          "folder_key": "all-sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:189116589b2b4ccc8cbefd1681d9bf5c": {
+          "folder_key": "all-sites",
+          "order": null,
+          "rating": 0
+        },
+        "uid:3fdcba0758cf46be9d231677c9e40efc": {
+          "folder_key": "discord",
+          "order": null,
+          "rating": 0
+        }
+      }
+    }
+  },
+  "profile_identity": {
+    "winws2": {
+      "uid:f4fdcdf5611f4353b39de420c6640c06": {
+        "name": "chatgpt",
+        "sig": "list=chatgpt|tcp=80-65535"
+      },
+      "uid:5d9c79b294924c58a1b64faf7d2780c1": {
+        "name": "AnyDesk UDP",
+        "sig": "list=anydesk|udp=443,6568,50000-51000"
+      },
+      "uid:0cd76f2a7ce94425b910263dfc825b34": {
+        "name": "AnyDesk TCP",
+        "sig": "list=anydesk|tcp=80,443,6568"
+      },
+      "uid:2eb1cf804c12422c85b854c0c7d0e734": {
+        "name": "youtube.com (интерфейс)",
+        "sig": "list=youtube|tcp=80,443"
+      },
+      "uid:5742d2398ea54c578eff08342720b2a2": {
+        "name": "youtube.com (QUIC)",
+        "sig": "list=youtube|udp=443"
+      },
+      "uid:e441abce275a48f9b7d53e6ac46ffe62": {
+        "name": "Голосовые звонки/чаты",
+        "sig": "l7=stun,discord"
+      },
+      "uid:95a4bfc1c43d4b90866a9e4859be82b9": {
+        "name": "updates.discord.com",
+        "sig": "list=discord-updates|tcp=443"
+      },
+      "uid:8d163b8bdcba4b0aa32650fd7441662b": {
+        "name": "discord.media (voice RTC)",
+        "sig": "list=discord-media|tcp=80,443,1080,2053,2083,2087,2096,8443"
+      },
+      "uid:633e153e0d2746ef946fc07cb34344da": {
+        "name": "discord (images)",
+        "sig": "list=discord-images|tcp=80,443,1080,2053,2083,2087,2096,8443"
+      },
+      "uid:44174145a17646bd9d3be0eb397017f7": {
+        "name": "discord.com",
+        "sig": "list=discord|tcp=80,443,1080,2053,2083,2087,2096,8443"
+      },
+      "uid:9005fbf55e08495db0b5347cacbfde08": {
+        "name": "Telegram",
+        "sig": "list=telegram|tcp=80,443-65535"
+      },
+      "uid:80ad94e7d1144533aae2701f7da77dcd": {
+        "name": "ntc.party",
+        "sig": "list=ntcparty|tcp=80,443"
+      },
+      "uid:240b7c1736e44c678763b27a5e23afdb": {
+        "name": "Fandom",
+        "sig": "list=fandom|tcp=443"
+      },
+      "uid:a2e2a311b7374f4c8d1c42796d810a96": {
+        "name": "Steam",
+        "sig": "list=steam|tcp=80,443"
+      },
+      "uid:e35c1c6e9db94cc4b5703b5360f070ab": {
+        "name": "Tanki X",
+        "sig": "list=tankix|tcp=80,443,5050,8080"
+      },
+      "uid:daf259d856d4496a893d7712e26e43a1": {
+        "name": "obsidian.md",
+        "sig": "list=obsidian|tcp=80,443"
+      },
+      "uid:5f81134fb2544cef95ce6b2567e9cc66": {
+        "name": "EpicGames & Fortnite",
+        "sig": "list=epicgames-fortnite|tcp=80,443-65535"
+      },
+      "uid:dbde0516a83647bdac8908825cf473b8": {
+        "name": "Speedtest",
+        "sig": "list=speedtest|tcp=443,8080"
+      },
+      "uid:a68acae9ea6348cd8c8b28eaf1f4ee56": {
+        "name": "Roblox TCP",
+        "sig": "list=roblox|tcp=80,443-65535"
+      },
+      "uid:b4984e4233c44d4ba9f68d9e39b71ceb": {
+        "name": "Ubisoft",
+        "sig": "list=ubisoft|tcp=80,443-65535"
+      },
+      "uid:5e148163c54747afb352fe3b5a485542": {
+        "name": "Twitch",
+        "sig": "list=twitch|tcp=443"
+      },
+      "uid:6ce425eb9da141c486f1afa5d3d397d7": {
+        "name": "Google (сервисы)",
+        "sig": "list=google|tcp=80,443"
+      },
+      "uid:43f97c3346f349fdae8fe4dfc6bc7ef2": {
+        "name": "TikTok",
+        "sig": "list=tiktok|tcp=80,443"
+      },
+      "uid:866ec0898e364fd7be5b2d6d33667ad3": {
+        "name": "SoundCloud",
+        "sig": "list=soundcloud|tcp=80,443"
+      },
+      "uid:0271f2074ed64e8eabecd90b4ed2c99c": {
+        "name": "rutor.info (.is)",
+        "sig": "list=rutor|tcp=80,443"
+      },
+      "uid:870fe9caf5d6465aa83b9d484f31b697": {
+        "name": "Microsoft Store",
+        "sig": "list=microsoft-store|tcp=443"
+      },
+      "uid:25c175d1980142268e75aa72959acbf1": {
+        "name": "static.whatsapp.net",
+        "sig": "list=static-whatsapp-net|tcp=80-65535"
+      },
+      "uid:a862f71f130c43e8b18ee6490c5f29ce": {
+        "name": "WhatsApp",
+        "sig": "list=whatsapp|tcp=80,443"
+      },
+      "uid:b50a93d0fbb24eb2ad40cd149b06f062": {
+        "name": "itch.io",
+        "sig": "list=itch|tcp=80,443"
+      },
+      "uid:da3fdeca699749b2a452db5e5fb8e525": {
+        "name": "Мои сайты",
+        "sig": "list=other|tcp=80,443-65535"
+      },
+      "uid:3b32a9ec16ae4b539821b021bbd426ee": {
+        "name": "Facebook",
+        "sig": "list=facebook|tcp=80,443"
+      },
+      "uid:7a1e1ce8d6d740fe856ae43ef98a2979": {
+        "name": "githubusercontent.com",
+        "sig": "list=githubusercontent|tcp=443"
+      },
+      "uid:374fe992dcbe420c94cca199d2abcf8f": {
+        "name": "GitHub",
+        "sig": "list=github|tcp=443"
+      },
+      "uid:5669da54bc8146139a1bd2dd3da02307": {
+        "name": "Cloudflare TCP",
+        "sig": "list=cloudflare|tcp=80,443-65535"
+      },
+      "uid:27c6200c365a46fca44f7dabef30b5c6": {
+        "name": "Hetzner TCP",
+        "sig": "list=hetzner|tcp=80,443-65535"
+      },
+      "uid:3f035782855d40eaa9a51308dd2610e6": {
+        "name": "OVH TCP",
+        "sig": "list=ovh|tcp=80,443-65535"
+      },
+      "uid:44e0c104559a41cf84e816d65f38f960": {
+        "name": "DigitalOcean TCP",
+        "sig": "list=digitalocean|tcp=80,443-65535"
+      },
+      "uid:4aff7e79d88a41829acd41f2c43bb74a": {
+        "name": "Datacamp TCP",
+        "sig": "list=datacamp|tcp=80,443-65535"
+      },
+      "uid:4a31f0113bfe4e86a25dc40853e2592e": {
+        "name": "NovoServe TCP",
+        "sig": "list=novoserve|tcp=80,443-65535"
+      },
+      "uid:fc561f4ee5124f0b814ab8d954beacf8": {
+        "name": "WorldStream TCP",
+        "sig": "list=worldstream|tcp=80,443-65535"
+      },
+      "uid:f65a9462f2fe4b17bfdb366dfd6f2ef5": {
+        "name": "FranTech Solutions TCP",
+        "sig": "list=frantech|tcp=80,443-65535"
+      },
+      "uid:19da108a49854230bb452b12ec69487c": {
+        "name": "Fastly TCP",
+        "sig": "list=fastly|tcp=80,443-65535"
+      },
+      "uid:f9676b4ca99f4475a09e7c432825abea": {
+        "name": "Akamai TCP",
+        "sig": "list=akamai|tcp=80,443-65535"
+      },
+      "uid:f65cb663cbbd4a4eb780d8567e52666c": {
+        "name": "Railway TCP",
+        "sig": "list=railway|tcp=80,443-65535"
+      },
+      "uid:dcd1c1a9c9594f80a286a79e1dc8f265": {
+        "name": "Google Cloud TCP",
+        "sig": "list=usa-google|tcp=80,443-65535"
+      },
+      "uid:064d98a12c574e648acb32870fab3a4b": {
+        "name": "Amazon TCP",
+        "sig": "list=amazon|tcp=80,443-65535"
+      },
+      "uid:fed421685f0d40f497fe228421eccc5b": {
+        "name": "League of Legends RU TCP",
+        "sig": "list=lol-ru|tcp=80,443-65535"
+      },
+      "uid:9c2275e483be4a31ab5f4eac2367bcc3": {
+        "name": "League of Legends EUW TCP",
+        "sig": "list=lol-euw|tcp=80,443-65535"
+      },
+      "uid:ecd9d0cbe62048fdb81f74b7602e296b": {
+        "name": "WARP TCP",
+        "sig": "list=warp|tcp=80,443-65535"
+      },
+      "uid:041aa00f38394c4cba5f40e6b0b74c09": {
+        "name": "ZapretKVN TCP",
+        "sig": "list=zapretkvn|tcp=80,443-65535"
+      },
+      "uid:ca14166253794c62a02776a26b449947": {
+        "name": "Timeweb TCP",
+        "sig": "list=timeweb|tcp=80,443-65535"
+      },
+      "uid:69b17e47c1194f03a62a2a89304a2f16": {
+        "name": "Discord UDP (обычно не нужно)",
+        "sig": "list=discord|udp=443-65535"
+      },
+      "uid:27ce849652494e6b8fe1afbe695ea7a0": {
+        "name": "DigitalOcean UDP",
+        "sig": "list=digitalocean|udp=443-65535"
+      },
+      "uid:555c723916bc4074bb449b3a906c794c": {
+        "name": "Datacamp UDP",
+        "sig": "list=datacamp|udp=443-65535"
+      },
+      "uid:c0a6e5b6586f49c7b3bf635d71aa6d9f": {
+        "name": "NovoServe UDP",
+        "sig": "list=novoserve|udp=443-65535"
+      },
+      "uid:289fbbad89c34a688f1bf2e7784c9730": {
+        "name": "WorldStream UDP",
+        "sig": "list=worldstream|udp=443-65535"
+      },
+      "uid:5584ca4af4284fb1ad3a8d309bac6817": {
+        "name": "FranTech Solutions UDP",
+        "sig": "list=frantech|udp=443-65535"
+      },
+      "uid:71a353a835f94f038fccb8cdee7d8349": {
+        "name": "Fastly UDP",
+        "sig": "list=fastly|udp=443-65535"
+      },
+      "uid:98dcf13b71724cf8a1cd8606f704e24a": {
+        "name": "Akamai UDP",
+        "sig": "list=akamai|udp=443-65535"
+      },
+      "uid:12400a58a6f64cc7b54271faa028169b": {
+        "name": "Railway UDP",
+        "sig": "list=railway|udp=443-65535"
+      },
+      "uid:f724a6253d0c4cfbad08a74bc7977a2b": {
+        "name": "Google Cloud UDP",
+        "sig": "list=usa-google|udp=443-65535"
+      },
+      "uid:86fcb81aebf14778bdbe20d7b91d4730": {
+        "name": "Hetzner UDP",
+        "sig": "list=hetzner|udp=443-65535"
+      },
+      "uid:c5dac186feae4b008be9f32d6427c3da": {
+        "name": "Tanki X UDP",
+        "sig": "list=tankix|udp=443-65535"
+      },
+      "uid:f831d46959224377870619b78a465b0b": {
+        "name": "Cloudflare UDP",
+        "sig": "list=cloudflare|udp=443-65535"
+      },
+      "uid:550d1e901f6c427eae42c46a52fe270e": {
+        "name": "Cloudflare legacy UDP",
+        "sig": "list=cloudflare-ipset|udp=443-65535"
+      },
+      "uid:4c06047d10b346ccbf256062d62ca84e": {
+        "name": "Cloudflare IPv6 legacy UDP",
+        "sig": "list=cloudflare-ipset_v6|udp=443-65535"
+      },
+      "uid:a8934617cbcf4474bdc506d280421561": {
+        "name": "Cloudflare alt UDP",
+        "sig": "list=cloudflare1|udp=443-65535"
+      },
+      "uid:eebd70df58c7434f8a570362f933cca4": {
+        "name": "Amazon UDP",
+        "sig": "list=amazon|udp=443-65535"
+      },
+      "uid:5f55e8d952214ad792b5373efafa496a": {
+        "name": "googlevideo.com (CDN сервера)",
+        "sig": "list=googlevideo|tcp=80,443"
+      },
+      "uid:3fdcba0758cf46be9d231677c9e40efc": {
+        "name": "TCP 443",
+        "sig": "hostlist-domains=cdn.discordapp.com|tcp=443"
+      },
+      "uid:472e17ee0dff4d6fb836cb82a094e515": {
+        "name": "Исключения (RU сайты)",
+        "sig": "list=dns|list=exclude|list=ru|tcp=80,443-65535"
+      },
+      "uid:189116589b2b4ccc8cbefd1681d9bf5c": {
+        "name": "Все сайты (айпи)",
+        "sig": "ipset-exclude=ipset-dns.txt|ipset-exclude=ipset-exclude.txt|ipset-exclude=ipset-ru.txt|tcp=80,443-65535"
+      },
+      "uid:38f6376fb4f04b7286c9700de83e4e67": {
+        "name": "Все сайты UDP (айпи)",
+        "sig": "ipset-exclude=ipset-dns.txt|ipset-exclude=ipset-exclude.txt|ipset-exclude=ipset-ru.txt|udp=443-65535"
+      }
+    },
+    "winws1": {}
+  }
+}

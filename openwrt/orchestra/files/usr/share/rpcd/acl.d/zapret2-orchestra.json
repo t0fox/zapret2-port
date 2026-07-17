@@ -1,0 +1,10 @@
+{
+  "zapret2-orchestra": {
+    "description": "Read Zapret2 Orchestra status and validation",
+    "read": {
+      "ubus": {
+        "zapret2.orchestra": [ "status", "validate" ]
+      }
+    }
+  }
+}

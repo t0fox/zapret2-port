@@ -1,0 +1,9 @@
+[submodule "zapret-openwrt"]
+	path = zapret-openwrt
+	url = https://github.com/remittor/zapret-openwrt.git
+[submodule "zapret2-core"]
+	path = zapret2-core
+	url = https://github.com/bol-van/zapret2.git
+[submodule "zapret2gui"]
+	path = zapret2gui
+	url = https://github.com/youtubediscord/zapret.git

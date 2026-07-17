@@ -1,0 +1,87 @@
+'use strict';
+
+import { readfile, readlink, stat } from 'fs';
+import { cursor } from 'uci';
+
+const INIT_SCRIPT = '/etc/init.d/zapret2';
+const UCI_CONFIG = '/etc/config/zapret2';
+const NFQWS2 = '/opt/zapret2/nfq2/nfqws2';
+const PID_FILE = '/var/run/nfqws2_1.pid';
+const LUA_LIB = '/opt/zapret2/lua/zapret-lib.lua';
+const LUA_ANTIDPI = '/opt/zapret2/lua/zapret-antidpi.lua';
+const LUA_AUTO = '/opt/zapret2/lua/zapret-auto.lua';
+
+function exists(path) {
+	return stat(path) != null;
+}
+
+function regular_file(path) {
+	return stat(path)?.type == 'file';
+}
+
+function valid_uci_config() {
+	let config = cursor().get_all('zapret2', 'config');
+
+	return config != null &&
+		config.FWTYPE != null &&
+		config.MODE_FILTER != null &&
+		config.NFQWS2_ENABLE != null &&
+		config.NFQWS2_OPT != null;
+}
+
+function live_nfqws2_pid() {
+	let pid_text = readfile(PID_FILE);
+	let pid = int(pid_text ?? '');
+
+	if (pid <= 0 || !exists(`/proc/${pid}`))
+		return null;
+
+	return readlink(`/proc/${pid}/exe`) == NFQWS2 ? pid : null;
+}
+
+return {
+	'zapret2.orchestra': {
+		status: {
+			call: function() {
+				let nfqws2_binary = exists(NFQWS2);
+				let installed = exists(INIT_SCRIPT) && exists(UCI_CONFIG) && nfqws2_binary;
+				let pid = installed ? live_nfqws2_pid() : null;
+				let nfqws2_running = pid != null;
+				let service = installed ? (nfqws2_running ? 'running' : 'stopped') : 'unknown';
+
+				return { installed, service, nfqws2_binary, nfqws2_running, pid };
+			}
+		},
+		validate: {
+			call: function() {
+				let checks = {
+					init_script: regular_file(INIT_SCRIPT),
+					uci_config: valid_uci_config(),
+					nfqws2_binary: regular_file(NFQWS2),
+					lua_lib: regular_file(LUA_LIB),
+					lua_antidpi: regular_file(LUA_ANTIDPI),
+					lua_auto: regular_file(LUA_AUTO)
+				};
+				let errors = [];
+
+				if (!checks.init_script)
+					push(errors, 'missing_init_script');
+				if (!checks.uci_config)
+					push(errors, 'missing_uci_config');
+				if (!checks.nfqws2_binary)
+					push(errors, 'missing_nfqws2_binary');
+				if (!checks.lua_lib)
+					push(errors, 'missing_lua_lib');
+				if (!checks.lua_antidpi)
+					push(errors, 'missing_lua_antidpi');
+				if (!checks.lua_auto)
+					push(errors, 'missing_lua_auto');
+
+				let ok = checks.init_script && checks.uci_config && checks.nfqws2_binary &&
+					checks.lua_lib && checks.lua_antidpi && checks.lua_auto;
+
+				return { ok, checks, errors };
+			}
+		}
+	}
+};

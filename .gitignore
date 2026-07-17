@@ -1,0 +1,26 @@
+﻿# Router-specific diagnostics
+router-baseline/
+zapret2-postinstall.tar.gz
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log
