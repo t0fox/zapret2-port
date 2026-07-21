@@ -1,0 +1,33 @@
+#!/bin/sh /etc/rc.common
+
+# Backup boot-time regeneration of the volatile Orchestra runtime files
+# (/tmp/zapret2-orchestra/preload.lua, whitelist.txt and manifest.json) from
+# the persistent JSON seeds under /etc/zapret2-orchestra.
+#
+# /tmp is cleared on reboot, so without a regeneration step the preload would
+# be absent at first boot. This init script is the BACKUP guarantee: it runs
+# early (START=20, before the zapret2 service at START=21) so that if Orchestra
+# is later enabled on the zapret2 service, the preload already exists.
+#
+# The PRIMARY guarantee is the standalone command
+# /usr/sbin/zapret2-orchestra-preload, which a runtime manager should invoke
+# before (re)starting nfqws2 with the Orchestra --lua-init chain. A manager can
+# also run `zapret2-orchestra-preload check` to verify that the generated files
+# are present and match the manifest.
+#
+# This init script is NOT a supervised daemon and does NOT start, stop, enable,
+# or otherwise control the zapret2 service, UCI, or the firewall.
+
+START=20
+
+start() {
+	/usr/sbin/zapret2-orchestra-preload
+}
+
+stop() {
+	:
+}
+
+reload() {
+	start
+}

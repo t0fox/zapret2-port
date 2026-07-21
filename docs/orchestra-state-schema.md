@@ -14,6 +14,7 @@
 | `/etc/zapret2-orchestra/manual-locks.json` | backend | none |
 | `/tmp/zapret2-orchestra/preload.lua` | backend generator | loaded once at init |
 | `/tmp/zapret2-orchestra/whitelist.txt` | backend generator | nfqws2 profile filter |
+| `/tmp/zapret2-orchestra/manifest.json` | backend generator | length+hash of the two files above |
 | `/tmp/zapret2-orchestra/events.ndjson` | backend + transition-only Lua sink | append on state transition |
 
 Every persistent document has `schema_version: 1`. Host keys are lowercase,
@@ -113,9 +114,42 @@ by the independent Orchestra extension:
 - `slm_preload_blocked(...)`;
 - assignments to `ORCHESTRA_WHITELIST`.
 
-`init.lua` loads this file once. Failure to load it is fatal to Orchestra
-initialization so later health/rollback handling can restore the standard
-remittor mode. No packet callback opens persistent JSON.
+The generator is implemented in ucode at
+`openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc`
+and installed at `/usr/share/zapret2-orchestra/generate-preload.uc`. A shell
+wrapper at `/usr/sbin/zapret2-orchestra-preload` invokes it. The package is
+self-contained: every installed file lives under the package `files/` tree at
+its target path, so the build does not depend on the package directory's
+location relative to a feed or Git root. The generator has two modes:
+
+- `generate` (default): reads the four persistent JSON seeds, validates
+  `schema_version == 1` and the expected top-level types, sorts and
+  deduplicates strategies and hosts deterministically, renders the Lua
+  fragment and the `whitelist.txt` hostlist, and writes both files atomically
+  (temp file + rename in the same directory) under `/tmp/zapret2-orchestra/`.
+  It then writes a `manifest.json` recording the byte length and a 31-bit
+  rolling hash (djb2 variant) of each generated file. The manifest is written
+  LAST and atomically, so its presence with matching hashes is proof of a
+  complete generation.
+- `check`: reads `manifest.json` and verifies that `preload.lua` and
+  `whitelist.txt` exist and match the recorded length and hash. Exit 0 if
+  consistent, non-zero otherwise. A runtime manager can run
+  `zapret2-orchestra-preload check` before starting nfqws2.
+
+The generator never writes under `/etc/` and never invokes shell commands; it
+uses only `ucode-mod-fs` for file I/O and the built-in `json()` function.
+
+A boot hook (`/etc/init.d/zapret2-orchestra`, one-shot `START=20`) is the
+BACKUP regeneration step: it runs before the `zapret2` service (`START=21`) so
+the preload already exists if Orchestra is later enabled. The PRIMARY
+guarantee is the standalone command, which a runtime manager should invoke
+before (re)starting nfqws2 with the Orchestra `--lua-init` chain. The package
+`postinst` also runs the generator once at install time and enables the boot
+hook.
+
+`init.lua` loads the generated preload once via `dofile`. Failure to load it
+is fatal to Orchestra initialization so later health/rollback handling can
+restore the standard remittor mode. No packet callback opens persistent JSON.
 
 ## Event schema
 

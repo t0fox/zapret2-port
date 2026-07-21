@@ -66,16 +66,31 @@ The current package declares these direct runtime dependencies:
 
 No Python, Lua package, `ucode-mod-ubus`, `jsonfilter`, `flock`, `curl`, or nftables dependency is used.
 
-## 5. Точные файлы backend
+## 5. Точные файлы пакета
 
-The minimal package contains only these installed files:
+The Phase 0 package is self-contained: every installed file lives under
+`openwrt/zapret2-orchestra/files/` at its target path. The build does not
+depend on the package directory's location relative to a feed or Git root;
+`tests/test_package_contract.py` enforces that the packaged Lua and JSON stay
+byte-identical to the repository development copies (`lua/orchestra-extra`,
+`etc/zapret2-orchestra`).
+
+Installed files:
 
 - `openwrt/zapret2-orchestra/Makefile` — package manifest with the dependencies above.
-- `openwrt/zapret2-orchestra/files/usr/share/rpcd/ucode/zapret2.orchestra` — rpcd ucode object.
-- `openwrt/zapret2-orchestra/files/usr/share/rpcd/acl.d/zapret2-orchestra.json` — least-privilege ubus ACL.
+- `files/usr/share/rpcd/ucode/zapret2.orchestra` — rpcd ucode object.
+- `files/usr/share/rpcd/acl.d/zapret2-orchestra.json` — least-privilege ubus ACL.
+- `files/usr/share/zapret2-orchestra/generate-preload.uc` — ucode preload generator (`generate` and `check` modes).
+- `files/usr/sbin/zapret2-orchestra-preload` — shell wrapper for the generator.
+- `files/etc/init.d/zapret2-orchestra` — boot hook (one-shot backup regeneration, `START=20`, before `zapret2` at `START=21`).
+- `files/opt/zapret2/lua/orchestra-extra/*.lua` (6 files) — TLS runtime extension.
+- `files/etc/zapret2-orchestra/*.json` (4 files) — persistent state seeds (conffiles).
 
-The installation paths are `/usr/share/rpcd/ucode/zapret2.orchestra` and
-`/usr/share/rpcd/acl.d/zapret2-orchestra.json`.
+The installation paths are `/usr/share/rpcd/ucode/zapret2.orchestra`,
+`/usr/share/rpcd/acl.d/zapret2-orchestra.json`,
+`/usr/share/zapret2-orchestra/generate-preload.uc`,
+`/usr/sbin/zapret2-orchestra-preload`, `/etc/init.d/zapret2-orchestra`,
+`/opt/zapret2/lua/orchestra-extra/`, and `/etc/zapret2-orchestra/`.
 
 ## 6. Что остаётся в nfqws2 Lua
 
@@ -89,16 +104,23 @@ Only packet-path behavior remains in nfqws2 Lua: in-memory strategy state, detec
 
 ## 8. Lifecycle scripts
 
-- `postinst` and `postrm` restart `/etc/init.d/rpcd` only when `IPKG_INSTROOT` is empty.
-- They do not start, stop, enable, or otherwise change Zapret2.
+- `postinst` enables the `/etc/init.d/zapret2-orchestra` boot hook, runs the
+  preload generator once, and restarts `/etc/init.d/rpcd` — all only when
+  `IPKG_INSTROOT` is empty.
+- `postrm` disables the boot hook and restarts `/etc/init.d/rpcd` — only when
+  `IPKG_INSTROOT` is empty.
+- They do not start, stop, enable, or otherwise change the `zapret2` service,
+  write UCI, or modify the firewall.
 
 ## 9. Неизвестные данные и блокеры
 
 - `router-baseline/` remains local untracked evidence rather than a package input.
-- The package has not been built with a real OpenWrt SDK or installed from such a build.
+- The package has not been built with a real OpenWrt SDK or installed from such a build; Phase 0 is not complete until the APK is built and its contents verified with `apk info`.
+- The preload generator has not been executed with a real `ucode`; the ucode API was verified against the upstream source (`jow-/ucode`), a Python oracle replicates the algorithm, and hand-written golden fixtures guard against a shared bug. Runtime tests are skipped when `ucode` is absent.
+- The 31-bit rolling hash in the manifest is a cheap mismatch detector, not a cryptographic digest; it is sufficient for detecting truncated/partially-written generated files.
 - The public package license remains to be selected.
 - The TLS Lua prototype is not connected to nfqws2 or deployed.
 
 ## 10. Один минимальный следующий этап реализации
 
-Do not expand the backend beyond `status` and `validate` until a separately scoped change is approved.
+Do not expand the backend beyond `status` and `validate` until a separately scoped change is approved. Phase 0 made the package self-contained with a manifest and `check` mode; the next step is to determine the router's OpenWrt version and target/subtarget, download the matching SDK, build the APK (OpenWrt 25.12 uses `apk`, not `opkg`), run the preload generator with a real `ucode`, and verify the APK contents.

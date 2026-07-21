@@ -97,26 +97,45 @@ Present on router: `zapret-antidpi.lua`, `zapret-auto.lua`, `zapret-lib.lua`, `z
 | orchestra-extra hook | INFERRED via UCI `NFQWS2_OPT` + extra `--lua-init` |
 | Read-only control plane | `status` and `validate` implemented and dynamically verified via rpcd/ucode |
 | Package layout | `openwrt/zapret2-orchestra`; not built with a real OpenWrt SDK |
+| Preload generator | ucode generator (`generate`+`check` modes) + boot hook (`START=20`, before `zapret2`) + shell wrapper + manifest (Phase 0); not yet executed with real ucode |
 | TLS MVP | Lua runtime prototype retained and not deployed |
 
 ## Local implementation progress
 
-The first TLS runtime block now exists in `lua/orchestra-extra/` and is not
-installed on, or connected to, the router.  It provides a Lua 5.1-compatible
-in-memory SLM, protected manual-lock adapter, TLS detector wrappers and the
-`circular_quality` selector.  It uses only the upstream symbols documented in
-`remittor-runtime-contract.md`.
+The TLS runtime block exists in `lua/orchestra-extra/` and is installed by the
+package Makefile to `/opt/zapret2/lua/orchestra-extra/`. It provides a Lua
+5.1-compatible in-memory SLM, protected manual-lock adapter, TLS detector
+wrappers and the `circular_quality` selector. It uses only the upstream
+symbols documented in `remittor-runtime-contract.md`.
 
 The read-only control plane is an rpcd/ucode backend in
 `openwrt/zapret2-orchestra`. The verified target has `ucode`, `rpcd-mod-ucode`,
 `ucode-mod-fs`, and `ucode-mod-uci` installed; its package exposes only
 `status` and `validate`.
 
-The read-only backend was manually copied to the router; `status` and
-`validate` were dynamically verified, and rpcd was restarted. Zapret2 remained
-stopped. No UCI was written, no Zapret2 service action was executed, and the
-firewall and NFQUEUE were not changed. TLS Lua was not installed. `QNUM=300`
-is a confirmed configuration value from the runtime scripts, not evidence of
-an active NFQUEUE.
+**Phase 0** added a preload generator (`generate-preload.uc`) that reads the
+persistent JSON seeds under `/etc/zapret2-orchestra/` and atomically renders
+`/tmp/zapret2-orchestra/preload.lua`, `whitelist.txt`, and a `manifest.json`
+that records the byte length and a 31-bit rolling hash of each generated file.
+The generator has two modes: `generate` (default) and `check` (verifies the
+generated files against the manifest). A boot hook
+(`/etc/init.d/zapret2-orchestra`, one-shot `START=20`) is the BACKUP
+regeneration step and runs before the `zapret2` service (`START=21`); the
+PRIMARY guarantee is the standalone command
+`/usr/sbin/zapret2-orchestra-preload`, which a runtime manager should invoke
+before (re)starting nfqws2. The package `postinst` also runs the generator
+once at install time and enables the boot hook. The package is self-contained:
+all installed files live under `openwrt/zapret2-orchestra/files/` at their
+target paths, so the build does not depend on the package directory's location
+relative to a feed or Git root. The Makefile installs all runtime files: rpcd
+backend, ACL, generator, wrapper, boot hook, six Lua modules, and four JSON
+seeds (listed as conffiles).
+
+The read-only backend was previously manually copied to the router; `status`
+and `validate` were dynamically verified, and rpcd was restarted. Zapret2
+remained stopped. No UCI was written, no Zapret2 service action was executed,
+and the firewall and NFQUEUE were not changed. TLS Lua was not installed.
+`QNUM=300` is a confirmed configuration value from the runtime scripts, not
+evidence of an active NFQUEUE.
 
 See `router-desktop-compatibility.md`, `tls-mvp-design.md`.
