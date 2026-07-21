@@ -152,9 +152,9 @@ jobs:
           fi
           echo "Orchestra APK: $ORCH_APK"
           echo "Zapret2 APK: $Z2_APK"
-          echo "orch_apk_path=$SDK_DIR/$ORCH_APK" >> "$GITHUB_OUTPUT"
+          echo "orch_apk_path=$ORCH_APK" >> "$GITHUB_OUTPUT"
           echo "orch_apk_name=$(basename "$ORCH_APK")" >> "$GITHUB_OUTPUT"
-          echo "z2_apk_path=$SDK_DIR/$Z2_APK" >> "$GITHUB_OUTPUT"
+          echo "z2_apk_path=$Z2_APK" >> "$GITHUB_OUTPUT"
           echo "z2_apk_name=$(basename "$Z2_APK")" >> "$GITHUB_OUTPUT"
 
       - name: Inspect and verify APKs
@@ -299,8 +299,9 @@ jobs:
 
       - name: Copy APKs to artifacts
         run: |
-          cp "${{ steps.locate-apk.outputs.orch_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.orch_apk_name }}"
-          cp "${{ steps.locate-apk.outputs.z2_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.z2_apk_name }}"
+          mkdir -p artifacts
+          cp "$SDK_DIR/${{ steps.locate-apk.outputs.orch_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.orch_apk_name }}"
+          cp "$SDK_DIR/${{ steps.locate-apk.outputs.z2_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.z2_apk_name }}"
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
