@@ -390,13 +390,17 @@ class ApkFormatContractTest(unittest.TestCase):
         self.assertIn("package/zapret2/compile", text)
         self.assertIn("package/zapret2-orchestra/compile", text)
 
-    def test_workflow_uses_system_apk_tools(self) -> None:
+    def test_workflow_builds_host_apk_from_sdk(self) -> None:
         wf = ROOT / ".github" / "workflows" / "build-apk.yml"
         text = wf.read_text(encoding="utf-8")
-        self.assertIn("apk-tools", text)
-        self.assertIn("command -v apk", text)
-        self.assertIn("apk extract", text)
-        self.assertNotIn('"$SDK_DIR/staging_dir/host/bin/apk" as APK_BIN', text)
+        self.assertIn("package/system/apk/host/compile", text)
+        self.assertIn("staging_dir/host/bin/apk", text)
+        self.assertIn("3.0.5", text)
+        self.assertNotIn("command -v apk", text)
+        self.assertNotIn("apk-tools", text)
+        self.assertNotIn("dl-cdn.alpinelinux.org", text)
+        self.assertIn("SDK_ABS", text)
+        self.assertIn("APK_BIN", text)
 
     def test_workflow_checks_no_ipk_and_arch(self) -> None:
         wf = ROOT / ".github" / "workflows" / "build-apk.yml"
