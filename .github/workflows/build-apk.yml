@@ -362,6 +362,75 @@ jobs:
 
           echo "=== All contract checks complete ==="
 
+      - name: Stage 2 APK audit
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          ART_DIR="$GITHUB_WORKSPACE/artifacts"
+          mkdir -p "$ART_DIR"
+          # /tmp/apk-orch and /tmp/apk-z2 were populated by the previous step
+          # with `apk --allow-untrusted extract --destination`. They persist
+          # across steps on the same runner.
+
+          echo "=== SHA256 of built APKs ==="
+          {
+            sha256sum "$GITHUB_WORKSPACE/$SDK_DIR/${{ steps.locate-apk.outputs.orch_apk_path }}"
+            sha256sum "$GITHUB_WORKSPACE/$SDK_DIR/${{ steps.locate-apk.outputs.z2_apk_path }}"
+          } | tee "$ART_DIR/apk-sha256.txt"
+
+          echo "=== ELF inventory: every ELF file in the zapret2 APK ==="
+          # An ELF file is a host (x86_64) binary leaked into the target
+          # package; every executable shipped by zapret2 must be an aarch64
+          # target binary. List them all and reject any x86_64 ELF.
+          find /tmp/apk-z2 -type f -print0 | xargs -0 file 2>/dev/null | grep -i 'ELF' > "$ART_DIR/zapret2-elf-inventory.txt" || true
+          cat "$ART_DIR/zapret2-elf-inventory.txt"
+          if grep -i 'x86-64' "$ART_DIR/zapret2-elf-inventory.txt" >/dev/null 2>&1; then
+            echo "FAIL: x86_64 ELF found in zapret2 APK"
+            grep -i 'x86-64' "$ART_DIR/zapret2-elf-inventory.txt"
+            exit 1
+          fi
+          echo "OK: no x86_64 ELF in zapret2 APK"
+
+          echo "=== assert: nfqws2, ip2net, mdig are aarch64 ELF (readelf -h) ==="
+          : > "$ART_DIR/zapret2-elf-checks.txt"
+          for bin in nfqws2 ip2net mdig; do
+            f=$(find /tmp/apk-z2 -name "$bin" -type f -print -quit)
+            if [ -z "$f" ]; then
+              echo "FAIL: $bin not found in zapret2 APK" | tee -a "$ART_DIR/zapret2-elf-checks.txt"
+              exit 1
+            fi
+            ft=$(file "$f")
+            echo "--- $bin: $ft ---" | tee -a "$ART_DIR/zapret2-elf-checks.txt"
+            case "$ft" in
+              *aarch64*) echo "OK: $bin is aarch64 ELF" | tee -a "$ART_DIR/zapret2-elf-checks.txt" ;;
+              *) echo "FAIL: $bin is not aarch64: $ft" | tee -a "$ART_DIR/zapret2-elf-checks.txt"; exit 1 ;;
+            esac
+            readelf -h "$f" 2>&1 | tee -a "$ART_DIR/zapret2-elf-checks.txt"
+            echo "--- $bin: readelf -d (NEEDED) ---" | tee -a "$ART_DIR/zapret2-elf-checks.txt"
+            readelf -d "$f" 2>&1 | grep -E 'NEEDED|Shared library' | tee -a "$ART_DIR/zapret2-elf-checks.txt"
+          done
+
+          echo "=== orchestra APK: must contain no ELF binaries ==="
+          find /tmp/apk-orch -type f -print0 | xargs -0 file 2>/dev/null | grep -i 'ELF' > "$ART_DIR/orchestra-elf-inventory.txt" || true
+          if [ -s "$ART_DIR/orchestra-elf-inventory.txt" ]; then
+            echo "FAIL: orchestra APK contains ELF binaries:"
+            cat "$ART_DIR/orchestra-elf-inventory.txt"
+            exit 1
+          fi
+          echo "OK: orchestra APK has no ELF binaries"
+
+          echo "=== on-artifact package manifests and conffiles ==="
+          : > "$ART_DIR/package-manifests.txt"
+          for p in zapret2 zapret2-orchestra; do
+            if [ "$p" = "zapret2-orchestra" ]; then root=/tmp/apk-orch; else root=/tmp/apk-z2; fi
+            echo "--- $p: /lib/apk/packages/$p.list ---" | tee -a "$ART_DIR/package-manifests.txt"
+            cat "$root/lib/apk/packages/$p.list" 2>/dev/null | tee -a "$ART_DIR/package-manifests.txt"
+            echo "--- $p: /lib/apk/packages/$p.conffiles ---" | tee -a "$ART_DIR/package-manifests.txt"
+            cat "$root/lib/apk/packages/$p.conffiles" 2>/dev/null | tee -a "$ART_DIR/package-manifests.txt"
+            echo "--- $p: /lib/apk/packages/$p.conffiles_static ---" | tee -a "$ART_DIR/package-manifests.txt"
+            cat "$root/lib/apk/packages/$p.conffiles_static" 2>/dev/null | tee -a "$ART_DIR/package-manifests.txt"
+          done
+
       - name: Collect build log
         if: always()
         run: |
@@ -420,6 +489,11 @@ jobs:
             artifacts/zapret2-files.txt
             artifacts/nfqws2-file-type.txt
             artifacts/nfqws2-readelf.txt
+            artifacts/apk-sha256.txt
+            artifacts/zapret2-elf-inventory.txt
+            artifacts/zapret2-elf-checks.txt
+            artifacts/orchestra-elf-inventory.txt
+            artifacts/package-manifests.txt
             artifacts/packageinfo.txt
             artifacts/bin-packages-listing.txt
           if-no-files-found: warn

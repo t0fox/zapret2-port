@@ -425,6 +425,26 @@ class ApkFormatContractTest(unittest.TestCase):
         self.assertIn("PKGARCH", text)
         self.assertIn(r"\s*:=\s*all", text)
 
+    def test_workflow_stage2_audit_verifies_elv_arch_and_manifest(self) -> None:
+        wf = ROOT / ".github" / "workflows" / "build-apk.yml"
+        text = wf.read_text(encoding="utf-8")
+        # A dedicated Stage 2 audit step records SHA256 of both APKs, confirms
+        # every ELF in the zapret2 APK is aarch64 (no leaked x86_64 host
+        # binary), runs readelf -h on nfqws2/ip2net/mdig, confirms the
+        # orchestra APK has no ELF binaries, and dumps the on-artifact
+        # package manifests (.list) and conffiles extracted from the APKs.
+        self.assertIn("Stage 2 APK audit", text)
+        self.assertIn("sha256sum", text)
+        self.assertIn("readelf -h", text)
+        self.assertIn("x86-64", text)
+        self.assertIn("aarch64", text)
+        # The audit loops over the three target binaries by name.
+        self.assertIn('for bin in nfqws2 ip2net mdig', text)
+        self.assertIn('find /tmp/apk-z2 -name "$bin"', text)
+        self.assertIn("orchestra APK has no ELF binaries", text)
+        self.assertIn("/lib/apk/packages/$p.list", text)
+        self.assertIn("/lib/apk/packages/$p.conffiles", text)
+
 
 if __name__ == "__main__":
     unittest.main()
