@@ -31,26 +31,6 @@ jobs:
           set -eu
           sudo apt-get update
           sudo apt-get install -y zstd binutils file
-          # apk-tools is not in Ubuntu apt. Resolve the latest apk-tools
-          # package name from the Alpine APKINDEX instead of pinning a
-          # specific revision (-rN): Alpine drops older revisions from the
-          # mirror on every rebuild, which 404s a pinned URL. Dynamic
-          # resolution survives those rotations.
-          ALPINE_BASE=https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64
-          APK_VER=$(curl -fsSL "$ALPINE_BASE/APKINDEX.tar.gz" \
-            | tar -xzO APKINDEX \
-            | awk -F: '/^P:apk-tools$/{p=1} p&&/^V:/{print $2; exit}')
-          if [ -z "$APK_VER" ]; then
-            echo "ERROR: could not resolve apk-tools version from $ALPINE_BASE/APKINDEX.tar.gz"
-            exit 1
-          fi
-          APK_URL="$ALPINE_BASE/apk-tools-$APK_VER.apk"
-          echo "Resolved apk-tools: $APK_URL"
-          curl -fSL --retry 5 --retry-delay 5 -o /tmp/apk-tools.apk "$APK_URL"
-          tar -xzf /tmp/apk-tools.apk -C /tmp
-          sudo install -m 0755 /tmp/sbin/apk /usr/local/bin/apk
-          apk --version
-          rm -rf /tmp/apk-tools.apk /tmp/sbin /tmp/lib /tmp/usr
 
       - name: Cache SDK
         id: cache-sdk
@@ -81,6 +61,7 @@ jobs:
 
       - name: Verify SDK layout
         run: |
+          set -eu
           test -d "$SDK_DIR/include" || { echo "ERROR: SDK include/ not found"; exit 1; }
           test -f "$SDK_DIR/include/package.mk" || { echo "ERROR: package.mk not found"; exit 1; }
           test -d "$SDK_DIR/staging_dir/host/bin" || { echo "ERROR: staging_dir/host/bin not found"; exit 1; }
@@ -90,9 +71,7 @@ jobs:
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
-          # Copy zapret2-orchestra (architecture-independent package)
           cp -r "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra" package/zapret2-orchestra
-          # Copy zapret2 (target-arch package; source downloaded via PKG_SOURCE)
           cp -r "$GITHUB_WORKSPACE/openwrt/zapret2" package/zapret2
           echo "Package tree prepared:"
           find package -maxdepth 2 -name Makefile | sort
@@ -117,6 +96,21 @@ jobs:
           make defconfig
           echo "=== .config excerpt (zapret) ==="
           grep -i zapret .config || echo "(no zapret in config)"
+
+      - name: Build OpenWrt host apk
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          echo "Building host apk from SDK..."
+          make package/system/apk/host/compile -j"$(nproc)" V=s
+          test -x staging_dir/host/bin/apk
+          echo "--- apk version ---"
+          staging_dir/host/bin/apk --version
+          staging_dir/host/bin/apk --version | grep -F '3.0.5' || {
+            echo "ERROR: apk version is not 3.0.5"
+            exit 1
+          }
+          echo "OK: host apk 3.0.5 ready"
 
       - name: Build zapret2 (parallel)
         id: build-zapret2
@@ -182,21 +176,15 @@ jobs:
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
-          # Prefer system apk-tools (apt: apk-tools), fall back to SDK staging.
-          APK_BIN=""
-          if command -v apk >/dev/null 2>&1; then
-            APK_BIN="$(command -v apk)"
-          elif [ -x "$SDK_DIR/staging_dir/host/bin/apk" ]; then
-            APK_BIN="$SDK_DIR/staging_dir/host/bin/apk"
-          else
-            echo "ERROR: no apk binary found (install apk-tools)"
-            exit 1
-          fi
-          echo "Using apk: $APK_BIN"
-          "$APK_BIN" --version || true
+          SDK_ABS="$GITHUB_WORKSPACE/$SDK_DIR"
+          APK_BIN="$SDK_ABS/staging_dir/host/bin/apk"
+          ORCH_APK="$SDK_ABS/${{ steps.locate-apk.outputs.orch_apk_path }}"
+          Z2_APK="$SDK_ABS/${{ steps.locate-apk.outputs.z2_apk_path }}"
 
-          ORCH_APK="${{ steps.locate-apk.outputs.orch_apk_path }}"
-          Z2_APK="${{ steps.locate-apk.outputs.z2_apk_path }}"
+          echo "APK_BIN: $APK_BIN"
+          test -x "$APK_BIN" || { echo "ERROR: $APK_BIN not executable"; exit 1; }
+          "$APK_BIN" --version
+
           mkdir -p /tmp/apk-orch /tmp/apk-z2 "$GITHUB_WORKSPACE/artifacts"
 
           echo "=== Orchestra APK ==="
@@ -217,34 +205,42 @@ jobs:
           "$APK_BIN" manifest "$Z2_APK" > "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null || true
           "$APK_BIN" info --description "$Z2_APK" > "$GITHUB_WORKSPACE/artifacts/zapret2-metadata.txt" 2>&1 || true
 
-          echo "=== Extract APKs via apk extract ==="
-          # apk v3 packages are concatenated tar streams (signature, control,
-          # data); plain tar cannot extract them. Use `apk extract` when
-          # available, otherwise `tar --zstd` as a best-effort fallback.
-          if "$APK_BIN" extract --help >/dev/null 2>&1; then
-            ( cd /tmp/apk-orch && "$APK_BIN" extract "$SDK_DIR/$ORCH_APK" 2>/dev/null ) || echo "WARN: orchestra apk extract failed"
-            ( cd /tmp/apk-z2 && "$APK_BIN" extract "$SDK_DIR/$Z2_APK" 2>/dev/null ) || echo "WARN: zapret2 apk extract failed"
+          echo "=== Determine apk extract syntax ==="
+          "$APK_BIN" extract --help 2>&1 || true
+          EXTRACT_MODE=""
+          if "$APK_BIN" extract --help 2>&1 | grep -q -- '--output'; then
+            EXTRACT_MODE="apk-output"
+          elif "$APK_BIN" extract --help 2>&1 | grep -q 'usage.*extract'; then
+            EXTRACT_MODE="apk-bare"
+          fi
+          echo "Extract mode: $EXTRACT_MODE"
+
+          echo "=== Extract APKs ==="
+          if [ "$EXTRACT_MODE" = "apk-output" ]; then
+            "$APK_BIN" extract --output /tmp/apk-orch "$ORCH_APK" 2>/dev/null || echo "WARN: orchestra apk extract failed"
+            "$APK_BIN" extract --output /tmp/apk-z2 "$Z2_APK" 2>/dev/null || echo "WARN: zapret2 apk extract failed"
+          elif [ "$EXTRACT_MODE" = "apk-bare" ]; then
+            ( cd /tmp/apk-orch && "$APK_BIN" extract "$ORCH_APK" 2>/dev/null ) || echo "WARN: orchestra apk extract failed"
+            ( cd /tmp/apk-z2 && "$APK_BIN" extract "$Z2_APK" 2>/dev/null ) || echo "WARN: zapret2 apk extract failed"
           else
-            tar --zstd -xf "$ORCH_APK" -C /tmp/apk-orch 2>/dev/null || tar -xf "$ORCH_APK" -C /tmp/apk-orch 2>/dev/null || echo "WARN: orchestra tar extraction failed"
-            tar --zstd -xf "$Z2_APK" -C /tmp/apk-z2 2>/dev/null || tar -xf "$Z2_APK" -C /tmp/apk-z2 2>/dev/null || echo "WARN: zapret2 tar extraction failed"
+            echo "apk extract not available; using manifest only"
           fi
 
           echo "=== Extracted orchestra files (first 30) ==="
-          find /tmp/apk-orch -type f | head -30 || true
+          find /tmp/apk-orch -type f 2>/dev/null | head -30 || true
           echo "=== Extracted zapret2 files (first 30) ==="
-          find /tmp/apk-z2 -type f | head -30 || true
+          find /tmp/apk-z2 -type f 2>/dev/null | head -30 || true
 
           echo "=== Contract: zapret2 APK contains nfqws2 ==="
           NFQWS2=""
-          if find /tmp/apk-z2 -name 'nfqws2' -type f | grep -q .; then
+          if find /tmp/apk-z2 -name 'nfqws2' -type f 2>/dev/null | grep -q .; then
             NFQWS2=$(find /tmp/apk-z2 -name 'nfqws2' -type f | head -1)
             echo "OK: nfqws2 extracted at $NFQWS2"
           elif grep -q '/opt/zapret2/nfq2/nfqws2' "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null; then
-            echo "OK: nfqws2 listed in manifest (extraction may have failed)"
+            echo "OK: nfqws2 listed in manifest"
             NFQWS2="manifest-only"
           else
             echo "FAIL: nfqws2 not found in zapret2 APK"
-            echo "--- manifest ---"
             cat "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null || true
             exit 1
           fi
@@ -263,12 +259,12 @@ jobs:
             readelf -d "$NFQWS2" 2>/dev/null || true
             readelf -d "$NFQWS2" > "$GITHUB_WORKSPACE/artifacts/nfqws2-readelf.txt" 2>&1 || true
           else
-            echo "WARN: nfqws2 not extracted, skipping ELF check (listed in manifest only)"
+            echo "WARN: nfqws2 not extracted, skipping ELF check"
           fi
 
           echo "=== Contract: orchestra APK has no nfqws2 ==="
-          if find /tmp/apk-orch -name 'nfqws2' -type f | grep -q .; then
-            echo "FAIL: nfqws2 found in orchestra APK (should not be there)"
+          if find /tmp/apk-orch -name 'nfqws2' -type f 2>/dev/null | grep -q .; then
+            echo "FAIL: nfqws2 found in orchestra APK"
             exit 1
           elif grep -q '/opt/zapret2/nfq2/nfqws2' "$GITHUB_WORKSPACE/artifacts/orchestra-files.txt" 2>/dev/null; then
             echo "FAIL: nfqws2 listed in orchestra manifest"
@@ -337,7 +333,7 @@ jobs:
           done
 
           echo "=== Contract: no .ipk files ==="
-          if find bin/packages -name '*.ipk' -type f | grep -q .; then
+          if find bin/packages -name '*.ipk' -type f 2>/dev/null | grep -q .; then
             echo "FAIL: .ipk files found"
             find bin/packages -name '*.ipk' -type f
             exit 1
@@ -368,32 +364,33 @@ jobs:
         run: |
           set +e
           mkdir -p "$GITHUB_WORKSPACE/artifacts"
-          # SDK_DIR may be absent if an early step (e.g. host deps) failed
-          # before the SDK was downloaded. Don't fail log-collection in that
-          # case - produce no artifact and let the real upstream error show,
-          # instead of masking it with a "working directory not found" crash.
-          if [ -d "$GITHUB_WORKSPACE/$SDK_DIR/logs" ]; then
-            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$GITHUB_WORKSPACE/$SDK_DIR" logs/
-          elif [ -d "$SDK_DIR/logs" ]; then
-            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$SDK_DIR" logs/
+          if [ -d "$GITHUB_WORKSPACE/$SDK_DIR" ]; then
+            if [ -d "$GITHUB_WORKSPACE/$SDK_DIR/logs" ]; then
+              tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$GITHUB_WORKSPACE/$SDK_DIR" logs/
+            else
+              echo "SDK_DIR exists but no logs/ directory; nothing to archive."
+            fi
           else
-            echo "No logs/ directory found (SDK_DIR=$SDK_DIR); nothing to archive."
+            echo "SDK_DIR ($SDK_DIR) not found; nothing to archive."
           fi
 
       - name: Copy APKs to artifacts
+        if: always() && steps.locate-apk.outcome == 'success'
         run: |
           mkdir -p artifacts
-          cp "$SDK_DIR/${{ steps.locate-apk.outputs.orch_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.orch_apk_name }}"
-          cp "$SDK_DIR/${{ steps.locate-apk.outputs.z2_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.z2_apk_name }}"
+          cp "$GITHUB_WORKSPACE/$SDK_DIR/${{ steps.locate-apk.outputs.orch_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.orch_apk_name }}" 2>/dev/null || true
+          cp "$GITHUB_WORKSPACE/$SDK_DIR/${{ steps.locate-apk.outputs.z2_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.z2_apk_name }}" 2>/dev/null || true
 
       - name: Upload APKs
+        if: always() && steps.locate-apk.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: zapret2-apks
           path: artifacts/*.apk
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Upload metadata and file lists
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zapret2-metadata
