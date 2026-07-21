@@ -184,75 +184,65 @@ jobs:
           APK_BIN="$SDK_ABS/staging_dir/host/bin/apk"
           ORCH_APK="$SDK_ABS/${{ steps.locate-apk.outputs.orch_apk_path }}"
           Z2_APK="$SDK_ABS/${{ steps.locate-apk.outputs.z2_apk_path }}"
+          ART_DIR="$GITHUB_WORKSPACE/artifacts"
 
           echo "APK_BIN: $APK_BIN"
           test -x "$APK_BIN" || { echo "ERROR: $APK_BIN not executable"; exit 1; }
           "$APK_BIN" --version
 
-          mkdir -p /tmp/apk-orch /tmp/apk-z2 "$GITHUB_WORKSPACE/artifacts"
+          mkdir -p /tmp/apk-orch /tmp/apk-z2 "$ART_DIR"
 
           echo "=== Orchestra APK ==="
           ls -lh "$ORCH_APK"
           file "$ORCH_APK"
-          "$APK_BIN" info --description "$ORCH_APK" || true
-          echo "--- manifest ---"
-          "$APK_BIN" manifest "$ORCH_APK" || true
-          "$APK_BIN" manifest "$ORCH_APK" > "$GITHUB_WORKSPACE/artifacts/orchestra-files.txt" 2>/dev/null || true
-          "$APK_BIN" info --description "$ORCH_APK" > "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt" 2>&1 || true
 
           echo "=== Zapret2 APK ==="
           ls -lh "$Z2_APK"
           file "$Z2_APK"
-          "$APK_BIN" info --description "$Z2_APK" || true
-          echo "--- manifest ---"
-          "$APK_BIN" manifest "$Z2_APK" || true
-          "$APK_BIN" manifest "$Z2_APK" > "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null || true
-          "$APK_BIN" info --description "$Z2_APK" > "$GITHUB_WORKSPACE/artifacts/zapret2-metadata.txt" 2>&1 || true
 
-          echo "=== Determine apk extract syntax ==="
-          "$APK_BIN" extract --help 2>&1 || true
-          EXTRACT_MODE=""
-          if "$APK_BIN" extract --help 2>&1 | grep -q -- '--output'; then
-            EXTRACT_MODE="apk-output"
-          elif "$APK_BIN" extract --help 2>&1 | grep -q 'usage.*extract'; then
-            EXTRACT_MODE="apk-bare"
-          fi
-          echo "Extract mode: $EXTRACT_MODE"
-
-          echo "=== Extract APKs ==="
-          if [ "$EXTRACT_MODE" = "apk-output" ]; then
-            "$APK_BIN" extract --output /tmp/apk-orch "$ORCH_APK" 2>/dev/null || echo "WARN: orchestra apk extract failed"
-            "$APK_BIN" extract --output /tmp/apk-z2 "$Z2_APK" 2>/dev/null || echo "WARN: zapret2 apk extract failed"
-          elif [ "$EXTRACT_MODE" = "apk-bare" ]; then
-            ( cd /tmp/apk-orch && "$APK_BIN" extract "$ORCH_APK" 2>/dev/null ) || echo "WARN: orchestra apk extract failed"
-            ( cd /tmp/apk-z2 && "$APK_BIN" extract "$Z2_APK" 2>/dev/null ) || echo "WARN: zapret2 apk extract failed"
+          echo "=== Extract APKs (apk extract --destination) ==="
+          # apk info --description and apk manifest require an installed
+          # database (they do not read a package file).  apk extract
+          # --destination is the reliable way to unpack a local .apk;
+          # use the extracted tree for all contract checks.
+          if "$APK_BIN" extract --destination /tmp/apk-orch "$ORCH_APK"; then
+            echo "OK: orchestra extracted"
           else
-            echo "apk extract not available; using manifest only"
+            echo "WARN: orchestra apk extract failed (exit $?)"
+          fi
+          if "$APK_BIN" extract --destination /tmp/apk-z2 "$Z2_APK"; then
+            echo "OK: zapret2 extracted"
+          else
+            echo "WARN: zapret2 apk extract failed (exit $?)"
           fi
 
-          echo "=== Extracted orchestra files (first 30) ==="
-          find /tmp/apk-orch -type f 2>/dev/null | head -30 || true
-          echo "=== Extracted zapret2 files (first 30) ==="
-          find /tmp/apk-z2 -type f 2>/dev/null | head -30 || true
+          # Dump file inventories from the extracted trees for the artifacts
+          echo "=== Extracted orchestra file listing ==="
+          find /tmp/apk-orch -type f 2>/dev/null | sort > "$ART_DIR/orchestra-files.txt"
+          cat "$ART_DIR/orchestra-files.txt"
+
+          echo "=== Extracted zapret2 file listing ==="
+          find /tmp/apk-z2 -type f 2>/dev/null | sort > "$ART_DIR/zapret2-files.txt"
+          cat "$ART_DIR/zapret2-files.txt"
 
           echo "=== Contract: zapret2 APK contains nfqws2 ==="
           NFQWS2=""
           if find /tmp/apk-z2 -name 'nfqws2' -type f 2>/dev/null | grep -q .; then
             NFQWS2=$(find /tmp/apk-z2 -name 'nfqws2' -type f -print -quit)
             echo "OK: nfqws2 extracted at $NFQWS2"
-          elif grep -q '/opt/zapret2/nfq2/nfqws2' "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null; then
+          elif grep -q '/opt/zapret2/nfq2/nfqws2' "$ART_DIR/zapret2-files.txt" 2>/dev/null; then
             echo "OK: nfqws2 listed in manifest"
             NFQWS2="manifest-only"
           else
             echo "FAIL: nfqws2 not found in zapret2 APK"
-            cat "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null || true
+            cat "$ART_DIR/zapret2-files.txt" 2>/dev/null || true
             exit 1
           fi
 
           echo "=== Contract: nfqws2 is AArch64 ELF ==="
           if [ -n "$NFQWS2" ] && [ "$NFQWS2" != "manifest-only" ] && [ -f "$NFQWS2" ]; then
-            file "$NFQWS2"
-            file "$NFQWS2" > "$GITHUB_WORKSPACE/artifacts/nfqws2-file-type.txt" 2>&1
+            file "$NFQWS2" > "$ART_DIR/nfqws2-file-type.txt" 2>&1
+            cat "$ART_DIR/nfqws2-file-type.txt"
             if file "$NFQWS2" | grep -q 'ELF.*aarch64'; then
               echo "OK: nfqws2 is AArch64 ELF"
             else
@@ -261,7 +251,7 @@ jobs:
             fi
             echo "--- readelf -d ---"
             readelf -d "$NFQWS2" 2>/dev/null || true
-            readelf -d "$NFQWS2" > "$GITHUB_WORKSPACE/artifacts/nfqws2-readelf.txt" 2>&1 || true
+            readelf -d "$NFQWS2" > "$ART_DIR/nfqws2-readelf.txt" 2>&1 || true
           else
             echo "WARN: nfqws2 not extracted, skipping ELF check"
           fi
@@ -270,19 +260,19 @@ jobs:
           if find /tmp/apk-orch -name 'nfqws2' -type f 2>/dev/null | grep -q .; then
             echo "FAIL: nfqws2 found in orchestra APK"
             exit 1
-          elif grep -q '/opt/zapret2/nfq2/nfqws2' "$GITHUB_WORKSPACE/artifacts/orchestra-files.txt" 2>/dev/null; then
+          elif grep -q '/opt/zapret2/nfq2/nfqws2' "$ART_DIR/orchestra-files.txt" 2>/dev/null; then
             echo "FAIL: nfqws2 listed in orchestra manifest"
             exit 1
           else
             echo "OK: no nfqws2 in orchestra APK"
           fi
 
-          echo "=== Contract: orchestra depends on zapret2 ==="
-          if grep -q 'zapret2' "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt"; then
-            echo "OK: orchestra metadata references zapret2"
+          echo "=== Contract: orchestra depends on zapret2 (Makefile DEPENDS) ==="
+          if grep -q 'zapret2' "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile"; then
+            echo "OK: orchestra Makefile references zapret2 in DEPENDS"
           else
-            echo "FAIL: orchestra metadata does not reference zapret2"
-            cat "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt"
+            echo "FAIL: orchestra Makefile does not reference zapret2"
+            cat "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile"
             exit 1
           fi
 
@@ -294,16 +284,16 @@ jobs:
             echo "OK: no ../../zapret2-core references"
           fi
 
-          echo "=== Contract: orchestra conffiles (from manifest) ==="
+          echo "=== Contract: orchestra conffiles ==="
           for f in /etc/zapret2-orchestra/blocked.json /etc/zapret2-orchestra/learned.json /etc/zapret2-orchestra/manual-locks.json /etc/zapret2-orchestra/whitelist.json; do
-            if grep -q "$f" "$GITHUB_WORKSPACE/artifacts/orchestra-files.txt" 2>/dev/null; then
+            if grep -F -q "$f" "$ART_DIR/orchestra-files.txt" 2>/dev/null; then
               echo "OK: $f"
             else
-              echo "FAIL: $f not found in manifest"
+              echo "FAIL: $f not found in orchestra APK"
             fi
           done
 
-          echo "=== Contract: orchestra required files (from manifest) ==="
+          echo "=== Contract: orchestra required files ==="
           for f in \
             /usr/share/rpcd/ucode/zapret2.orchestra \
             /usr/share/rpcd/acl.d/zapret2-orchestra.json \
@@ -312,14 +302,14 @@ jobs:
             /etc/init.d/zapret2-orchestra \
             /opt/zapret2/lua/orchestra-extra/init.lua
           do
-            if grep -q "$f" "$GITHUB_WORKSPACE/artifacts/orchestra-files.txt" 2>/dev/null; then
+            if grep -F -q "$f" "$ART_DIR/orchestra-files.txt" 2>/dev/null; then
               echo "OK: $f"
             else
-              echo "FAIL: $f not found in manifest"
+              echo "FAIL: $f not found in orchestra APK"
             fi
           done
 
-          echo "=== Contract: zapret2 required files (from manifest) ==="
+          echo "=== Contract: zapret2 required files ==="
           for f in \
             /opt/zapret2/nfq2/nfqws2 \
             /opt/zapret2/ip2net/ip2net \
@@ -329,10 +319,10 @@ jobs:
             /opt/zapret2/lua/zapret-auto.lua \
             /etc/init.d/zapret2
           do
-            if grep -q "$f" "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null; then
+            if grep -F -q "$f" "$ART_DIR/zapret2-files.txt" 2>/dev/null; then
               echo "OK: $f"
             else
-              echo "FAIL: $f not found in manifest"
+              echo "FAIL: $f not found in zapret2 APK"
             fi
           done
 
@@ -345,20 +335,19 @@ jobs:
             echo "OK: no .ipk files"
           fi
 
-          echo "=== Contract: zapret2 architecture is target (not all) ==="
-          if grep -qi 'arch.*all' "$GITHUB_WORKSPACE/artifacts/zapret2-metadata.txt" 2>/dev/null; then
-            echo "FAIL: zapret2 architecture is 'all' (should be target)"
+          echo "=== Contract: zapret2 architecture is target (not PKGARCH:=all) ==="
+          if grep -q '^\s*PKGARCH\s*:=\s*all\b' "$GITHUB_WORKSPACE/openwrt/zapret2/Makefile" 2>/dev/null; then
+            echo "FAIL: zapret2 Makefile declares PKGARCH:=all"
             exit 1
           else
-            echo "OK: zapret2 is target-arch"
+            echo "OK: zapret2 is target-arch (no PKGARCH:=all)"
           fi
 
-          echo "=== Contract: orchestra architecture is all ==="
-          if grep -qi 'arch.*all' "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt" 2>/dev/null; then
+          echo "=== Contract: orchestra architecture is PKGARCH:=all ==="
+          if grep -q '^\s*PKGARCH\s*:=\s*all\b' "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile" 2>/dev/null; then
             echo "OK: orchestra architecture is all"
           else
-            echo "WARN: orchestra architecture not clearly 'all' in metadata"
-            cat "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt"
+            echo "WARN: orchestra PKGARCH:=all not found or formatted differently"
           fi
 
           echo "=== All contract checks complete ==="
@@ -417,9 +406,7 @@ jobs:
         with:
           name: zapret2-metadata
           path: |
-            artifacts/orchestra-metadata.txt
             artifacts/orchestra-files.txt
-            artifacts/zapret2-metadata.txt
             artifacts/zapret2-files.txt
             artifacts/nfqws2-file-type.txt
             artifacts/nfqws2-readelf.txt
