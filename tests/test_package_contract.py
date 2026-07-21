@@ -407,7 +407,11 @@ class ApkFormatContractTest(unittest.TestCase):
         # File-level inspection uses `apk extract --destination` (which unpacks
         # a local .apk without an installed database), not `apk info`/`apk
         # manifest` (which require an installed DB and fail on a bare file).
-        self.assertIn("apk extract --destination", text)
+        # Locally built APKs carry an untrusted signature, so extraction must
+        # also pass --allow-untrusted (the same flag OpenWrt uses to stage its
+        # own packages); without it apk rejects the file with exit 99.
+        self.assertIn("--allow-untrusted", text)
+        self.assertIn("extract --destination", text)
         # The extracted tree feeds every contract check.
         self.assertIn("/tmp/apk-orch", text)
         self.assertIn("/tmp/apk-z2", text)

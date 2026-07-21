@@ -200,20 +200,30 @@ jobs:
           ls -lh "$Z2_APK"
           file "$Z2_APK"
 
-          echo "=== Extract APKs (apk extract --destination) ==="
+          echo "=== Extract APKs (apk --allow-untrusted extract --destination) ==="
           # apk info --description and apk manifest require an installed
           # database (they do not read a package file).  apk extract
-          # --destination is the reliable way to unpack a local .apk;
-          # use the extracted tree for all contract checks.
-          if "$APK_BIN" extract --destination /tmp/apk-orch "$ORCH_APK"; then
+          # --destination is the reliable way to unpack a local .apk.
+          # The SDK builds packages with a locally generated signing key
+          # that is not in the trusted keyring, so apk rejects them with
+          # "UNTRUSTED signature" (exit 99) unless --allow-untrusted is
+          # passed.  We are only inspecting locally built artifacts (not
+          # installing them), so trusting the signature here is safe and
+          # is the same flag the OpenWrt build system uses when staging
+          # its own packages.  Extraction failure is fatal: a silent WARN
+          # here would surface downstream as a misleading "nfqws2 not
+          # found" contract failure and hide the real cause.
+          if "$APK_BIN" --allow-untrusted extract --destination /tmp/apk-orch "$ORCH_APK"; then
             echo "OK: orchestra extracted"
           else
-            echo "WARN: orchestra apk extract failed (exit $?)"
+            echo "FAIL: orchestra apk extract failed (exit $?)"
+            exit 1
           fi
-          if "$APK_BIN" extract --destination /tmp/apk-z2 "$Z2_APK"; then
+          if "$APK_BIN" --allow-untrusted extract --destination /tmp/apk-z2 "$Z2_APK"; then
             echo "OK: zapret2 extracted"
           else
-            echo "WARN: zapret2 apk extract failed (exit $?)"
+            echo "FAIL: zapret2 apk extract failed (exit $?)"
+            exit 1
           fi
 
           # Dump file inventories from the extracted trees for the artifacts
