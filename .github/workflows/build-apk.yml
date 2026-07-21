@@ -28,8 +28,16 @@ jobs:
 
       - name: Install host dependencies
         run: |
+          set -eu
           sudo apt-get update
-          sudo apt-get install -y zstd apk-tools
+          sudo apt-get install -y zstd binutils file
+          # apk-tools is not in Ubuntu apt; install static apk binary from
+          # Alpine package (x86_64 host). Needed to inspect APK v3 packages.
+          curl -fSL -o /tmp/apk-tools.apk https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/apk-tools-2.14.4-r0.apk
+          tar -xzf /tmp/apk-tools.apk -C /tmp
+          sudo install -m 0755 /tmp/sbin/apk /usr/local/bin/apk
+          apk --version
+          rm -rf /tmp/apk-tools.apk /tmp/sbin /tmp/lib /tmp/usr
 
       - name: Cache SDK
         id: cache-sdk
