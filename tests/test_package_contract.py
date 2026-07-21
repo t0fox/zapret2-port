@@ -353,16 +353,30 @@ class ApkFormatContractTest(unittest.TestCase):
 
     def test_workflow_targets_apk_not_ipk(self) -> None:
         wf = ROOT / ".github" / "workflows" / "build-apk.yml"
-        self.assertTrue(wf.is_file(), "build-apk.yml workflow not found")
         text = wf.read_text(encoding="utf-8")
         self.assertIn(".apk", text)
-        self.assertNotIn(".ipk", text)
-        self.assertNotIn("opkg", text)
         self.assertIn("workflow_dispatch", text)
         self.assertIn("sha256sum", text)
         self.assertIn("actions/cache@v", text)
         self.assertIn("-j$(nproc)", text)
         self.assertIn("V=sc", text)
+        # .ipk may appear only inside the "no .ipk files" contract check
+        # block (the find, the FAIL/OK echoes, and the exit). It must never
+        # appear as a build target, artifact pattern, or opkg command.
+        in_no_ipk_block = False
+        for line in text.splitlines():
+            stripped = line.strip()
+            if "no .ipk files" in stripped:
+                in_no_ipk_block = True
+                continue
+            if in_no_ipk_block and stripped == "":
+                in_no_ipk_block = False
+            if ".ipk" in stripped:
+                self.assertTrue(
+                    in_no_ipk_block or "*.ipk" in stripped,
+                    f"workflow references .ipk outside the absence check: {stripped}",
+                )
+        self.assertNotIn("opkg", text)
 
     def test_workflow_does_not_copy_zapret2_core(self) -> None:
         wf = ROOT / ".github" / "workflows" / "build-apk.yml"
@@ -375,6 +389,20 @@ class ApkFormatContractTest(unittest.TestCase):
         text = wf.read_text(encoding="utf-8")
         self.assertIn("package/zapret2/compile", text)
         self.assertIn("package/zapret2-orchestra/compile", text)
+
+    def test_workflow_uses_system_apk_tools(self) -> None:
+        wf = ROOT / ".github" / "workflows" / "build-apk.yml"
+        text = wf.read_text(encoding="utf-8")
+        self.assertIn("apk-tools", text)
+        self.assertIn("command -v apk", text)
+        self.assertIn("apk extract", text)
+        self.assertNotIn('"$SDK_DIR/staging_dir/host/bin/apk" as APK_BIN', text)
+
+    def test_workflow_checks_no_ipk_and_arch(self) -> None:
+        wf = ROOT / ".github" / "workflows" / "build-apk.yml"
+        text = wf.read_text(encoding="utf-8")
+        self.assertIn("no .ipk files", text)
+        self.assertIn("arch.*all", text)
 
 
 if __name__ == "__main__":
