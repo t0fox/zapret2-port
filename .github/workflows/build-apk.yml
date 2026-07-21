@@ -32,15 +32,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y zstd binutils file
 
-      - name: Cache SDK
-        id: cache-sdk
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.SDK_DIR }}
-          key: sdk-${{ env.SDK_SHA256 }}
-
       - name: Download and verify SDK
-        if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           set -eu
           ARCHIVE="$(basename "$SDK_URL")"
@@ -60,11 +52,24 @@ jobs:
           echo "SDK ready at $SDK_DIR"
 
       - name: Verify SDK layout
+        working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
-          test -d "$SDK_DIR/include" || { echo "ERROR: SDK include/ not found"; exit 1; }
-          test -f "$SDK_DIR/include/package.mk" || { echo "ERROR: package.mk not found"; exit 1; }
-          test -d "$SDK_DIR/staging_dir/host/bin" || { echo "ERROR: staging_dir/host/bin not found"; exit 1; }
+          test -d include || { echo "ERROR: SDK include/ not found"; exit 1; }
+          test -f include/package.mk || { echo "ERROR: include/package.mk not found"; exit 1; }
+          test -d staging_dir/host/bin || { echo "ERROR: staging_dir/host/bin not found"; exit 1; }
+          # The OpenWrt SDK ships a prebuilt host apk used by the build
+          # system to produce .apk packages. Verify it is present and runs.
+          # Do not hard-reject on a specific version; the SDK pins the
+          # correct apk for this OpenWrt release.
+          test -x staging_dir/host/bin/apk || {
+            echo "ERROR: SDK host apk not found or not executable"
+            echo "staging_dir/host/bin contents:"
+            ls -la staging_dir/host/bin/ 2>&1 | head -40 || true
+            exit 1
+          }
+          echo "=== SDK host apk ==="
+          staging_dir/host/bin/apk --version
           echo "SDK layout verified"
 
       - name: Prepare package tree
@@ -80,14 +85,26 @@ jobs:
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
-          [ -f feeds.conf.default ] && cp feeds.conf.default feeds.conf || true
-          if [ -f feeds.conf ]; then
-            sed -i -e 's|base.*\.git|base https://github.com/openwrt/openwrt.git|' feeds.conf || true
-            sed -i -e 's|packages.*\.git|packages https://github.com/openwrt/packages.git|' feeds.conf || true
-            sed -i -e 's|luci.*\.git|luci https://github.com/openwrt/luci.git|' feeds.conf || true
+          if [ -f feeds.conf.default ]; then
+            cp feeds.conf.default feeds.conf
+          else
+            echo "ERROR: feeds.conf.default not found"
+            exit 1
           fi
-          ./scripts/feeds update base packages luci || true
-          ./scripts/feeds install -a || true
+          # Rewrite git.openwrt.org URLs to GitHub mirrors. Only the URL
+          # prefix is replaced, so any branch/revision suffix (e.g.
+          # ";openwrt-25.12") after the repo URL is preserved. Do not
+          # suppress errors: a feeds failure must stop the workflow here
+          # rather than surface later as an opaque package build error.
+          sed -i \
+            -e 's|https://git.openwrt.org/feed/|https://github.com/openwrt/|' \
+            -e 's|https://git.openwrt.org/project/|https://github.com/openwrt/|' \
+            -e 's|https://git.openwrt.org/openwrt/|https://github.com/openwrt/|' \
+            feeds.conf
+          echo "=== feeds.conf ==="
+          cat feeds.conf
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
       - name: Init config
         working-directory: ${{ env.SDK_DIR }}
@@ -97,23 +114,9 @@ jobs:
           echo "=== .config excerpt (zapret) ==="
           grep -i zapret .config || echo "(no zapret in config)"
 
-      - name: Build OpenWrt host apk
-        working-directory: ${{ env.SDK_DIR }}
-        run: |
-          set -eu
-          echo "Building host apk from SDK..."
-          make package/system/apk/host/compile -j"$(nproc)" V=s
-          test -x staging_dir/host/bin/apk
-          echo "--- apk version ---"
-          staging_dir/host/bin/apk --version
-          staging_dir/host/bin/apk --version | grep -F '3.0.5' || {
-            echo "ERROR: apk version is not 3.0.5"
-            exit 1
-          }
-          echo "OK: host apk 3.0.5 ready"
-
       - name: Build zapret2 (parallel)
         id: build-zapret2
+        continue-on-error: true
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
@@ -122,7 +125,7 @@ jobs:
           echo "zapret2 build succeeded"
 
       - name: Build zapret2 (retry single-threaded with verbose)
-        if: failure() && steps.build-zapret2.outcome == 'failure'
+        if: steps.build-zapret2.outcome == 'failure'
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eux
@@ -132,6 +135,7 @@ jobs:
 
       - name: Build zapret2-orchestra (parallel)
         id: build-orchestra
+        continue-on-error: true
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
@@ -140,7 +144,7 @@ jobs:
           echo "zapret2-orchestra build succeeded"
 
       - name: Build zapret2-orchestra (retry single-threaded with verbose)
-        if: failure() && steps.build-orchestra.outcome == 'failure'
+        if: steps.build-orchestra.outcome == 'failure'
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eux
@@ -153,16 +157,16 @@ jobs:
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
-          ORCH_APK=$(find bin/packages -name 'zapret2-orchestra-*.apk' -type f | head -1)
+          ORCH_APK=$(find bin/packages -name 'zapret2-orchestra-*.apk' -type f -print -quit)
           if [ -z "$ORCH_APK" ]; then
             echo "ERROR: no zapret2-orchestra APK found in bin/packages/"
-            find bin/packages -name '*orchestra*' -type f || true
+            find bin/packages -name '*orchestra*' -type f -print || true
             exit 1
           fi
-          Z2_APK=$(find bin/packages -name 'zapret2-*.apk' -not -name 'zapret2-orchestra*' -type f | head -1)
+          Z2_APK=$(find bin/packages -name 'zapret2-*.apk' ! -name 'zapret2-orchestra-*' -type f -print -quit)
           if [ -z "$Z2_APK" ]; then
             echo "ERROR: no zapret2 APK found in bin/packages/"
-            find bin/packages -name 'zapret2*' -type f || true
+            find bin/packages -name 'zapret2*' -type f -print || true
             exit 1
           fi
           echo "Orchestra APK: $ORCH_APK"
@@ -234,7 +238,7 @@ jobs:
           echo "=== Contract: zapret2 APK contains nfqws2 ==="
           NFQWS2=""
           if find /tmp/apk-z2 -name 'nfqws2' -type f 2>/dev/null | grep -q .; then
-            NFQWS2=$(find /tmp/apk-z2 -name 'nfqws2' -type f | head -1)
+            NFQWS2=$(find /tmp/apk-z2 -name 'nfqws2' -type f -print -quit)
             echo "OK: nfqws2 extracted at $NFQWS2"
           elif grep -q '/opt/zapret2/nfq2/nfqws2' "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null; then
             echo "OK: nfqws2 listed in manifest"
@@ -364,15 +368,33 @@ jobs:
         run: |
           set +e
           mkdir -p "$GITHUB_WORKSPACE/artifacts"
-          if [ -d "$GITHUB_WORKSPACE/$SDK_DIR" ]; then
-            if [ -d "$GITHUB_WORKSPACE/$SDK_DIR/logs" ]; then
-              tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$GITHUB_WORKSPACE/$SDK_DIR" logs/
-            else
-              echo "SDK_DIR exists but no logs/ directory; nothing to archive."
-            fi
-          else
-            echo "SDK_DIR ($SDK_DIR) not found; nothing to archive."
+          SDK_PATH="$GITHUB_WORKSPACE/$SDK_DIR"
+          # Don't use working-directory: an early failure (host deps, SDK
+          # download) can leave SDK_DIR absent, and a cd would mask the real
+          # error with "No such file or directory". Never fail this step:
+          # missing logs must not abort log collection or hide the upstream
+          # error.
+          if [ ! -d "$SDK_PATH" ]; then
+            echo "No OpenWrt build logs found (SDK_DIR $SDK_DIR not present)."
+            exit 0
           fi
+          HAVE_LOGS=0
+          if [ -d "$SDK_PATH/logs" ]; then
+            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$SDK_PATH" logs/
+            HAVE_LOGS=1
+          fi
+          # Capture packageinfo and a bin/packages listing for diagnosis
+          # when a build failed before producing logs.
+          if [ -f "$SDK_PATH/tmp/.packageinfo" ]; then
+            cp "$SDK_PATH/tmp/.packageinfo" "$GITHUB_WORKSPACE/artifacts/packageinfo.txt"
+          fi
+          if [ -d "$SDK_PATH/bin/packages" ]; then
+            find "$SDK_PATH/bin/packages" -type f > "$GITHUB_WORKSPACE/artifacts/bin-packages-listing.txt" 2>/dev/null
+          fi
+          if [ "$HAVE_LOGS" = 0 ]; then
+            echo "No OpenWrt build logs found"
+          fi
+          exit 0
 
       - name: Copy APKs to artifacts
         if: always() && steps.locate-apk.outcome == 'success'
@@ -401,6 +423,8 @@ jobs:
             artifacts/zapret2-files.txt
             artifacts/nfqws2-file-type.txt
             artifacts/nfqws2-readelf.txt
+            artifacts/packageinfo.txt
+            artifacts/bin-packages-listing.txt
           if-no-files-found: warn
 
       - name: Upload build logs
