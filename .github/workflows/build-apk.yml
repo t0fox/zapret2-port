@@ -29,7 +29,7 @@ jobs:
       - name: Install host dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y zstd
+          sudo apt-get install -y zstd apk-tools
 
       - name: Cache SDK
         id: cache-sdk
@@ -161,7 +161,19 @@ jobs:
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
-          APK_BIN="$SDK_DIR/staging_dir/host/bin/apk"
+          # Prefer system apk-tools (apt: apk-tools), fall back to SDK staging.
+          APK_BIN=""
+          if command -v apk >/dev/null 2>&1; then
+            APK_BIN="$(command -v apk)"
+          elif [ -x "$SDK_DIR/staging_dir/host/bin/apk" ]; then
+            APK_BIN="$SDK_DIR/staging_dir/host/bin/apk"
+          else
+            echo "ERROR: no apk binary found (install apk-tools)"
+            exit 1
+          fi
+          echo "Using apk: $APK_BIN"
+          "$APK_BIN" --version || true
+
           ORCH_APK="${{ steps.locate-apk.outputs.orch_apk_path }}"
           Z2_APK="${{ steps.locate-apk.outputs.z2_apk_path }}"
           mkdir -p /tmp/apk-orch /tmp/apk-z2 "$GITHUB_WORKSPACE/artifacts"
@@ -184,20 +196,28 @@ jobs:
           "$APK_BIN" manifest "$Z2_APK" > "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null || true
           "$APK_BIN" info --description "$Z2_APK" > "$GITHUB_WORKSPACE/artifacts/zapret2-metadata.txt" 2>&1 || true
 
-          echo "=== Extract APKs (try zstd, then gzip, then plain) ==="
-          tar --zstd -xf "$ORCH_APK" -C /tmp/apk-orch 2>/dev/null || tar -xzf "$ORCH_APK" -C /tmp/apk-orch 2>/dev/null || tar -xf "$ORCH_APK" -C /tmp/apk-orch 2>/dev/null || echo "WARN: orchestra extraction failed"
-          tar --zstd -xf "$Z2_APK" -C /tmp/apk-z2 2>/dev/null || tar -xzf "$Z2_APK" -C /tmp/apk-z2 2>/dev/null || tar -xf "$Z2_APK" -C /tmp/apk-z2 2>/dev/null || echo "WARN: zapret2 extraction failed"
+          echo "=== Extract APKs via apk extract ==="
+          # apk v3 packages are concatenated tar streams (signature, control,
+          # data); plain tar cannot extract them. Use `apk extract` when
+          # available, otherwise `tar --zstd` as a best-effort fallback.
+          if "$APK_BIN" extract --help >/dev/null 2>&1; then
+            ( cd /tmp/apk-orch && "$APK_BIN" extract "$SDK_DIR/$ORCH_APK" 2>/dev/null ) || echo "WARN: orchestra apk extract failed"
+            ( cd /tmp/apk-z2 && "$APK_BIN" extract "$SDK_DIR/$Z2_APK" 2>/dev/null ) || echo "WARN: zapret2 apk extract failed"
+          else
+            tar --zstd -xf "$ORCH_APK" -C /tmp/apk-orch 2>/dev/null || tar -xf "$ORCH_APK" -C /tmp/apk-orch 2>/dev/null || echo "WARN: orchestra tar extraction failed"
+            tar --zstd -xf "$Z2_APK" -C /tmp/apk-z2 2>/dev/null || tar -xf "$Z2_APK" -C /tmp/apk-z2 2>/dev/null || echo "WARN: zapret2 tar extraction failed"
+          fi
 
-          echo "=== Extracted orchestra files ==="
+          echo "=== Extracted orchestra files (first 30) ==="
           find /tmp/apk-orch -type f | head -30 || true
-          echo "=== Extracted zapret2 files ==="
+          echo "=== Extracted zapret2 files (first 30) ==="
           find /tmp/apk-z2 -type f | head -30 || true
 
           echo "=== Contract: zapret2 APK contains nfqws2 ==="
           NFQWS2=""
           if find /tmp/apk-z2 -name 'nfqws2' -type f | grep -q .; then
             NFQWS2=$(find /tmp/apk-z2 -name 'nfqws2' -type f | head -1)
-            echo "OK: nfqws2 found at $NFQWS2"
+            echo "OK: nfqws2 extracted at $NFQWS2"
           elif grep -q '/opt/zapret2/nfq2/nfqws2' "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null; then
             echo "OK: nfqws2 listed in manifest (extraction may have failed)"
             NFQWS2="manifest-only"
@@ -302,6 +322,22 @@ jobs:
             exit 1
           else
             echo "OK: no .ipk files"
+          fi
+
+          echo "=== Contract: zapret2 architecture is target (not all) ==="
+          if grep -qi 'arch.*all' "$GITHUB_WORKSPACE/artifacts/zapret2-metadata.txt" 2>/dev/null; then
+            echo "FAIL: zapret2 architecture is 'all' (should be target)"
+            exit 1
+          else
+            echo "OK: zapret2 is target-arch"
+          fi
+
+          echo "=== Contract: orchestra architecture is all ==="
+          if grep -qi 'arch.*all' "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt" 2>/dev/null; then
+            echo "OK: orchestra architecture is all"
+          else
+            echo "WARN: orchestra architecture not clearly 'all' in metadata"
+            cat "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt"
           fi
 
           echo "=== All contract checks complete ==="
