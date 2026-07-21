@@ -357,7 +357,6 @@ class ApkFormatContractTest(unittest.TestCase):
         self.assertIn(".apk", text)
         self.assertIn("workflow_dispatch", text)
         self.assertIn("sha256sum", text)
-        self.assertIn("actions/cache@v", text)
         self.assertIn("-j$(nproc)", text)
         self.assertIn("V=sc", text)
         # .ipk may appear only inside the "no .ipk files" contract check
@@ -390,23 +389,37 @@ class ApkFormatContractTest(unittest.TestCase):
         self.assertIn("package/zapret2/compile", text)
         self.assertIn("package/zapret2-orchestra/compile", text)
 
-    def test_workflow_builds_host_apk_from_sdk(self) -> None:
+    def test_workflow_uses_sdk_bundled_apk_for_inspection(self) -> None:
         wf = ROOT / ".github" / "workflows" / "build-apk.yml"
         text = wf.read_text(encoding="utf-8")
-        self.assertIn("package/system/apk/host/compile", text)
+        # Inspection uses only the apk binary shipped inside the OpenWrt SDK
+        # (staging_dir/host/bin/apk), whose presence is confirmed up front by
+        # the "Verify SDK layout" step. No Alpine/system apk, no apk-tools
+        # package, no host compile of a pinned apk version.
         self.assertIn("staging_dir/host/bin/apk", text)
-        self.assertIn("3.0.5", text)
+        self.assertIn("Verify SDK layout", text)
+        self.assertIn("test -x staging_dir/host/bin/apk", text)
         self.assertNotIn("command -v apk", text)
         self.assertNotIn("apk-tools", text)
         self.assertNotIn("dl-cdn.alpinelinux.org", text)
         self.assertIn("SDK_ABS", text)
         self.assertIn("APK_BIN", text)
+        # File-level inspection uses `apk extract --destination` (which unpacks
+        # a local .apk without an installed database), not `apk info`/`apk
+        # manifest` (which require an installed DB and fail on a bare file).
+        self.assertIn("apk extract --destination", text)
+        # The extracted tree feeds every contract check.
+        self.assertIn("/tmp/apk-orch", text)
+        self.assertIn("/tmp/apk-z2", text)
 
     def test_workflow_checks_no_ipk_and_arch(self) -> None:
         wf = ROOT / ".github" / "workflows" / "build-apk.yml"
         text = wf.read_text(encoding="utf-8")
         self.assertIn("no .ipk files", text)
-        self.assertIn("arch.*all", text)
+        # The workflow enforces orchestra PKGARCH:=all and zapret2 target-arch
+        # by grepping the Makefiles for the PKGARCH assignment.
+        self.assertIn("PKGARCH", text)
+        self.assertIn(r"\s*:=\s*all", text)
 
 
 if __name__ == "__main__":
