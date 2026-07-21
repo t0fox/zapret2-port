@@ -1,0 +1,1 @@
+{"schema_version":1,"protocols":{"tls":{"video.example":{"auto_lock":2,"strategies":{"2":{"successes":3,"failures":1}}},"host10.example":{"strategies":{"10":{"successes":1,"failures":0},"2":{"successes":0,"failures":1},"1":{"successes":5,"failures":2}}}}}}

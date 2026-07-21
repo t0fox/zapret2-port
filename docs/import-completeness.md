@@ -77,7 +77,7 @@ These exist on the live router (`zapret2-file-inventory.txt`) but were **not** c
 | Claim | Status |
 |-------|--------|
 | nfqws2 **0.9.20260307** | CONFIRMED (`runtime/nfqws2-version.txt`) |
-| OpenWrt package **0.9.20260307-r1** | **NOT CAPTURED** — no `opkg` output in baseline |
+| OpenWrt package **0.9.20260307-r1** | **NOT CAPTURED** — no `apk info` / `opkg` output in baseline |
 | remittor authorship | CONFIRMED (`etc/init.d/zapret2` L2: Copyright remittor) |
 
 ---

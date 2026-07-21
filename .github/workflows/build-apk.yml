@@ -1,0 +1,331 @@
+name: Build zapret2-orchestra APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      sdk_url:
+        description: 'SDK download URL'
+        required: false
+        default: 'https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst'
+      sdk_sha256:
+        description: 'Expected SHA256 of the SDK archive'
+        required: false
+        default: 'ff4a38a397caa2cfe1c39e18f84ddede14878221b3593c3f2c4cfe24e3ec4c25'
+
+env:
+  SDK_URL: ${{ inputs.sdk_url || 'https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst' }}
+  SDK_SHA256: ${{ inputs.sdk_sha256 || 'ff4a38a397caa2cfe1c39e18f84ddede14878221b3593c3f2c4cfe24e3ec4c25' }}
+  SDK_DIR: openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout zapret2-port
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zstd
+
+      - name: Cache SDK
+        id: cache-sdk
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SDK_DIR }}
+          key: sdk-${{ env.SDK_SHA256 }}
+
+      - name: Download and verify SDK
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        run: |
+          set -eu
+          ARCHIVE="$(basename "$SDK_URL")"
+          echo "Downloading SDK: $SDK_URL"
+          curl -fSL --retry 5 --retry-delay 5 -o "$ARCHIVE" "$SDK_URL"
+          echo "Verifying SHA256..."
+          ACTUAL=$(sha256sum "$ARCHIVE" | awk '{print $1}')
+          echo "Expected: $SDK_SHA256"
+          echo "Actual:   $ACTUAL"
+          if [ "$ACTUAL" != "$SDK_SHA256" ]; then
+            echo "ERROR: SHA256 mismatch"
+            exit 1
+          fi
+          echo "Extracting SDK..."
+          tar --zstd -xf "$ARCHIVE"
+          rm -f "$ARCHIVE"
+          echo "SDK ready at $SDK_DIR"
+
+      - name: Verify SDK layout
+        run: |
+          test -d "$SDK_DIR/include" || { echo "ERROR: SDK include/ not found"; exit 1; }
+          test -f "$SDK_DIR/include/package.mk" || { echo "ERROR: package.mk not found"; exit 1; }
+          test -d "$SDK_DIR/staging_dir/host/bin" || { echo "ERROR: staging_dir/host/bin not found"; exit 1; }
+          echo "SDK layout verified"
+
+      - name: Prepare package tree
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          # Copy zapret2-orchestra (architecture-independent package)
+          cp -r "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra" package/zapret2-orchestra
+          # Copy zapret2 (target-arch package; source downloaded via PKG_SOURCE)
+          cp -r "$GITHUB_WORKSPACE/openwrt/zapret2" package/zapret2
+          echo "Package tree prepared:"
+          find package -maxdepth 2 -name Makefile | sort
+
+      - name: Init feeds
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          [ -f feeds.conf.default ] && cp feeds.conf.default feeds.conf || true
+          if [ -f feeds.conf ]; then
+            sed -i -e 's|base.*\.git|base https://github.com/openwrt/openwrt.git|' feeds.conf || true
+            sed -i -e 's|packages.*\.git|packages https://github.com/openwrt/packages.git|' feeds.conf || true
+            sed -i -e 's|luci.*\.git|luci https://github.com/openwrt/luci.git|' feeds.conf || true
+          fi
+          ./scripts/feeds update base packages luci || true
+          ./scripts/feeds install -a || true
+
+      - name: Init config
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          make defconfig
+          echo "=== .config excerpt (zapret) ==="
+          grep -i zapret .config || echo "(no zapret in config)"
+
+      - name: Build zapret2 (parallel)
+        id: build-zapret2
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          echo "Building zapret2 with -j$(nproc)..."
+          make package/zapret2/compile -j$(nproc) BUILD_LOG=1
+          echo "zapret2 build succeeded"
+
+      - name: Build zapret2 (retry single-threaded with verbose)
+        if: failure() && steps.build-zapret2.outcome == 'failure'
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eux
+          echo "Retrying zapret2 with -j1 V=sc..."
+          make package/zapret2/compile -j1 V=sc BUILD_LOG=1
+          echo "zapret2 single-threaded build succeeded"
+
+      - name: Build zapret2-orchestra (parallel)
+        id: build-orchestra
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          echo "Building zapret2-orchestra with -j$(nproc)..."
+          make package/zapret2-orchestra/compile -j$(nproc) BUILD_LOG=1
+          echo "zapret2-orchestra build succeeded"
+
+      - name: Build zapret2-orchestra (retry single-threaded with verbose)
+        if: failure() && steps.build-orchestra.outcome == 'failure'
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eux
+          echo "Retrying zapret2-orchestra with -j1 V=sc..."
+          make package/zapret2-orchestra/compile -j1 V=sc BUILD_LOG=1
+          echo "zapret2-orchestra single-threaded build succeeded"
+
+      - name: Locate built APKs
+        id: locate-apk
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          ORCH_APK=$(find bin/packages -name 'zapret2-orchestra-*.apk' -type f | head -1)
+          if [ -z "$ORCH_APK" ]; then
+            echo "ERROR: no zapret2-orchestra APK found in bin/packages/"
+            find bin/packages -name '*orchestra*' -type f || true
+            exit 1
+          fi
+          Z2_APK=$(find bin/packages -name 'zapret2-*.apk' -not -name 'zapret2-orchestra*' -type f | head -1)
+          if [ -z "$Z2_APK" ]; then
+            echo "ERROR: no zapret2 APK found in bin/packages/"
+            find bin/packages -name 'zapret2*' -type f || true
+            exit 1
+          fi
+          echo "Orchestra APK: $ORCH_APK"
+          echo "Zapret2 APK: $Z2_APK"
+          echo "orch_apk_path=$SDK_DIR/$ORCH_APK" >> "$GITHUB_OUTPUT"
+          echo "orch_apk_name=$(basename "$ORCH_APK")" >> "$GITHUB_OUTPUT"
+          echo "z2_apk_path=$SDK_DIR/$Z2_APK" >> "$GITHUB_OUTPUT"
+          echo "z2_apk_name=$(basename "$Z2_APK")" >> "$GITHUB_OUTPUT"
+
+      - name: Inspect and verify APKs
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          APK_BIN="$SDK_DIR/staging_dir/host/bin/apk"
+          ORCH_APK="${{ steps.locate-apk.outputs.orch_apk_path }}"
+          Z2_APK="${{ steps.locate-apk.outputs.z2_apk_path }}"
+          mkdir -p /tmp/apk-orch /tmp/apk-z2 "$GITHUB_WORKSPACE/artifacts"
+
+          echo "=== Orchestra APK ==="
+          ls -lh "$ORCH_APK"
+          file "$ORCH_APK"
+          tar -xzf "$ORCH_APK" -C /tmp/apk-orch 2>/dev/null || true
+          "$APK_BIN" info --description "$ORCH_APK" > "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt" 2>&1 || true
+          find /tmp/apk-orch -name '*.list' -exec cat {} \; > "$GITHUB_WORKSPACE/artifacts/orchestra-files.txt" 2>/dev/null || true
+          find /tmp/apk-orch -name '*.conffiles' -exec cat {} \; > "$GITHUB_WORKSPACE/artifacts/orchestra-conffiles.txt" 2>/dev/null || true
+
+          echo "=== Zapret2 APK ==="
+          ls -lh "$Z2_APK"
+          file "$Z2_APK"
+          tar -xzf "$Z2_APK" -C /tmp/apk-z2 2>/dev/null || true
+          "$APK_BIN" info --description "$Z2_APK" > "$GITHUB_WORKSPACE/artifacts/zapret2-metadata.txt" 2>&1 || true
+          find /tmp/apk-z2 -name '*.list' -exec cat {} \; > "$GITHUB_WORKSPACE/artifacts/zapret2-files.txt" 2>/dev/null || true
+
+          echo "=== Contract: zapret2 APK contains nfqws2 ==="
+          if find /tmp/apk-z2 -name 'nfqws2' -type f | grep -q .; then
+            NFQWS2=$(find /tmp/apk-z2 -name 'nfqws2' -type f | head -1)
+            echo "OK: nfqws2 found at $NFQWS2"
+            echo "--- file nfqws2 ---"
+            file "$NFQWS2"
+            file "$NFQWS2" > "$GITHUB_WORKSPACE/artifacts/nfqws2-file-type.txt" 2>&1
+          else
+            echo "FAIL: nfqws2 not found in zapret2 APK"
+            exit 1
+          fi
+
+          echo "=== Contract: nfqws2 is AArch64 ELF ==="
+          if file "$NFQWS2" | grep -q 'ELF.*aarch64'; then
+            echo "OK: nfqws2 is AArch64 ELF"
+          else
+            echo "FAIL: nfqws2 is not AArch64 ELF"
+            exit 1
+          fi
+
+          echo "=== Contract: orchestra APK has no nfqws2 ==="
+          if find /tmp/apk-orch -name 'nfqws2' -type f | grep -q .; then
+            echo "FAIL: nfqws2 found in orchestra APK (should not be there)"
+            exit 1
+          else
+            echo "OK: no nfqws2 in orchestra APK"
+          fi
+
+          echo "=== Contract: orchestra depends on zapret2 ==="
+          if grep -q 'zapret2' "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt"; then
+            echo "OK: orchestra metadata references zapret2"
+          else
+            echo "FAIL: orchestra metadata does not reference zapret2"
+            cat "$GITHUB_WORKSPACE/artifacts/orchestra-metadata.txt"
+            exit 1
+          fi
+
+          echo "=== Contract: no ../../zapret2-core in any Makefile ==="
+          if grep -r '\.\./\.\./zapret2-core' package/ 2>/dev/null; then
+            echo "FAIL: ../../zapret2-core reference found"
+            exit 1
+          else
+            echo "OK: no ../../zapret2-core references"
+          fi
+
+          echo "=== Contract: orchestra conffiles ==="
+          for f in /etc/zapret2-orchestra/blocked.json /etc/zapret2-orchestra/learned.json /etc/zapret2-orchestra/manual-locks.json /etc/zapret2-orchestra/whitelist.json; do
+            if grep -qxF "$f" "$GITHUB_WORKSPACE/artifacts/orchestra-conffiles.txt" 2>/dev/null; then
+              echo "OK: conffile $f"
+            else
+              echo "FAIL: conffile $f not found"
+            fi
+          done
+
+          echo "=== Contract: orchestra required files ==="
+          for f in \
+            /usr/share/rpcd/ucode/zapret2.orchestra \
+            /usr/share/rpcd/acl.d/zapret2-orchestra.json \
+            /usr/share/zapret2-orchestra/generate-preload.uc \
+            /usr/sbin/zapret2-orchestra-preload \
+            /etc/init.d/zapret2-orchestra \
+            /opt/zapret2/lua/orchestra-extra/init.lua
+          do
+            if [ -f "/tmp/apk-orch$f" ]; then
+              echo "OK: $f"
+            else
+              echo "FAIL: $f not found in orchestra APK"
+            fi
+          done
+
+          echo "=== Contract: zapret2 required files ==="
+          for f in \
+            /opt/zapret2/nfq2/nfqws2 \
+            /opt/zapret2/ip2net/ip2net \
+            /opt/zapret2/mdig/mdig \
+            /opt/zapret2/lua/zapret-lib.lua \
+            /opt/zapret2/lua/zapret-antidpi.lua \
+            /opt/zapret2/lua/zapret-auto.lua \
+            /etc/init.d/zapret2
+          do
+            if [ -f "/tmp/apk-z2$f" ]; then
+              echo "OK: $f"
+            else
+              echo "FAIL: $f not found in zapret2 APK"
+            fi
+          done
+
+          echo "=== Contract: executable permissions ==="
+          for f in /usr/share/rpcd/ucode/zapret2.orchestra /usr/sbin/zapret2-orchestra-preload /etc/init.d/zapret2-orchestra; do
+            if [ -f "/tmp/apk-orch$f" ]; then
+              perm=$(stat -c '%a' "/tmp/apk-orch$f")
+              case "$perm" in 755|4755|775) echo "OK: $f ($perm)" ;; *) echo "FAIL: $f ($perm)" ;; esac
+            fi
+          done
+          for f in /opt/zapret2/nfq2/nfqws2 /opt/zapret2/ip2net/ip2net /opt/zapret2/mdig/mdig /etc/init.d/zapret2; do
+            if [ -f "/tmp/apk-z2$f" ]; then
+              perm=$(stat -c '%a' "/tmp/apk-z2$f")
+              case "$perm" in 755|4755|775) echo "OK: $f ($perm)" ;; *) echo "FAIL: $f ($perm)" ;; esac
+            fi
+          done
+
+          echo "=== All contract checks complete ==="
+
+      - name: Collect build log
+        if: always()
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/artifacts"
+          if [ -d logs ]; then
+            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" logs/
+          fi
+          # Also capture the full make output if available
+          find "$SDK_DIR" -name 'logs' -type d 2>/dev/null | head -1 | while read -r d; do
+            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$(dirname "$d")" "$(basename "$d")"
+          done || true
+
+      - name: Copy APKs to artifacts
+        run: |
+          cp "${{ steps.locate-apk.outputs.orch_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.orch_apk_name }}"
+          cp "${{ steps.locate-apk.outputs.z2_apk_path }}" "artifacts/${{ steps.locate-apk.outputs.z2_apk_name }}"
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: zapret2-apks
+          path: artifacts/*.apk
+          if-no-files-found: error
+
+      - name: Upload metadata and file lists
+        uses: actions/upload-artifact@v4
+        with:
+          name: zapret2-metadata
+          path: |
+            artifacts/orchestra-metadata.txt
+            artifacts/orchestra-files.txt
+            artifacts/orchestra-conffiles.txt
+            artifacts/zapret2-metadata.txt
+            artifacts/zapret2-files.txt
+            artifacts/nfqws2-file-type.txt
+          if-no-files-found: warn
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zapret2-orchestra-build-logs
+          path: artifacts/build-logs.tar.xz
+          if-no-files-found: warn

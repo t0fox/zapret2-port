@@ -1,0 +1,13 @@
+#!/bin/sh
+# Manage the volatile Orchestra preload files under /tmp/zapret2-orchestra.
+#
+# Usage:
+#   zapret2-orchestra-preload           generate preload.lua, whitelist.txt, manifest.json
+#   zapret2-orchestra-preload check     verify generated files against manifest; exit 0 if consistent
+#
+# This is a thin wrapper around the ucode generator. The default (generate) is
+# invoked at package install time and as a backup at boot by
+# /etc/init.d/zapret2-orchestra. A runtime manager should call it before
+# (re)starting nfqws2 with the Orchestra --lua-init chain. It does not touch
+# the zapret2 service, UCI, or the firewall.
+exec ucode /usr/share/zapret2-orchestra/generate-preload.uc "$@"

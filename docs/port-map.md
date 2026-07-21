@@ -16,7 +16,7 @@
 | `docs/` | Architecture audit artifacts (this audit) | CONFIRMED (created) |
 | `router-baseline/` | OpenWrt/Zapret2 snapshot (partial) | **CONFIRMED** — see `import-completeness.md` |
 | `reference/desktop-orchestra/` | Desktop Orchestra Lua + settings | **CONFIRMED** |
-| `lua/orchestra-extra/` | TLS runtime extension | **PRESENT** — local-only first block; no deployment plumbing |
+| `lua/orchestra-extra/` | TLS runtime extension | **INSTALLED** — package installs to `/opt/zapret2/lua/orchestra-extra/`; preload generator + boot hook added in Phase 0 |
 | OpenWrt-native control plane | Not implemented | Must verify ucode/rpcd contract before coding; no Python dependency on router |
 
 ### ~~External reference (superseded)~~
@@ -64,8 +64,8 @@ Use `reference/desktop-orchestra/` instead of `D:\Dev\`. Old EXTERNAL-REF paths 
 | `combined-detector.lua` | `lua/orchestra-extra/detectors.lua` + orchestrator | Split for maintainability |
 | `strategy-lock-manager.lua` | `lua/orchestra-extra/slm.lua` | Core state machine |
 | `strategy-stats.lua` | `lua/orchestra-extra/preload.lua` | Init-time preload only |
-| `learned-strategies.lua` | `/etc/zapret2-orchestra/*.json` → generated `/tmp/zapret2-orchestra/preload.lua` | Backend owns JSON; Lua loads once |
-| `whitelist.txt` | `/tmp/zapret2-orchestra/whitelist.txt` | Generated from persistent JSON for nfqws2 hostlist-exclude |
+| `learned-strategies.lua` | `/etc/zapret2-orchestra/*.json` → generated `/tmp/zapret2-orchestra/preload.lua` | Backend owns JSON; Lua loads once; generator implemented in ucode (Phase 0) |
+| `whitelist.txt` | `/tmp/zapret2-orchestra/whitelist.txt` | Generated from persistent JSON by ucode generator at boot and install time |
 | `circular-config.txt` (TLS section) | UCI `zapret2` / custom include | TLS MVP profile |
 
 ### Backend / LuCI

@@ -4,5 +4,10 @@
 *.json text eol=lf
 *.py text eol=lf
 *.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.uc text eol=lf
+*.txt text eol=lf
 **/Makefile text eol=lf
 openwrt/** text eol=lf
+.github/** text eol=lf
