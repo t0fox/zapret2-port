@@ -31,9 +31,22 @@ jobs:
           set -eu
           sudo apt-get update
           sudo apt-get install -y zstd binutils file
-          # apk-tools is not in Ubuntu apt; install static apk binary from
-          # Alpine package (x86_64 host). Needed to inspect APK v3 packages.
-          curl -fSL -o /tmp/apk-tools.apk https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/apk-tools-2.14.4-r0.apk
+          # apk-tools is not in Ubuntu apt. Resolve the latest apk-tools
+          # package name from the Alpine APKINDEX instead of pinning a
+          # specific revision (-rN): Alpine drops older revisions from the
+          # mirror on every rebuild, which 404s a pinned URL. Dynamic
+          # resolution survives those rotations.
+          ALPINE_BASE=https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64
+          APK_VER=$(curl -fsSL "$ALPINE_BASE/APKINDEX.tar.gz" \
+            | tar -xzO APKINDEX \
+            | awk -F: '/^P:apk-tools$/{p=1} p&&/^V:/{print $2; exit}')
+          if [ -z "$APK_VER" ]; then
+            echo "ERROR: could not resolve apk-tools version from $ALPINE_BASE/APKINDEX.tar.gz"
+            exit 1
+          fi
+          APK_URL="$ALPINE_BASE/apk-tools-$APK_VER.apk"
+          echo "Resolved apk-tools: $APK_URL"
+          curl -fSL --retry 5 --retry-delay 5 -o /tmp/apk-tools.apk "$APK_URL"
           tar -xzf /tmp/apk-tools.apk -C /tmp
           sudo install -m 0755 /tmp/sbin/apk /usr/local/bin/apk
           apk --version
@@ -352,16 +365,20 @@ jobs:
 
       - name: Collect build log
         if: always()
-        working-directory: ${{ env.SDK_DIR }}
         run: |
+          set +e
           mkdir -p "$GITHUB_WORKSPACE/artifacts"
-          if [ -d logs ]; then
-            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" logs/
+          # SDK_DIR may be absent if an early step (e.g. host deps) failed
+          # before the SDK was downloaded. Don't fail log-collection in that
+          # case - produce no artifact and let the real upstream error show,
+          # instead of masking it with a "working directory not found" crash.
+          if [ -d "$GITHUB_WORKSPACE/$SDK_DIR/logs" ]; then
+            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$GITHUB_WORKSPACE/$SDK_DIR" logs/
+          elif [ -d "$SDK_DIR/logs" ]; then
+            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$SDK_DIR" logs/
+          else
+            echo "No logs/ directory found (SDK_DIR=$SDK_DIR); nothing to archive."
           fi
-          # Also capture the full make output if available
-          find "$SDK_DIR" -name 'logs' -type d 2>/dev/null | head -1 | while read -r d; do
-            tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$(dirname "$d")" "$(basename "$d")"
-          done || true
 
       - name: Copy APKs to artifacts
         run: |
