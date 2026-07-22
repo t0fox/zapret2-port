@@ -753,7 +753,7 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         env = os.environ.copy()
         env["ZAPRET2_RUNTIME_DIR"] = str(self.runtime)
         env["ZAPRET2_ORCHESTRA_DIR"] = str(self.orch)
-        env["ZAPRET2_SHARE_DIR"] = str(self.tmp / "share")
+        env["ZAPRET2_SHARE_DIR"] = str(Path(self.tmp) / "share")
         env["ZAPRET2_USER_PROFILES_DIR"] = str(self.user_profiles)
         env["ZAPRET2_BUILTIN_PROFILES_DIR"] = str(self.builtin_profiles)
         env["ZAPRET2_ORCHESTRA_LUA"] = str(self.orch_lua)
@@ -763,7 +763,7 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         env["ZAPRET2_CANDIDATE_FILE"] = str(self.opt / ".config.orchestra.tmp")
         env["ZAPRET2_BACKUP_DIR"] = str(self.orch / "backup")
         env["ZAPRET2_CONFIG"] = str(self.opt / "config")
-        env["ZAPRET2_PRELOAD_WRAPPER"] = str(self.tmp / "fake-preload.sh")
+        env["ZAPRET2_PRELOAD_WRAPPER"] = str(Path(self.tmp) / "fake-preload.sh")
         return env
 
     def _write_default_config(self, nfqws2_opt: str = "--lua-desync=fake:blob=default") -> None:
