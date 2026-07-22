@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -366,6 +368,348 @@ class Zapret2PackageContractTest(unittest.TestCase):
         self.assertIn(
             "$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipset/antifilter.helper", body
         )
+
+
+class Blockcheck2PackageContractTest(unittest.TestCase):
+    """Contract checks for the blockcheck2 DPI-bypass strategy tester shipped
+    in the zapret2 package.
+
+    blockcheck2.sh is the entry point (#!/bin/sh, upstream 0755). The
+    blockcheck2.d/ tree holds the ``standard`` and ``custom`` strategy
+    modules that blockcheck2.sh SOURCES at runtime via ``. "$script"``. The
+    package must ship the whole tree — not just blockcheck2.sh — or strategy
+    testing is non-functional on the router (the previous Makefile installed
+    only blockcheck2.sh, so every module load failed with "directory
+    'blockcheck2.d' is absent or empty").
+
+    The zapret2-core submodule is checked out at the pinned PKG_SOURCE_VERSION
+    SHA (CI uses ``submodules: recursive``), so it is a faithful reference for
+    what PKG_BUILD_DIR will contain. Source-content checks skip gracefully if
+    the submodule is not initialized.
+    """
+
+    Z2 = ROOT / "openwrt" / "zapret2"
+    Z2_MAKEFILE = Z2 / "Makefile"
+    UPSTREAM = ROOT / "zapret2-core"
+    PINNED_SHA = "8a0f53f3cf2c92ddeaa66995ee63a35c1210c410"
+
+    REQUIRED_STANDARD_MODULES = (
+        "10-http-basic.sh", "15-misc.sh", "17-oob.sh", "20-multi.sh",
+        "23-seqovl.sh", "24-syndata.sh", "25-fake.sh", "30-faked.sh",
+        "35-hostfake.sh", "50-fake-multi.sh", "55-fake-faked.sh",
+        "60-fake-hostfake.sh", "90-quic.sh",
+    )
+    REQUIRED_CUSTOM_MODULES = ("10-list.sh",)
+    REQUIRED_CUSTOM_DATA = (
+        "README.txt", "list_http.txt", "list_https_tls12.txt",
+        "list_https_tls13.txt", "list_quic.txt",
+    )
+
+    def setUp(self) -> None:
+        self.makefile = self.Z2_MAKEFILE.read_text(encoding="utf-8")
+        m = re.search(
+            r"define Package/zapret2/install\n(?P<body>.*?)\nendef",
+            self.makefile, re.DOTALL,
+        )
+        self.assertIsNotNone(m, "Package/zapret2/install block not found")
+        self.install_body = m.group("body")
+
+    def _bc_install_lines(self) -> list[str]:
+        return [
+            ln.strip() for ln in self.install_body.splitlines()
+            if "blockcheck2" in ln and ln.strip()
+        ]
+
+    # --- Makefile install rules (always run, no submodule needed) ---
+
+    def test_blockcheck2_sh_installed_executable(self) -> None:
+        """blockcheck2.sh is the entry point (#!/bin/sh) -> INSTALL_BIN (0755)."""
+        self.assertIn(
+            "$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.sh "
+            "$(1)/opt/zapret2/blockcheck2.sh",
+            self.install_body,
+        )
+
+    def test_blockcheck2_d_standard_tree_installed(self) -> None:
+        """standard/ *.sh modules -> INSTALL_BIN (0755); def.inc -> INSTALL_DATA (0644)."""
+        self.assertIn(
+            "$(INSTALL_DIR) $(1)/opt/zapret2/blockcheck2.d/standard",
+            self.install_body,
+        )
+        self.assertIn(
+            "$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/standard/*.sh "
+            "$(1)/opt/zapret2/blockcheck2.d/standard/",
+            self.install_body,
+        )
+        # def.inc is sourced (no shebang, upstream 0644) — must NOT be executable.
+        self.assertIn(
+            "$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/standard/def.inc "
+            "$(1)/opt/zapret2/blockcheck2.d/standard/def.inc",
+            self.install_body,
+        )
+
+    def test_blockcheck2_d_custom_tree_installed(self) -> None:
+        """custom/ *.sh module -> INSTALL_BIN (0755); lists + README -> INSTALL_DATA (0644)."""
+        self.assertIn(
+            "$(INSTALL_DIR) $(1)/opt/zapret2/blockcheck2.d/custom",
+            self.install_body,
+        )
+        self.assertIn(
+            "$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.sh "
+            "$(1)/opt/zapret2/blockcheck2.d/custom/",
+            self.install_body,
+        )
+        self.assertIn(
+            "$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.txt "
+            "$(1)/opt/zapret2/blockcheck2.d/custom/",
+            self.install_body,
+        )
+
+    def test_blockcheck2_installed_from_pkg_build_dir_only(self) -> None:
+        """blockcheck2 files come from PKG_BUILD_DIR (pinned PKG_SOURCE), never
+        from a vendored files/ tree or the ../../zapret2-core submodule path."""
+        self.assertTrue(self._bc_install_lines(), "no blockcheck2 install lines")
+        for line in self._bc_install_lines():
+            # Only real install commands (start with the install macro); comment
+            # lines mention "INSTALL_BIN"/"INSTALL_DATA" as prose and must be
+            # excluded so they do not trip the $(PKG_BUILD_DIR) assertion.
+            if line.startswith("$(INSTALL_BIN)") or line.startswith("$(INSTALL_DATA)"):
+                self.assertIn("$(PKG_BUILD_DIR)", line, line)
+                self.assertNotIn("$(CURDIR)", line, line)
+                self.assertNotIn("../../zapret2-core", line, line)
+
+    def test_no_vendored_blockcheck2_files_directory(self) -> None:
+        self.assertFalse(
+            (self.Z2 / "files").is_dir(),
+            "openwrt/zapret2/files/ must not exist — blockcheck2 installed "
+            "from PKG_BUILD_DIR, not vendored",
+        )
+
+    def test_blockcheck2_paths_preserve_upstream_structure(self) -> None:
+        """Installed under /opt/zapret2/blockcheck2.d/{standard,custom}/."""
+        for line in self._bc_install_lines():
+            if "$(1)" in line and "blockcheck2.d" in line:
+                # INSTALL_DIR targets have no trailing slash (.../standard);
+                # INSTALL_BIN/INSTALL_DATA targets do (.../standard/). Accept both.
+                self.assertRegex(
+                    line,
+                    r"\$\(1\)/opt/zapret2/blockcheck2\.d/(?:standard|custom)(?:/|$)",
+                )
+
+    def test_blockcheck2_install_set_has_no_binaries(self) -> None:
+        """blockcheck2 ships only shell/text. No Windows or ELF binaries."""
+        bc = "\n".join(self._bc_install_lines())
+        for bad in (r"\.exe\b", r"\.dll\b", r"\.so\b", r"\.elf\b", r"\.bin\b"):
+            self.assertNotRegex(bc, bad, f"binary pattern {bad} in blockcheck2 install")
+        self.assertNotIn("winws2", bc)
+        self.assertNotIn("dvtws2", bc)
+
+    def test_makefile_pins_blockcheck2_upstream_sha(self) -> None:
+        """Only the pinned bol-van/zapret2 SHA is used as the source."""
+        self.assertRegex(
+            self.makefile,
+            r"(?m)^PKG_SOURCE_VERSION:=" + re.escape(self.PINNED_SHA) + r"$",
+        )
+
+    # --- source-content checks (skip if submodule not initialized) ---
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    def test_upstream_submodule_matches_pinned_sha(self) -> None:
+        """The submodule HEAD must equal the Makefile's pinned PKG_SOURCE_VERSION,
+        so the inspected source equals what PKG_BUILD_DIR will contain."""
+        try:
+            r = subprocess.run(
+                ["git", "-C", str(self.UPSTREAM), "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError):
+            self.skipTest("git not available")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), self.PINNED_SHA)
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    def test_required_standard_modules_present_upstream(self) -> None:
+        d = self.UPSTREAM / "blockcheck2.d" / "standard"
+        self.assertTrue(d.is_dir(), d)
+        for name in self.REQUIRED_STANDARD_MODULES:
+            self.assertTrue((d / name).is_file(), f"missing standard module: {name}")
+        self.assertTrue((d / "def.inc").is_file(), "missing standard/def.inc")
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    def test_required_custom_modules_and_data_present_upstream(self) -> None:
+        d = self.UPSTREAM / "blockcheck2.d" / "custom"
+        self.assertTrue(d.is_dir(), d)
+        for name in self.REQUIRED_CUSTOM_MODULES:
+            self.assertTrue((d / name).is_file(), f"missing custom module: {name}")
+        for name in self.REQUIRED_CUSTOM_DATA:
+            self.assertTrue((d / name).is_file(), f"missing custom data: {name}")
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    def test_upstream_blockcheck2_tree_has_no_binaries(self) -> None:
+        """No Windows binaries and no ELF files anywhere in the blockcheck2 tree."""
+        for p in (self.UPSTREAM / "blockcheck2.d").rglob("*"):
+            if not p.is_file():
+                continue
+            self.assertFalse(
+                p.name.endswith((".exe", ".dll", ".so", ".elf", ".bin")),
+                f"binary extension in blockcheck2.d: {p}",
+            )
+            with p.open("rb") as fh:
+                head = fh.read(4)
+            self.assertNotEqual(head[:4], b"\x7fELF", f"ELF file in blockcheck2.d: {p}")
+            self.assertNotEqual(head[:2], b"MZ", f"PE/Windows binary in blockcheck2.d: {p}")
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    def test_upstream_shell_modules_are_sourced_not_executed(self) -> None:
+        """blockcheck2.d/*.sh have no shebang and are sourced by blockcheck2.sh
+        (``. "$script"``). They ship executable per the package contract but are
+        never invoked directly — confirming the no-shebang/source contract."""
+        for sub in ("standard", "custom"):
+            for p in sorted((self.UPSTREAM / "blockcheck2.d" / sub).glob("*.sh")):
+                first = p.read_text(encoding="utf-8", errors="replace").lstrip()
+                self.assertFalse(
+                    first.startswith("#!"),
+                    f"{p} has a shebang — blockcheck2.d modules must be sourced",
+                )
+        bc = (self.UPSTREAM / "blockcheck2.sh").read_text(encoding="utf-8")
+        self.assertIn('. "$script"', bc)
+
+
+class Blockcheck2StaticCheckTest(unittest.TestCase):
+    """Safe static checks for the shipped blockcheck2 — NO firewall mutation.
+
+    These checks never run the real blockcheck (which would stop services and
+    rewrite nftables), never stop zapret/zapret2, and never touch nftables.
+    They only:
+      * syntax-check (``sh -n``) every shipped .sh; and
+      * statically resolve blockcheck2's expected tool/base paths against the
+        Makefile install rules.
+    See ``docs/blockcheck2-orchestra-integration.md`` for why the real
+    blockcheck must run only after legacy zapret + zapret2 are stopped and why
+    its results are diagnostic-only (never auto-applied by Orchestra).
+    """
+
+    Z2 = ROOT / "openwrt" / "zapret2"
+    Z2_MAKEFILE = Z2 / "Makefile"
+    UPSTREAM = ROOT / "zapret2-core"
+
+    def setUp(self) -> None:
+        self.makefile = self.Z2_MAKEFILE.read_text(encoding="utf-8")
+        m = re.search(
+            r"define Package/zapret2/install\n(?P<body>.*?)\nendef",
+            self.makefile, re.DOTALL,
+        )
+        self.assertIsNotNone(m, "Package/zapret2/install block not found")
+        self.install_body = m.group("body")
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    @unittest.skipUnless(shutil.which("sh"), "sh not available on PATH")
+    def test_all_shipped_shell_scripts_pass_syntax_check(self) -> None:
+        """``sh -n`` every shipped .sh: blockcheck2.sh, blockcheck2.d/**/*.sh,
+        and common/*.sh. Purely syntactic — no execution, so no firewall,
+        service, or nftables side effects."""
+        shipped = [self.UPSTREAM / "blockcheck2.sh"]
+        shipped += sorted((self.UPSTREAM / "blockcheck2.d").rglob("*.sh"))
+        shipped += sorted((self.UPSTREAM / "common").glob("*.sh"))
+        self.assertGreater(len(shipped), 20, "expected >20 shipped shell scripts")
+        failures = []
+        for p in shipped:
+            r = subprocess.run(
+                ["sh", "-n", str(p)],
+                capture_output=True, text=True, timeout=30,
+            )
+            if r.returncode != 0:
+                failures.append(f"{p}: {r.stderr.strip()}")
+        self.assertEqual(failures, [], "sh -n failures:\n" + "\n".join(failures))
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    def test_zapret_base_resolves_to_opt_zapret2(self) -> None:
+        """blockcheck2.sh sets ZAPRET_BASE=dirname($0). Since it ships at
+        /opt/zapret2/blockcheck2.sh, ZAPRET_BASE resolves to /opt/zapret2."""
+        bc = (self.UPSTREAM / "blockcheck2.sh").read_text(encoding="utf-8")
+        self.assertRegex(bc, r'EXEDIR="\$\(dirname "\$0"\)"')
+        self.assertRegex(bc, r'ZAPRET_BASE=\$\{ZAPRET_BASE:-"\$EXEDIR"\}')
+        # And the Makefile ships blockcheck2.sh at /opt/zapret2/blockcheck2.sh.
+        self.assertIn("$(1)/opt/zapret2/blockcheck2.sh", self.install_body)
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    def test_blockcheck2_expected_tool_paths_are_shipped(self) -> None:
+        """blockcheck2.sh expects nfq2/nfqws2, mdig/mdig, common/*.sh and the
+        blockcheck2.d tree under ZAPRET_BASE=/opt/zapret2. Statically verify
+        each expected path string is in blockcheck2.sh AND that the Makefile
+        installs the corresponding file/dir at that path."""
+        bc = (self.UPSTREAM / "blockcheck2.sh").read_text(encoding="utf-8")
+        # {expected substring in blockcheck2.sh: expected Makefile install marker}
+        expectations = {
+            "${ZAPRET_BASE}/nfq2/nfqws2": "$(1)/opt/zapret2/nfq2/nfqws2",
+            "${ZAPRET_BASE}/mdig/mdig": "$(1)/opt/zapret2/mdig/mdig",
+            "$ZAPRET_BASE/common/base.sh": "common/*.sh $(1)/opt/zapret2/common/",
+            "$ZAPRET_BASE/blockcheck2.d": "$(1)/opt/zapret2/blockcheck2.d/standard",
+        }
+        for script_need, makefile_marker in expectations.items():
+            self.assertIn(script_need, bc, f"blockcheck2.sh missing expected path: {script_need}")
+            self.assertIn(
+                makefile_marker, self.install_body,
+                f"Makefile does not ship expected path: {makefile_marker}",
+            )
+
+    @unittest.skipUnless((UPSTREAM / "blockcheck2.sh").is_file(),
+                         "zapret2-core submodule not checked out")
+    def test_blockcheck2_not_wired_into_init_hotplug_or_cron(self) -> None:
+        """blockcheck2 must NOT auto-run: it rewrites nftables and must run only
+        after legacy zapret + zapret2 are stopped (see docs). Statically verify
+        no install line wires blockcheck2 into init.d/hotplug/cron. (The
+        pre-existing /etc/hotplug.d/iface/90-zapret2 hook belongs to the
+        zapret2 daemon, not blockcheck2, and is intentionally excluded.)"""
+        for line in self.install_body.splitlines():
+            s = line.strip()
+            if "blockcheck2" in s and (
+                "init.d" in s or "hotplug" in s or "cron" in s or "service" in s
+            ):
+                self.fail(f"blockcheck2 is wired into an auto-run path: {s}")
+
+    def test_static_checks_never_invoke_firewall_or_real_blockcheck(self) -> None:
+        """Meta-guard: this module must never invoke the real blockcheck2.sh
+        (which mutates the firewall) nor any firewall/service tool. Inspect the
+        actual ``subprocess.run`` calls via AST — not source text, which would
+        self-match the forbidden-command names. The only permitted shell
+        subprocess is ``sh -n`` (syntax check); the only git call is
+        ``rev-parse`` (read-only SHA verification)."""
+        import ast
+        tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
+        calls: list[list[str]] = []
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "run"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "subprocess"
+                    and node.args
+                    and isinstance(node.args[0], (ast.List, ast.Tuple))):
+                parts = []
+                for elt in node.args[0].elts:
+                    if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                        parts.append(elt.value)
+                    else:
+                        parts.append("<dynamic>")
+                calls.append(parts)
+        self.assertTrue(calls, "no subprocess.run calls found in test module")
+        allowed = {"sh", "git"}
+        for parts in calls:
+            cmd0 = parts[0]
+            self.assertIn(cmd0, allowed, f"forbidden subprocess command: {cmd0} in {parts}")
+            if cmd0 == "sh":
+                self.assertIn("-n", parts, f"sh call is not a syntax check: {parts}")
+            if cmd0 == "git":
+                self.assertIn("rev-parse", parts, f"git call is not read-only rev-parse: {parts}")
 
 
 class ApkFormatContractTest(unittest.TestCase):
