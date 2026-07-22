@@ -431,6 +431,189 @@ jobs:
             cat "$root/lib/apk/packages/$p.conffiles_static" 2>/dev/null | tee -a "$ART_DIR/package-manifests.txt"
           done
 
+      - name: Build host ucode for runtime tests
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          # The zapret2-orchestra .uc sources use the ucode interpreter's
+          # ECMAScript syntax (// comments, printf %J, etc.). The CI gap that
+          # let Lua-style -- comments ship undetected was that the Python test
+          # suite skips ucode runtime tests when ucode is not on PATH. We
+          # close it by building the host ucode from the base feed (the same
+          # feed the packages are built from) and putting it on PATH so the
+          # runtime tests actually execute.
+          #
+          # ucode's OpenWrt Makefile includes host-build.mk and exports
+          # HostBuild, so `make package/ucode/host/compile` produces
+          # staging_dir/host/bin/ucode with FS_SUPPORT=ON. We also need the
+          # fs module (staging_dir/host/lib/ucode/fs.so) which host-build
+          # installs automatically.
+          echo "=== feeds install ucode (host-build capable) ==="
+          ./scripts/feeds install ucode
+          echo "=== make package/ucode/host/compile ==="
+          make package/ucode/host/compile -j$(nproc) BUILD_LOG=1
+          UCODE_HOST="$(find staging_dir/host -name ucode -type f -print -quit)"
+          if [ -z "$UCODE_HOST" ]; then
+            echo "ERROR: host ucode binary not found after build"
+            find staging_dir/host -name 'ucode*' 2>/dev/null || true
+            exit 1
+          fi
+          echo "host ucode: $UCODE_HOST"
+          "$UCODE_HOST" --version 2>&1 | head -n 3 || true
+          # Verify the fs module is present.
+          if ! find staging_dir/host -name 'fs.so' -path '*/ucode/*' -print -quit | grep -q .; then
+            echo "ERROR: ucode-mod-fs (fs.so) not found in staging_dir/host"
+            find staging_dir/host -name '*.so' -path '*ucode*' 2>/dev/null || true
+            exit 1
+          fi
+          echo "OK: host ucode + fs module built"
+
+      - name: ucode compile + Python runtime tests + sandbox sequence
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          SDK_ABS="$GITHUB_WORKSPACE/$SDK_DIR"
+          UCODE_HOST="$(find "$SDK_ABS/staging_dir/host" -name ucode -type f -print -quit)"
+          HOST_LIB="$(dirname "$(dirname "$UCODE_HOST")")/lib"
+          HOST_UCODE_MODS="$(find "$SDK_ABS/staging_dir/host" -name 'fs.so' -path '*/ucode/*' -printf '%h' -quit)"
+          export PATH="$(dirname "$UCODE_HOST"):$PATH"
+          export LD_LIBRARY_PATH="$HOST_LIB"
+          export UCODE_MOD_PATH="$HOST_UCODE_MODS"
+          echo "ucode on PATH: $(which ucode)"
+          ucode --version 2>&1 | head -n 2 || true
+
+          echo "=== compile/parse all shipped ucode sources ==="
+          # ucode -c compiles (parses) the source without executing it.
+          # A syntax error here fails the step — this is the gate that would
+          # have caught the Lua-style -- comment bug.
+          for uc in \
+            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/apply.uc" \
+            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc" \
+            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/rpcd/ucode/zapret2.orchestra"
+          do
+            echo "--- ucode -c $uc ---"
+            ucode -c "$uc"
+            echo "compile_rc=$?"
+          done
+
+          echo "=== Python tests with ucode on PATH (no skips) ==="
+          cd "$GITHUB_WORKSPACE"
+          python3 -m pip install --quiet --user --break-system-packages 2>/dev/null || true
+          python3 -m unittest discover -s tests -v 2>&1 | tee /tmp/test-output.txt
+          # Fail if ANY test was skipped due to ucode absence (the CI gap).
+          # Other legitimate skips (router-baseline evidence) are acceptable.
+          UCODE_SKIPS=$(grep -c 'ucode executable not found on PATH' /tmp/test-output.txt || true)
+          if [ "$UCODE_SKIPS" -gt 0 ]; then
+            echo "FAIL: $UCODE_SKIPS ucode runtime tests were skipped despite host ucode being on PATH"
+            exit 1
+          fi
+          echo "OK: no ucode runtime tests skipped"
+          # Overall result must be success.
+          tail -n 3 /tmp/test-output.txt | grep -qE '^(OK|OK \(skipped=' && echo "tests OK" || {
+            echo "FAIL: test suite did not pass"
+            exit 1
+          }
+
+          echo "=== sandbox runtime sequence (ZAPRET2_* overrides, temp only) ==="
+          # Run the real ucode manager against a fully isolated sandbox under
+          # /tmp. No live /opt, /etc, or /var/lock access. All paths point
+          # into the temp sandbox.
+          SBX="$(mktemp -d /tmp/orch-sandbox-XXXXXX)"
+          export ZAPRET2_CONFIG="$SBX/config"
+          export ZAPRET2_ORCHESTRA_DIR="$SBX/orch"
+          export ZAPRET2_RUNTIME_DIR="$SBX/runtime"
+          export ZAPRET2_STATE_FILE="$SBX/orch/manager-state.json"
+          export ZAPRET2_LOCK_DIR="$SBX/lock"
+          export ZAPRET2_CANDIDATE_FILE="$SBX/candidate.tmp"
+          export ZAPRET2_BACKUP_DIR="$SBX/orch/backup"
+          export ZAPRET2_USER_PROFILES_DIR="$SBX/profiles"
+          export ZAPRET2_BUILTIN_PROFILES_DIR="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/profiles"
+          export ZAPRET2_ORCHESTRA_LUA="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/opt/zapret2/lua/orchestra-extra"
+          export ZAPRET2_PRELOAD_WRAPPER="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/sbin/zapret2-orchestra-preload"
+          export ORCHESTRA_STATE_DIR="$SBX/orch"
+          export ORCHESTRA_RUNTIME_DIR="$SBX/runtime"
+          export ORCHESTRA_PRELOAD_FILE="$SBX/runtime/preload.lua"
+          export ORCHESTRA_WHITELIST_FILE="$SBX/runtime/whitelist.txt"
+          export ORCHESTRA_MANIFEST_FILE="$SBX/runtime/manifest.json"
+          mkdir -p "$SBX/orch" "$SBX/runtime" "$SBX/orch/backup"
+          # Seed a minimal config with an NFQWS2_OPT assignment containing the
+          # circular_quality marker (required by validate-profile).
+          printf 'NFQWS2_OPT="--lua-desync --lua-init=circular_quality --filter-tls=1"\n' > "$SBX/config"
+          # Seed the whitelist JSON (required by validate-profile).
+          printf '{"hosts":[]}' > "$SBX/orch/whitelist.json"
+          # Point the preload wrapper at the real generate-preload.uc so it
+          # runs in the sandbox via ucode.
+          APPLY_UC="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/apply.uc"
+          GEN_UC="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc"
+          # The wrapper execs ucode; override the generator path so the
+          # sandbox preload goes to the temp runtime dir.
+          run_cmd() {
+            local desc="$1"; shift
+            echo "--- $desc ---"
+            "$@" 2>&1
+            local rc=$?
+            echo "rc=$rc"
+            return $rc
+          }
+          # preload generate
+          ucode "$GEN_UC" generate || { echo "FAIL: preload generate"; exit 1; }
+          # preload check
+          ucode "$GEN_UC" check || { echo "FAIL: preload check"; exit 1; }
+          # status
+          ucode "$APPLY_UC" status || { echo "FAIL: status"; exit 1; }
+          # validate-config
+          ucode "$APPLY_UC" validate-config || { echo "FAIL: validate-config"; exit 1; }
+          # validate-profile orchestra-tls-mvp
+          ucode "$APPLY_UC" validate-profile orchestra-tls-mvp || { echo "FAIL: validate-profile"; exit 1; }
+          # lock-test
+          ucode "$APPLY_UC" lock-test || { echo "FAIL: lock-test"; exit 1; }
+          # enable
+          ucode "$APPLY_UC" enable orchestra-tls-mvp || { echo "FAIL: enable"; exit 1; }
+          # repeated enable (idempotent)
+          ucode "$APPLY_UC" enable orchestra-tls-mvp || { echo "FAIL: idempotent enable"; exit 1; }
+          # rollback
+          ucode "$APPLY_UC" rollback || { echo "FAIL: rollback"; exit 1; }
+          # disable
+          ucode "$APPLY_UC" disable || { echo "FAIL: disable"; exit 1; }
+          # idempotent disable
+          ucode "$APPLY_UC" disable || { echo "FAIL: idempotent disable"; exit 1; }
+          # boot-check
+          ucode "$APPLY_UC" boot-check || { echo "FAIL: boot-check"; exit 1; }
+          echo "=== sandbox sequence PASS ==="
+          rm -rf "$SBX"
+
+      - name: Verify create_ipset.sh executable mode in APK
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          # The router blocker: create_ipset.sh was installed as 0644
+          # (INSTALL_DATA) instead of 0755, causing "Permission denied" in
+          # the post-install firewall reload. The Makefile fix uses
+          # INSTALL_BIN for ipset/*.sh. Verify the mode inside the built APK
+          # by checking the extracted tree (populated by the inspect step).
+          IPSET_SH="$(find /tmp/apk-z2 -name create_ipset.sh -type f -print -quit)"
+          if [ -z "$IPSET_SH" ]; then
+            echo "FAIL: create_ipset.sh not found in zapret2 APK extraction"
+            find /tmp/apk-z2 -name '*.sh' 2>/dev/null || true
+            exit 1
+          fi
+          MODE=$(stat -c '%a' "$IPSET_SH" 2>/dev/null || stat -f '%Lp' "$IPSET_SH" 2>/dev/null)
+          echo "create_ipset.sh mode: $MODE (path: $IPSET_SH)"
+          if [ "$MODE" != "755" ]; then
+            echo "FAIL: create_ipset.sh mode is $MODE, expected 755"
+            exit 1
+          fi
+          echo "OK: create_ipset.sh is 0755 in the APK"
+          # Also verify def.sh is NOT executable (sourced, not executed).
+          DEF_SH="$(find /tmp/apk-z2 -name def.sh -path '*/ipset/*' -type f -print -quit)"
+          if [ -n "$DEF_SH" ]; then
+            DMODE=$(stat -c '%a' "$DEF_SH" 2>/dev/null || stat -f '%Lp' "$DEF_SH" 2>/dev/null)
+            echo "def.sh mode: $DMODE"
+            if [ "$DMODE" = "755" ]; then
+              echo "WARN: def.sh is executable but upstream marks it 0644 (sourced)"
+            fi
+          fi
+
       - name: Collect build log
         if: always()
         run: |

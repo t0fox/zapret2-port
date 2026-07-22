@@ -37,7 +37,7 @@ class PackageContractTest(unittest.TestCase):
         expected = {
             "PKG_NAME": "zapret2-orchestra",
             "PKG_VERSION": "0.1.0",
-            "PKG_RELEASE": "3",
+            "PKG_RELEASE": "4",
             "PKGARCH": "all",
         }
         for key, value in expected.items():
@@ -236,7 +236,7 @@ class Zapret2PackageContractTest(unittest.TestCase):
         for key, value in {
             "PKG_NAME": "zapret2",
             "PKG_VERSION": "0.9.20260307",
-            "PKG_RELEASE": "1",
+            "PKG_RELEASE": "2",
         }.items():
             self.assertRegex(self.makefile, rf"(?m)^{key}:={re.escape(value)}$")
 
@@ -337,6 +337,35 @@ class Zapret2PackageContractTest(unittest.TestCase):
         for dep in ("+libnetfilter-queue", "+libmnl", "+libcap", "+zlib"):
             self.assertIn(dep, self.makefile)
         self.assertIn("LUA_DEP", self.makefile)
+
+    def test_ipset_scripts_are_installed_executable(self) -> None:
+        """create_ipset.sh is invoked directly by the firewall include
+        (functions: ``"$IPSET_CR" "$@"``) and the get_*.sh / clear_lists.sh
+        scripts are executed directly by cron/systemd. Upstream marks them
+        0755; the Makefile must use INSTALL_BIN (0755), not INSTALL_DATA
+        (0644), or the post-install firewall reload fails with
+        "create_ipset.sh: Permission denied" (router blocker)."""
+        install_block = re.search(
+            r"define Package/zapret2/install\n(?P<body>.*?)\nendef",
+            self.makefile,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(install_block)
+        body = install_block.group("body")
+        # The executable ipset scripts (*.sh) must be INSTALL_BIN.
+        self.assertIn("$(INSTALL_BIN) $(PKG_BUILD_DIR)/ipset/*.sh", body)
+        self.assertIn("$(1)/opt/zapret2/ipset/", body)
+        # The old broken install that used INSTALL_DATA for everything is gone.
+        self.assertNotIn(
+            "$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipset/* $(1)/opt/zapret2/ipset/",
+            body,
+        )
+        # def.sh is sourced (no shebang, upstream 0644) — must NOT be executable.
+        self.assertIn("$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipset/def.sh", body)
+        # antifilter.helper is a data helper — must be INSTALL_DATA.
+        self.assertIn(
+            "$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipset/antifilter.helper", body
+        )
 
 
 class ApkFormatContractTest(unittest.TestCase):

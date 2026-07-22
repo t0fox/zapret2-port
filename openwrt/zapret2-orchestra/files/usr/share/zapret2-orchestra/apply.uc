@@ -1,47 +1,47 @@
 'use strict';
 
--- zapret2-orchestra runtime manager (Phase 1B: transactional commands).
---
--- This is a SINGLE self-contained ucode program (never reads config as
--- shell, no eval, no string-form popen). It implements:--   * a text-only parser/transformer for the multiline NFQWS2_OPT assignment
---     in /opt/zapret2/config;
---   * an atomic JSON state helper for manager-state.json;
---   * a mkdir-based interprocess lock;
---   * a profile validator;
---   * transactional commands: apply, enable, disable, rollback, boot-check;
---   * a subcommand dispatcher.
---
--- Security model
--- --------------
--- The config file is NEVER sourced, eval'd, or executed. The NFQWS2_OPT
--- value is located and edited with pure byte operations. The only subprocess
--- calls are array-form popen() to two trusted binaries:
---   sh -n <candidate>          (parse-only shell syntax check, no execution)
---   zapret2-orchestra-preload  (our own ucode preload generator)
--- Array-form popen uses execvp() directly — no shell is involved, so
--- arguments are never interpreted as shell syntax. String-form popen (which
--- would invoke a shell) is never used.
---
--- Phase 1B scope
--- --------------
--- Implemented:
---   status, validate-config, validate-profile, lock-test (read-only)
---   apply, enable, disable, rollback, boot-check (transactional)
---
--- Override paths (for tests):
---   ZAPRET2_CONFIG              /opt/zapret2/config
---   ZAPRET2_ORCHESTRA_DIR       /etc/zapret2-orchestra
---   ZAPRET2_RUNTIME_DIR         /tmp/zapret2-orchestra
---   ZAPRET2_STATE_FILE          <ORCH_DIR>/manager-state.json
---   ZAPRET2_LOCK_DIR            /var/lock/zapret2-orchestra-apply.lock
---   ZAPRET2_CANDIDATE_FILE      /opt/zapret2/.config.orchestra.tmp
---   ZAPRET2_BACKUP_DIR          <ORCH_DIR>/backup
---   ZAPRET2_USER_PROFILES_DIR   /etc/zapret2-orchestra/profiles
---   ZAPRET2_BUILTIN_PROFILES_DIR /usr/share/zapret2-orchestra/profiles
---   ZAPRET2_ORCHESTRA_LUA       /opt/zapret2/lua/orchestra-extra
---   ZAPRET2_PRELOAD_WRAPPER     /usr/sbin/zapret2-orchestra-preload
+// zapret2-orchestra runtime manager (Phase 1B: transactional commands).
+//
+// This is a SINGLE self-contained ucode program (never reads config as
+// shell, no eval, no string-form popen). It implements:--   * a text-only parser/transformer for the multiline NFQWS2_OPT assignment
+//     in /opt/zapret2/config;
+//   * an atomic JSON state helper for manager-state.json;
+//   * a mkdir-based interprocess lock;
+//   * a profile validator;
+//   * transactional commands: apply, enable, disable, rollback, boot-check;
+//   * a subcommand dispatcher.
+//
+// Security model
+// --------------
+// The config file is NEVER sourced, eval'd, or executed. The NFQWS2_OPT
+// value is located and edited with pure byte operations. The only subprocess
+// calls are array-form popen() to two trusted binaries:
+//   sh -n <candidate>          (parse-only shell syntax check, no execution)
+//   zapret2-orchestra-preload  (our own ucode preload generator)
+// Array-form popen uses execvp() directly — no shell is involved, so
+// arguments are never interpreted as shell syntax. String-form popen (which
+// would invoke a shell) is never used.
+//
+// Phase 1B scope
+// --------------
+// Implemented:
+//   status, validate-config, validate-profile, lock-test (read-only)
+//   apply, enable, disable, rollback, boot-check (transactional)
+//
+// Override paths (for tests):
+//   ZAPRET2_CONFIG              /opt/zapret2/config
+//   ZAPRET2_ORCHESTRA_DIR       /etc/zapret2-orchestra
+//   ZAPRET2_RUNTIME_DIR         /tmp/zapret2-orchestra
+//   ZAPRET2_STATE_FILE          <ORCH_DIR>/manager-state.json
+//   ZAPRET2_LOCK_DIR            /var/lock/zapret2-orchestra-apply.lock
+//   ZAPRET2_CANDIDATE_FILE      /opt/zapret2/.config.orchestra.tmp
+//   ZAPRET2_BACKUP_DIR          <ORCH_DIR>/backup
+//   ZAPRET2_USER_PROFILES_DIR   /etc/zapret2-orchestra/profiles
+//   ZAPRET2_BUILTIN_PROFILES_DIR /usr/share/zapret2-orchestra/profiles
+//   ZAPRET2_ORCHESTRA_LUA       /opt/zapret2/lua/orchestra-extra
+//   ZAPRET2_PRELOAD_WRAPPER     /usr/sbin/zapret2-orchestra-preload
 
-import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname, popen } from 'fs';
+import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname, opendir, popen } from 'fs';
 
 const ORCH_DIR      = getenv('ZAPRET2_ORCHESTRA_DIR')  ?? '/etc/zapret2-orchestra';
 const RUNTIME_DIR   = getenv('ZAPRET2_RUNTIME_DIR')   ?? '/tmp/zapret2-orchestra';
@@ -60,9 +60,9 @@ const PRELOAD_WRAPPER = getenv('ZAPRET2_PRELOAD_WRAPPER') ?? '/usr/sbin/zapret2-
 const MAX_BACKUPS = 3;
 const NFQWS2_KEY = 'NFQWS2_OPT';
 
--- ---------------------------------------------------------------------------
--- Small helpers
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
 
 function fail(msg) {
 	die('zapret2-orchestra-apply: ' + msg);
@@ -80,8 +80,8 @@ function line_of(text, index) {
 	return n + 1;
 }
 
--- Does `line` begin (after optional spaces/tabs, not a comment) with
--- "NFQWS2_OPT="? Return the column of the 'N' or -1.
+// Does `line` begin (after optional spaces/tabs, not a comment) with
+// "NFQWS2_OPT="? Return the column of the 'N' or -1.
 function assignment_start(line) {
 	let i = 0;
 	while (i < length(line) && (substr(line, i, 1) == ' ' || substr(line, i, 1) == '\t'))
@@ -94,14 +94,14 @@ function assignment_start(line) {
 	return -1;
 }
 
--- ---------------------------------------------------------------------------
--- NFQWS2_OPT parser (mirrors tests/_nfqws2_parser.py exactly)
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// NFQWS2_OPT parser (mirrors tests/_nfqws2_parser.py exactly)
+// ---------------------------------------------------------------------------
 
--- Returns { ok, error, value, raw, head, tail, open_line, close_line }.
--- On success ok=true; on failure ok=false and error is set.
+// Returns { ok, error, value, raw, head, tail, open_line, close_line }.
+// On success ok=true; on failure ok=false and error is set.
 function parse_nfqws2_opt(text) {
-	-- Collect the absolute start index of every NFQWS2_OPT= assignment line.
+	// Collect the absolute start index of every NFQWS2_OPT= assignment line.
 	let starts = [];
 	let line_start = 0;
 	let i = 0;
@@ -181,8 +181,8 @@ function escape_value(v) {
 	return replace(replace(v, '\\', '\\\\'), '"', '\\"');
 }
 
--- Return the full config text with NFQWS2_OPT replaced by new_value.
--- Raises (fail) on parse error.
+// Return the full config text with NFQWS2_OPT replaced by new_value.
+// Raises (fail) on parse error.
 function transform_nfqws2_opt(text, new_value) {
 	let p = parse_nfqws2_opt(text);
 	if (!p.ok)
@@ -190,7 +190,7 @@ function transform_nfqws2_opt(text, new_value) {
 	return p.head + escape_value(new_value) + p.tail;
 }
 
--- 31-bit rolling hash (djb2 variant), identical to generate-preload.uc.
+// 31-bit rolling hash (djb2 variant), identical to generate-preload.uc.
 function hash31(data) {
 	let h = 5381;
 	for (let i = 0; i < length(data); i++)
@@ -198,12 +198,12 @@ function hash31(data) {
 	return h;
 }
 
--- ---------------------------------------------------------------------------
--- Subprocess helpers (array-form popen only — no shell, execvp directly)
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Subprocess helpers (array-form popen only — no shell, execvp directly)
+// ---------------------------------------------------------------------------
 
--- Run `sh -n <path>` (parse-only syntax check, never executes the file).
--- Returns { ok: bool, rc: int, stderr: string }.
+// Run `sh -n <path>` (parse-only syntax check, never executes the file).
+// Returns { ok: bool, rc: int, stderr: string }.
 function run_sh_n(path) {
 	let proc = popen(['sh', '-n', path], 'r');
 	if (proc == null)
@@ -213,10 +213,10 @@ function run_sh_n(path) {
 	return { ok: rc == 0, rc: rc, stderr: err ?? '' };
 }
 
--- Run the preload wrapper with the given mode ('generate' or 'check').
--- Uses array-form popen — no shell, execvp directly. The wrapper is our
--- own trusted binary at PRELOAD_WRAPPER.
--- Returns { ok: bool, rc: int, stdout: string, stderr: string }.
+// Run the preload wrapper with the given mode ('generate' or 'check').
+// Uses array-form popen — no shell, execvp directly. The wrapper is our
+// own trusted binary at PRELOAD_WRAPPER.
+// Returns { ok: bool, rc: int, stdout: string, stderr: string }.
 function run_preload(mode) {
 	let proc = popen([PRELOAD_WRAPPER, mode], 'r');
 	if (proc == null)
@@ -226,36 +226,36 @@ function run_preload(mode) {
 	return { ok: rc == 0, rc: rc, stdout: out ?? '', stderr: '' };
 }
 
--- ---------------------------------------------------------------------------
--- Atomic JSON state helper (manager-state.json)
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Atomic JSON state helper (manager-state.json)
+// ---------------------------------------------------------------------------
 
--- manager-state.json schema:
--- {
---   "schema_version": 1,
---   "states": ["idle"],            -- current state stack
---   "generation": 0,               -- monotonically increasing (only after success)
---   "previous_state": null,        -- last committed state
---   "enabled": false,              -- is Orchestra enabled?
---   "profile": null,               -- last applied profile name
---   "applying_gen": null,          -- generation at start of an interrupted apply
---   "applying_backup": null,       -- backup filename of an interrupted apply
---   "hash_algorithm": "djb2-31",
---   "hashes": {
---     "nfqws2_opt": "00000000",    -- hash of NFQWS2_OPT (NOT the full text)
---     "preload":   "00000000",     -- hash of /tmp/zapret2-orchestra/preload.lua
---     "whitelist": "00000000",     -- hash of /tmp/zapret2-orchestra/whitelist.txt
---     "manifest":  "00000000"      -- hash of /tmp/zapret2-orchestra/manifest.json
---   },
---   "updated_at": 0,               -- unix ts of last successful write
---   "last_error": null,            -- last error string, or null
---   "warnings": []                 -- non-fatal warnings
--- }
---
--- The FULL NFQWS2_OPT text is never stored; only its hash.
--- manager-state.json lives under /etc/zapret2-orchestra/ (persistent) and
--- is NOT a conffile — it is rebuilt by the manager and may be safely
--- deleted; the manager recreates it with the default state on next read.
+// manager-state.json schema:
+// {
+//   "schema_version": 1,
+//   "states": ["idle"],            -- current state stack
+//   "generation": 0,               -- monotonically increasing (only after success)
+//   "previous_state": null,        -- last committed state
+//   "enabled": false,              -- is Orchestra enabled?
+//   "profile": null,               -- last applied profile name
+//   "applying_gen": null,          -- generation at start of an interrupted apply
+//   "applying_backup": null,       -- backup filename of an interrupted apply
+//   "hash_algorithm": "djb2-31",
+//   "hashes": {
+//     "nfqws2_opt": "00000000",    -- hash of NFQWS2_OPT (NOT the full text)
+//     "preload":   "00000000",     -- hash of /tmp/zapret2-orchestra/preload.lua
+//     "whitelist": "00000000",     -- hash of /tmp/zapret2-orchestra/whitelist.txt
+//     "manifest":  "00000000"      -- hash of /tmp/zapret2-orchestra/manifest.json
+//   },
+//   "updated_at": 0,               -- unix ts of last successful write
+//   "last_error": null,            -- last error string, or null
+//   "warnings": []                 -- non-fatal warnings
+// }
+//
+// The FULL NFQWS2_OPT text is never stored; only its hash.
+// manager-state.json lives under /etc/zapret2-orchestra/ (persistent) and
+// is NOT a conffile — it is rebuilt by the manager and may be safely
+// deleted; the manager recreates it with the default state on next read.
 
 const STATE_SCHEMA_VERSION = 1;
 
@@ -310,13 +310,13 @@ function validate_state(doc) {
 	}
 	if (type(doc.warnings) != 'array')
 		return 'warnings must be an array';
-	-- enabled and profile are optional (absent = false/null in older state)
+	// enabled and profile are optional (absent = false/null in older state)
 	return null;
 }
 
--- Ensure the parent directory of STATE_FILE exists (the persistent
--- /etc/zapret2-orchestra/ is created by the package install, but tests
--- may override the path to a temp location).
+// Ensure the parent directory of STATE_FILE exists (the persistent
+// /etc/zapret2-orchestra/ is created by the package install, but tests
+// may override the path to a temp location).
 function ensure_state_dir() {
 	let parent = dirname(STATE_FILE);
 	let info = stat(parent);
@@ -329,15 +329,15 @@ function ensure_state_dir() {
 		fail(parent + ' is not a directory');
 }
 
--- Atomic write: tmp + rename in the same directory. Validate the serialized
--- bytes by re-parsing before installing.
+// Atomic write: tmp + rename in the same directory. Validate the serialized
+// bytes by re-parsing before installing.
 function atomic_write_state(doc) {
 	ensure_state_dir();
 	let err = validate_state(doc);
 	if (err)
 		fail('state validation failed: ' + err);
 	let payload = sprintf('%J\n', doc);
-	-- Re-parse to prove the bytes are valid JSON and round-trip the schema.
+	// Re-parse to prove the bytes are valid JSON and round-trip the schema.
 	let reparsed;
 	try {
 		reparsed = json(payload);
@@ -366,31 +366,31 @@ function read_state() {
 		doc = json(raw);
 	}
 	catch (e) {
-		return null;  -- corrupted; caller decides
+		return null;  // corrupted; caller decides
 	}
 	if (validate_state(doc) != null)
 		return null;
 	return doc;
 }
 
--- ---------------------------------------------------------------------------
--- mkdir lock
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// mkdir lock
+// ---------------------------------------------------------------------------
 
--- mkdir is atomic on POSIX filesystems: exactly one caller succeeds.
--- The lock is a directory at LOCK_DIR. After a successful mkdir the holder
--- immediately writes a `pid` file inside it. To avoid the race between
--- mkdir and writefile (a second caller could see the dir with no pid and
--- wrongly treat it as stale) we NEVER remove a lock that has no pid file —
--- it may belong to a holder still inside the writefile window.
---
--- Stale recovery is safe: we remove only when the pid file IS present AND
--- the recorded PID is confirmed dead (no /proc entry or cmdline mismatch).
--- Before removing we re-read the pid file to ensure it hasn't changed
--- (another process may have already recovered and a new holder may have
--- written a new pid). Release removes only the pid file and the lock dir
--- (no bulk removal), and only if the recorded PID is still ours (guards
--- against PID reuse).
+// mkdir is atomic on POSIX filesystems: exactly one caller succeeds.
+// The lock is a directory at LOCK_DIR. After a successful mkdir the holder
+// immediately writes a `pid` file inside it. To avoid the race between
+// mkdir and writefile (a second caller could see the dir with no pid and
+// wrongly treat it as stale) we NEVER remove a lock that has no pid file —
+// it may belong to a holder still inside the writefile window.
+//
+// Stale recovery is safe: we remove only when the pid file IS present AND
+// the recorded PID is confirmed dead (no /proc entry or cmdline mismatch).
+// Before removing we re-read the pid file to ensure it hasn't changed
+// (another process may have already recovered and a new holder may have
+// written a new pid). Release removes only the pid file and the lock dir
+// (no bulk removal), and only if the recorded PID is still ours (guards
+// against PID reuse).
 
 function my_pid() {
 	let p = readfile('/proc/self/stat');
@@ -399,7 +399,7 @@ function my_pid() {
 		if (length(sp) > 0)
 			return int(sp[0]);
 	}
-	-- fallback: env override for tests
+	// fallback: env override for tests
 	return int(getenv('ZAPRET2_LOCK_TEST_PID') ?? '0');
 }
 
@@ -411,13 +411,13 @@ function pid_alive_and_is_manager(pid) {
 	let cmd = readfile('/proc/' + pid + '/cmdline');
 	if (cmd == null)
 		return false;
-	-- cmdline is NUL-separated; look for our marker.
+	// cmdline is NUL-separated; look for our marker.
 	return index(cmd, 'zapret2-orchestra-apply') >= 0 || index(cmd, 'apply.uc') >= 0;
 }
 
 function lock_acquire() {
 	if (mkdir(LOCK_DIR)) {
-		-- we won the mkdir; record our pid immediately.
+		// we won the mkdir; record our pid immediately.
 		let pid = my_pid();
 		if (writefile(LOCK_DIR + '/pid', '' + pid + '\n') == null) {
 			rmdir(LOCK_DIR);
@@ -426,29 +426,29 @@ function lock_acquire() {
 		return { ok: true, pid: pid, stale_recovered: false };
 	}
 
-	-- mkdir failed: the lock dir already exists. Inspect the holder.
+	// mkdir failed: the lock dir already exists. Inspect the holder.
 	let pidraw = readfile(LOCK_DIR + '/pid');
 	if (pidraw == null) {
-		-- No pid file: the holder may still be inside the writefile
-		-- window between mkdir and writefile. Do NOT remove — treat as
-		-- busy. This closes the mkdir/writefile race.
+		// No pid file: the holder may still be inside the writefile
+		// window between mkdir and writefile. Do NOT remove — treat as
+		// busy. This closes the mkdir/writefile race.
 		return { ok: false, error: 'lock busy (no pid file)' };
 	}
 
 	let holder = int(trim(pidraw));
 	if (holder > 0 && !pid_alive_and_is_manager(holder)) {
-		-- Stale: the holder PID is dead or not our executable. Safe
-		-- re-check: re-read the pid file to confirm it hasn't changed
-		-- (another process may have already recovered this lock).
+		// Stale: the holder PID is dead or not our executable. Safe
+		// re-check: re-read the pid file to confirm it hasn't changed
+		// (another process may have already recovered this lock).
 		let pidraw2 = readfile(LOCK_DIR + '/pid');
 		if (pidraw2 == null || int(trim(pidraw2)) != holder) {
-			-- The pid file changed (or was removed) between our two
-			-- reads: someone else already recovered. Report busy.
+			// The pid file changed (or was removed) between our two
+			// reads: someone else already recovered. Report busy.
 			return { ok: false, error: 'lock busy (recovered by another)' };
 		}
-		-- Confirmed stale: unlink the pid file and rmdir, then retry
-		-- the mkdir exactly once. This removes only the dead holder's
-		-- pid file and the dir — never a live holder's lock.
+		// Confirmed stale: unlink the pid file and rmdir, then retry
+		// the mkdir exactly once. This removes only the dead holder's
+		// pid file and the dir — never a live holder's lock.
 		unlink(LOCK_DIR + '/pid');
 		rmdir(LOCK_DIR);
 		if (mkdir(LOCK_DIR)) {
@@ -459,15 +459,15 @@ function lock_acquire() {
 			}
 			return { ok: true, pid: pid, stale_recovered: true };
 		}
-		-- Lost the retry race to another recoverer.
+		// Lost the retry race to another recoverer.
 		return { ok: false, error: 'lock busy (lost retry)' };
 	}
 
-	-- Live holder.
+	// Live holder.
 	return { ok: false, error: 'lock busy', holder: holder };
 }
 
--- Release only if the recorded PID equals ours.
+// Release only if the recorded PID equals ours.
 function lock_release() {
 	let pidraw = readfile(LOCK_DIR + '/pid');
 	let holder = int(trim(pidraw ?? ''));
@@ -479,9 +479,9 @@ function lock_release() {
 	return { ok: true };
 }
 
--- ---------------------------------------------------------------------------
--- Backup helpers
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Backup helpers
+// ---------------------------------------------------------------------------
 
 function ensure_backup_dir() {
 	let info = stat(BACKUP_DIR);
@@ -494,13 +494,13 @@ function ensure_backup_dir() {
 		fail(BACKUP_DIR + ' is not a directory');
 }
 
--- Return the backup filename for a given generation.
+// Return the backup filename for a given generation.
 function backup_path(gen) {
 	return BACKUP_DIR + '/config.gen-' + gen + '.bak';
 }
 
--- Copy the current config to a backup file named after the generation.
--- Uses readfile+writefile (not cp) so no shell is involved.
+// Copy the current config to a backup file named after the generation.
+// Uses readfile+writefile (not cp) so no shell is involved.
 function backup_config(gen) {
 	ensure_backup_dir();
 	let data = readfile(CONFIG_FILE);
@@ -517,15 +517,15 @@ function backup_config(gen) {
 	return path;
 }
 
--- Restore a backup by renaming it over the config. Returns {ok, error}.
--- This is an atomic rename on the same filesystem only if the backup and
--- config share a filesystem; /etc and /opt may differ. When they differ,
--- we fall back to readfile+writefile+rename within /opt.
+// Restore a backup by renaming it over the config. Returns {ok, error}.
+// This is an atomic rename on the same filesystem only if the backup and
+// config share a filesystem; /etc and /opt may differ. When they differ,
+// we fall back to readfile+writefile+rename within /opt.
 function restore_backup(path) {
 	let data = readfile(path);
 	if (data == null)
 		return { ok: false, error: 'cannot read backup ' + path };
-	-- Write to the candidate path (same filesystem as config) then rename.
+	// Write to the candidate path (same filesystem as config) then rename.
 	if (writefile(CANDIDATE_FILE, data) == null)
 		return { ok: false, error: 'cannot write restore candidate' };
 	if (!rename(CANDIDATE_FILE, CONFIG_FILE)) {
@@ -535,7 +535,7 @@ function restore_backup(path) {
 	return { ok: true };
 }
 
--- Prune old backups, keeping at most MAX_BACKUPS (the most recent by gen).
+// Prune old backups, keeping at most MAX_BACKUPS (the most recent by gen).
 function prune_backups(keep_gen) {
 	ensure_backup_dir();
 	let entries = [];
@@ -547,13 +547,13 @@ function prune_backups(keep_gen) {
 		if (m) push(entries, { name: name, gen: int(m[1]) });
 	}
 	dh.close();
-	-- Sort by gen descending; keep the top MAX_BACKUPS; remove the rest.
+	// Sort by gen descending; keep the top MAX_BACKUPS; remove the rest.
 	entries = sort(entries, (a, b) => b.gen - a.gen);
 	for (let i = MAX_BACKUPS; i < length(entries); i++)
 		unlink(BACKUP_DIR + '/' + entries[i].name);
 }
 
--- Find the most recent backup generation. Returns {gen, path} or null.
+// Find the most recent backup generation. Returns {gen, path} or null.
 function latest_backup() {
 	ensure_backup_dir();
 	let best = null;
@@ -572,12 +572,12 @@ function latest_backup() {
 	return best;
 }
 
--- ---------------------------------------------------------------------------
--- Hash helpers
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Hash helpers
+// ---------------------------------------------------------------------------
 
--- Compute the hash of the current NFQWS2_OPT value from the config file.
--- Returns the 8-hex-char hash, or null if the config is unparseable.
+// Compute the hash of the current NFQWS2_OPT value from the config file.
+// Returns the 8-hex-char hash, or null if the config is unparseable.
 function current_config_hash() {
 	let text = readfile(CONFIG_FILE);
 	if (text == null) return null;
@@ -586,14 +586,14 @@ function current_config_hash() {
 	return sprintf('%08x', hash31(p.value));
 }
 
--- Read a runtime file and return its hash, or '00000000' if missing.
+// Read a runtime file and return its hash, or '00000000' if missing.
 function runtime_hash(path) {
 	let data = readfile(path);
 	if (data == null) return '00000000';
 	return sprintf('%08x', hash31(data));
 }
 
--- Compute all four hashes from the current on-disk state.
+// Compute all four hashes from the current on-disk state.
 function compute_current_hashes() {
 	return {
 		nfqws2_opt: current_config_hash() ?? '00000000',
@@ -603,14 +603,14 @@ function compute_current_hashes() {
 	};
 }
 
--- ---------------------------------------------------------------------------
--- Profile validation
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Profile validation
+// ---------------------------------------------------------------------------
 
--- Reject characters/sequences that have no business in a profile argument:
--- command substitution $(), backticks, NUL, CR, unclosed quotes, and shell
--- separators (;, |, &&, >, <). A profile is a set of --lua-desync / --filter
--- arguments, not an arbitrary shell snippet.
+// Reject characters/sequences that have no business in a profile argument:
+// command substitution $(), backticks, NUL, CR, unclosed quotes, and shell
+// separators (;, |, &&, >, <). A profile is a set of --lua-desync / --filter
+// arguments, not an arbitrary shell snippet.
 function profile_value_ok(s) {
 	if (s == null)
 		return 'null value';
@@ -632,7 +632,7 @@ function profile_value_ok(s) {
 		return 'redirect >';
 	if (index(s, '<') >= 0)
 		return 'redirect <';
-	-- unclosed single or double quote
+	// unclosed single or double quote
 	let dq = 0, sq = 0;
 	for (let i = 0; i < length(s); i++) {
 		let c = substr(s, i, 1);
@@ -646,18 +646,18 @@ function profile_value_ok(s) {
 	return null;
 }
 
--- A profile is a single .opt file containing an NFQWS2_OPT assignment.
--- The user override at /etc/zapret2-orchestra/profiles/<name>.opt takes
--- priority over the builtin at /usr/share/zapret2-orchestra/profiles/<name>.opt.
--- The profile value must pass profile_value_ok, and the Orchestra runtime
--- markers (init.lua, whitelist seed, circular_quality) must be present.
+// A profile is a single .opt file containing an NFQWS2_OPT assignment.
+// The user override at /etc/zapret2-orchestra/profiles/<name>.opt takes
+// priority over the builtin at /usr/share/zapret2-orchestra/profiles/<name>.opt.
+// The profile value must pass profile_value_ok, and the Orchestra runtime
+// markers (init.lua, whitelist seed, circular_quality) must be present.
 function validate_profile(name) {
 	let problems = [];
 	if (name == null || length(name) == 0) {
 		problems.push('profile name is empty');
 		return { ok: false, problems: problems };
 	}
-	-- Reject path traversal in the name.
+	// Reject path traversal in the name.
 	if (index(name, '/') >= 0 || index(name, '..') >= 0 || index(name, '\x00') >= 0) {
 		problems.push('profile name contains path traversal');
 		return { ok: false, problems: problems };
@@ -695,8 +695,8 @@ function validate_profile(name) {
 	if (verr != null)
 		problems.push('profile value rejected: ' + verr);
 
-	-- Orchestra runtime markers: init.lua and the whitelist seed must exist,
-	-- and circular_quality must be referenced by the profile value.
+	// Orchestra runtime markers: init.lua and the whitelist seed must exist,
+	// and circular_quality must be referenced by the profile value.
 	if (stat(ORCH_LUA + '/init.lua')?.type != 'file')
 		problems.push('orchestra init.lua missing');
 	if (stat(ORCH_DIR + '/whitelist.json')?.type != 'file')
@@ -704,13 +704,13 @@ function validate_profile(name) {
 	if (index(p.value, 'circular_quality') < 0)
 		problems.push('profile does not reference circular_quality');
 
-	-- The profile is NOT applied to the config in Phase 1A.
+	// The profile is NOT applied to the config in Phase 1A.
 	return { ok: length(problems) == 0, problems: problems, source: chosen, source_type: source_type, value_bytes: length(p.value) };
 }
 
--- ---------------------------------------------------------------------------
--- Subcommands
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Subcommands
+// ---------------------------------------------------------------------------
 
 function cmd_status() {
 	let cfg_exists = stat(CONFIG_FILE)?.type == 'file';
@@ -756,9 +756,9 @@ function cmd_validate_config() {
 	let p = parse_nfqws2_opt(text);
 	if (!p.ok)
 		fail('parse error: ' + p.error);
-	-- Re-emit the config with the SAME value to prove the transformer is
-	-- byte-stable and produces valid shell. Write ONLY to the temp path
-	-- (never to CONFIG_FILE). The CLI wrapper runs `sh -n` on this temp.
+	// Re-emit the config with the SAME value to prove the transformer is
+	// byte-stable and produces valid shell. Write ONLY to the temp path
+	// (never to CONFIG_FILE). The CLI wrapper runs `sh -n` on this temp.
 	let emitted = p.head + escape_value(p.value) + p.tail;
 	if (emitted != text)
 		fail('internal: re-emission is not byte-identical');
@@ -790,8 +790,8 @@ function cmd_validate_profile() {
 }
 
 function cmd_lock_test() {
-	-- Acquire, report, release. Used by tests to prove the lock works and
-	-- that release only removes when mine.
+	// Acquire, report, release. Used by tests to prove the lock works and
+	// that release only removes when mine.
 	let acq = lock_acquire();
 	if (!acq.ok) {
 		emit({ ok: false, stage: 'acquire', error: acq.error, holder: acq.holder });
@@ -804,9 +804,9 @@ function cmd_lock_test() {
 	exit(rel.ok ? 0 : 1);
 }
 
--- ---------------------------------------------------------------------------
--- Parse a backup filename "config.gen-<N>.bak" → generation int, or -1.
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Parse a backup filename "config.gen-<N>.bak" → generation int, or -1.
+// ---------------------------------------------------------------------------
 
 function parse_backup_gen(name) {
 	let prefix = 'config.gen-';
@@ -820,76 +820,76 @@ function parse_backup_gen(name) {
 	return g;
 }
 
--- ---------------------------------------------------------------------------
--- Transaction core
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Transaction core
+// ---------------------------------------------------------------------------
 
--- Internal rollback: restore the backup over the config. Called WITHOUT
--- re-acquiring the lock (the caller already holds it). Returns {ok, error}.
+// Internal rollback: restore the backup over the config. Called WITHOUT
+// re-acquiring the lock (the caller already holds it). Returns {ok, error}.
 function internal_rollback(backup_path) {
 	if (backup_path == null || stat(backup_path)?.type != 'file')
 		return { ok: false, error: 'backup not found: ' + (backup_path ?? 'null') };
 	return restore_backup(backup_path);
 }
 
--- The core apply transaction. ASSUMES THE LOCK IS ALREADY HELD.
--- Steps:
---   1. read current state + config
---   2. parse NFQWS2_OPT, build candidate
---   3. byte-preservation sanity (re-emit same value == original)
---   4. write candidate to CANDIDATE_FILE (same FS as config)
---   5. sh -n on candidate (parse-only, no execution)
---   6. write state=applying (persistent, survives reboot)
---   7. backup current config
---   8. rename candidate → config (atomic, same FS)
---   9. regenerate + check preload
---  10. commit state: idle, generation++, hashes updated
---  11. prune old backups
--- On failure BEFORE rename: unlink candidate, state=idle, no config change.
--- On failure AFTER rename: internal_rollback (restore backup), state=idle.
--- Generation is incremented ONLY on full success.
+// The core apply transaction. ASSUMES THE LOCK IS ALREADY HELD.
+// Steps:
+//   1. read current state + config
+//   2. parse NFQWS2_OPT, build candidate
+//   3. byte-preservation sanity (re-emit same value == original)
+//   4. write candidate to CANDIDATE_FILE (same FS as config)
+//   5. sh -n on candidate (parse-only, no execution)
+//   6. write state=applying (persistent, survives reboot)
+//   7. backup current config
+//   8. rename candidate → config (atomic, same FS)
+//   9. regenerate + check preload
+//  10. commit state: idle, generation++, hashes updated
+//  11. prune old backups
+// On failure BEFORE rename: unlink candidate, state=idle, no config change.
+// On failure AFTER rename: internal_rollback (restore backup), state=idle.
+// Generation is incremented ONLY on full success.
 function do_apply_transaction(new_value, profile_name) {
 	let state = read_state();
 	if (state == null) state = default_state();
 	let gen = state.generation;
 
-	-- 1. Read current config
+	// 1. Read current config
 	let config_text = readfile(CONFIG_FILE);
 	if (config_text == null)
 		return { ok: false, error: 'cannot read config ' + CONFIG_FILE };
 
-	-- 2. Parse current NFQWS2_OPT
+	// 2. Parse current NFQWS2_OPT
 	let p = parse_nfqws2_opt(config_text);
 	if (!p.ok)
 		return { ok: false, error: 'config parse: ' + p.error };
 
-	-- 3. Build candidate text (transform NFQWS2_OPT value)
+	// 3. Build candidate text (transform NFQWS2_OPT value)
 	let candidate_text = p.head + escape_value(new_value) + p.tail;
 
-	-- 4. Write candidate to CANDIDATE_FILE (same filesystem as config)
+	// 4. Write candidate to CANDIDATE_FILE (same filesystem as config)
 	if (writefile(CANDIDATE_FILE, candidate_text) == null)
 		return { ok: false, error: 'cannot write candidate ' + CANDIDATE_FILE };
 
-	-- 5. sh -n on candidate (parse-only, never executes)
+	// 5. sh -n on candidate (parse-only, never executes)
 	let shn = run_sh_n(CANDIDATE_FILE);
 	if (!shn.ok) {
 		unlink(CANDIDATE_FILE);
 		return { ok: false, error: 'sh -n rejected candidate: ' + shn.stderr, sh_n_ok: false };
 	}
 
-	-- 6. Write state=applying (persistent marker — survives reboot/power loss)
+	// 6. Write state=applying (persistent marker — survives reboot/power loss)
 	state.states = ['applying'];
 	state.applying_gen = gen;
 	state.applying_backup = null;
 	state.last_error = null;
 	atomic_write_state(state);
 
-	-- 7. Backup current config (before the rename)
+	// 7. Backup current config (before the rename)
 	let bpath = backup_config(gen);
 	state.applying_backup = bpath;
 	atomic_write_state(state);
 
-	-- 8. Rename candidate → config (atomic on same filesystem)
+	// 8. Rename candidate → config (atomic on same filesystem)
 	if (!rename(CANDIDATE_FILE, CONFIG_FILE)) {
 		unlink(CANDIDATE_FILE);
 		state.states = ['idle'];
@@ -900,12 +900,12 @@ function do_apply_transaction(new_value, profile_name) {
 		return { ok: false, error: 'cannot rename candidate to config' };
 	}
 
-	-- 9. Regenerate + check preload (post-rename)
+	// 9. Regenerate + check preload (post-rename)
 	let pre = run_preload('generate');
 	if (!pre.ok) {
-		-- ERROR AFTER RENAME: internal rollback (restore backup, no re-lock)
+		// ERROR AFTER RENAME: internal rollback (restore backup, no re-lock)
 		let rb = internal_rollback(bpath);
-		run_preload('generate');  -- regenerate preload from restored config
+		run_preload('generate');  // regenerate preload from restored config
 		state.states = ['idle'];
 		state.applying_gen = null;
 		state.applying_backup = null;
@@ -925,7 +925,7 @@ function do_apply_transaction(new_value, profile_name) {
 		return { ok: false, error: 'preload check failed', rollback: rb };
 	}
 
-	-- 10. Commit: state=idle, generation++, update hashes, enabled/profile
+	// 10. Commit: state=idle, generation++, update hashes, enabled/profile
 	state.states = ['idle'];
 	state.generation = gen + 1;
 	state.previous_state = 'applying';
@@ -938,25 +938,25 @@ function do_apply_transaction(new_value, profile_name) {
 	state.updated_at = time();
 	atomic_write_state(state);
 
-	-- 11. Prune old backups (keep most recent MAX_BACKUPS)
+	// 11. Prune old backups (keep most recent MAX_BACKUPS)
 	prune_backups(gen + 1);
 
 	return { ok: true, generation: gen + 1, backup: bpath };
 }
 
--- ---------------------------------------------------------------------------
--- cmd_apply: apply a profile value to the config (transactional)
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// cmd_apply: apply a profile value to the config (transactional)
+// ---------------------------------------------------------------------------
 
 function cmd_apply() {
 	let profile_name = ARGV[0];
 	if (profile_name == null)
 		fail('usage: apply <profile-name>');
-	-- Validate the profile first (read-only, no lock needed)
+	// Validate the profile first (read-only, no lock needed)
 	let pv = validate_profile(profile_name);
 	if (!pv.ok)
 		fail('profile invalid: ' + join(pv.problems, '; '));
-	-- Read the profile value
+	// Read the profile value
 	let ptext = readfile(pv.source);
 	if (ptext == null)
 		fail('cannot read profile ' + pv.source);
@@ -964,7 +964,7 @@ function cmd_apply() {
 	if (!pp.ok)
 		fail('profile parse error: ' + pp.error);
 
-	-- Acquire lock, run transaction, release
+	// Acquire lock, run transaction, release
 	let acq = lock_acquire();
 	if (!acq.ok)
 		fail('lock: ' + acq.error);
@@ -978,22 +978,22 @@ function cmd_apply() {
 	exit(0);
 }
 
--- ---------------------------------------------------------------------------
--- cmd_enable: apply a profile and mark Orchestra enabled (idempotent)
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// cmd_enable: apply a profile and mark Orchestra enabled (idempotent)
+// ---------------------------------------------------------------------------
 
 function cmd_enable() {
 	let profile_name = ARGV[0] ?? 'orchestra-tls-mvp';
 	let state = read_state();
 	if (state == null) state = default_state();
 
-	-- Idempotent: if already enabled with the same profile, no-op
+	// Idempotent: if already enabled with the same profile, no-op
 	if (state.enabled == true && state.profile == profile_name) {
 		emit({ ok: true, command: 'enable', profile: profile_name, idempotent: true, generation: state.generation });
 		exit(0);
 	}
 
-	-- Validate the profile
+	// Validate the profile
 	let pv = validate_profile(profile_name);
 	if (!pv.ok)
 		fail('profile invalid: ' + join(pv.problems, '; '));
@@ -1004,7 +1004,7 @@ function cmd_enable() {
 	if (!pp.ok)
 		fail('profile parse error: ' + pp.error);
 
-	-- Acquire lock, run transaction, release
+	// Acquire lock, run transaction, release
 	let acq = lock_acquire();
 	if (!acq.ok)
 		fail('lock: ' + acq.error);
@@ -1018,22 +1018,22 @@ function cmd_enable() {
 	exit(0);
 }
 
--- ---------------------------------------------------------------------------
--- cmd_disable: restore the last backup and mark Orchestra disabled
--- (idempotent, does not delete user data)
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// cmd_disable: restore the last backup and mark Orchestra disabled
+// (idempotent, does not delete user data)
+// ---------------------------------------------------------------------------
 
 function cmd_disable() {
 	let state = read_state();
 	if (state == null) state = default_state();
 
-	-- Idempotent: if not enabled, no-op
+	// Idempotent: if not enabled, no-op
 	if (state.enabled != true) {
 		emit({ ok: true, command: 'disable', idempotent: true, generation: state.generation });
 		exit(0);
 	}
 
-	-- Find the latest backup to restore
+	// Find the latest backup to restore
 	let bk = latest_backup();
 	if (bk == null)
 		fail('no backup available to disable — use rollback with --force or re-apply a safe profile');
@@ -1042,19 +1042,19 @@ function cmd_disable() {
 	if (!acq.ok)
 		fail('lock: ' + acq.error);
 
-	-- Check for drift: if the current config hash doesn't match the state
-	-- hash, the config was modified externally. We still restore (disable
-	-- is an explicit user request) but record a warning.
+	// Check for drift: if the current config hash doesn't match the state
+	// hash, the config was modified externally. We still restore (disable
+	// is an explicit user request) but record a warning.
 	let cur_hash = current_config_hash();
 	let drift = (cur_hash != null && state.hashes.nfqws2_opt != '00000000' && cur_hash != state.hashes.nfqws2_opt);
 
-	-- Write state=applying (persistent marker)
+	// Write state=applying (persistent marker)
 	state.states = ['applying'];
 	state.applying_gen = state.generation;
 	state.applying_backup = bk.path;
 	atomic_write_state(state);
 
-	-- Restore backup
+	// Restore backup
 	let rb = restore_backup(bk.path);
 	if (!rb.ok) {
 		state.states = ['idle'];
@@ -1067,10 +1067,10 @@ function cmd_disable() {
 		exit(1);
 	}
 
-	-- Regenerate preload from restored config
+	// Regenerate preload from restored config
 	run_preload('generate');
 
-	-- Commit state
+	// Commit state
 	state.states = ['idle'];
 	state.generation = state.generation + 1;
 	state.previous_state = 'disabled';
@@ -1090,10 +1090,10 @@ function cmd_disable() {
 	exit(0);
 }
 
--- ---------------------------------------------------------------------------
--- cmd_rollback: restore a backup generation (default: latest)
--- --force: restore without drift check
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// cmd_rollback: restore a backup generation (default: latest)
+// --force: restore without drift check
+// ---------------------------------------------------------------------------
 
 function cmd_rollback() {
 	let force = false;
@@ -1106,7 +1106,7 @@ function cmd_rollback() {
 	let state = read_state();
 	if (state == null) state = default_state();
 
-	-- Find the backup to restore
+	// Find the backup to restore
 	let bk;
 	if (target_gen != null && target_gen > 0) {
 		let path = backup_path(target_gen);
@@ -1119,9 +1119,9 @@ function cmd_rollback() {
 			fail('no backup available to rollback');
 	}
 
-	-- Drift check (unless --force): if the current config hash doesn't match
-	-- the state hash, the config was modified externally after the last
-	-- apply. Without --force, we refuse to overwrite and report rollback-conflict.
+	// Drift check (unless --force): if the current config hash doesn't match
+	// the state hash, the config was modified externally after the last
+	// apply. Without --force, we refuse to overwrite and report rollback-conflict.
 	let cur_hash = current_config_hash();
 	let drift = (cur_hash != null && state.hashes.nfqws2_opt != '00000000' && cur_hash != state.hashes.nfqws2_opt);
 	if (drift && !force) {
@@ -1132,18 +1132,18 @@ function cmd_rollback() {
 		exit(1);
 	}
 
-	-- Acquire lock
+	// Acquire lock
 	let acq = lock_acquire();
 	if (!acq.ok)
 		fail('lock: ' + acq.error);
 
-	-- Write state=applying
+	// Write state=applying
 	state.states = ['applying'];
 	state.applying_gen = state.generation;
 	state.applying_backup = bk.path;
 	atomic_write_state(state);
 
-	-- Restore
+	// Restore
 	let rb = restore_backup(bk.path);
 	if (!rb.ok) {
 		state.states = ['idle'];
@@ -1156,10 +1156,10 @@ function cmd_rollback() {
 		exit(1);
 	}
 
-	-- Regenerate preload
+	// Regenerate preload
 	run_preload('generate');
 
-	-- Commit state (generation does NOT increase on rollback per spec)
+	// Commit state (generation does NOT increase on rollback per spec)
 	state.states = ['idle'];
 	state.previous_state = 'rolled_back';
 	state.enabled = false;
@@ -1178,47 +1178,47 @@ function cmd_rollback() {
 	exit(0);
 }
 
--- ---------------------------------------------------------------------------
--- cmd_boot_check: detect interrupted apply, recover, no health-check
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// cmd_boot_check: detect interrupted apply, recover, no health-check
+// ---------------------------------------------------------------------------
 
 function cmd_boot_check() {
 	let state = read_state();
 	if (state == null) state = default_state();
 	let warnings = [];
 
-	-- 1. Detect persistent state=applying (interrupted apply / power loss)
+	// 1. Detect persistent state=applying (interrupted apply / power loss)
 	let was_applying = false;
 	for (let i = 0; i < length(state.states); i++) {
 		if (state.states[i] == 'applying') was_applying = true;
 	}
 
 	if (was_applying) {
-		-- The last apply was interrupted. Try to restore from the backup
-		-- recorded in applying_backup. If that's missing, try the latest
-		-- backup. If no backup at all, leave the config as-is and warn.
+		// The last apply was interrupted. Try to restore from the backup
+		// recorded in applying_backup. If that's missing, try the latest
+		// backup. If no backup at all, leave the config as-is and warn.
 		let bpath = state.applying_backup;
 		if (bpath == null || stat(bpath)?.type != 'file') {
 			let bk = latest_backup();
 			bpath = bk?.path;
 		}
 		if (bpath != null && stat(bpath)?.type == 'file') {
-			-- Check if the config was already renamed (post-rename interruption)
+			// Check if the config was already renamed (post-rename interruption)
 			let cur_hash = current_config_hash();
 			let backup_data = readfile(bpath);
 			let backup_p = parse_nfqws2_opt(backup_data ?? '');
 			let backup_hash = (backup_p.ok) ? sprintf('%08x', hash31(backup_p.value)) : null;
 			if (cur_hash != null && cur_hash != backup_hash) {
-				-- Config differs from backup → the rename likely succeeded
-				-- (post-rename interruption). Accept the current config and
-				-- update the state to match. This is the "consistent config,
-				-- stale state" recovery path.
+				// Config differs from backup → the rename likely succeeded
+				// (post-rename interruption). Accept the current config and
+				// update the state to match. This is the "consistent config,
+				// stale state" recovery path.
 				push(warnings, 'interrupted apply: config differs from backup (post-rename); accepting current config');
 				state.states = ['idle'];
 				state.previous_state = 'applying-recovered-post-rename';
 			} else {
-				-- Config matches backup (or is unparseable) → the rename did
-				-- not happen (pre-rename interruption). Restore the backup.
+				// Config matches backup (or is unparseable) → the rename did
+				// not happen (pre-rename interruption). Restore the backup.
 				push(warnings, 'interrupted apply: restoring backup ' + bpath);
 				restore_backup(bpath);
 				state.states = ['idle'];
@@ -1233,40 +1233,40 @@ function cmd_boot_check() {
 		state.applying_backup = null;
 	}
 
-	-- 2. Drift detection: compare current hashes with state hashes
+	// 2. Drift detection: compare current hashes with state hashes
 	let cur_hashes = compute_current_hashes();
 	if (state.hashes.nfqws2_opt != '00000000' && cur_hashes.nfqws2_opt != state.hashes.nfqws2_opt)
 		push(warnings, 'drift: nfqws2_opt hash mismatch (state=' + state.hashes.nfqws2_opt + ' current=' + cur_hashes.nfqws2_opt + ')');
 	if (state.hashes.preload != '00000000' && cur_hashes.preload != state.hashes.preload)
 		push(warnings, 'drift: preload hash mismatch');
 
-	-- 3. Regenerate preload if missing or drifted (backup guarantee)
+	// 3. Regenerate preload if missing or drifted (backup guarantee)
 	let preload_exists = stat(RUNTIME_DIR + '/preload.lua')?.type == 'file';
 	if (!preload_exists) {
 		push(warnings, 'preload missing; regenerating');
 		run_preload('generate');
 	}
 
-	-- 4. Write updated state
+	// 4. Write updated state
 	state.hashes = compute_current_hashes();
 	state.updated_at = time();
 	for (let i = 0; i < length(warnings); i++)
 		push(state.warnings, warnings[i]);
-	-- Keep only the last 20 warnings to avoid unbounded growth
+	// Keep only the last 20 warnings to avoid unbounded growth
 	if (length(state.warnings) > 20)
 		state.warnings = slice(state.warnings, length(state.warnings) - 20);
 	atomic_write_state(state);
 
-	-- 5. NO health check — zapret2 has not started yet at boot-check time
-	--    (boot-check runs at START=20, before zapret2 at START=21).
-	--    Absence of the service is NOT a successful health check.
+	// 5. NO health check — zapret2 has not started yet at boot-check time
+	//    (boot-check runs at START=20, before zapret2 at START=21).
+	//    Absence of the service is NOT a successful health check.
 	emit({ ok: true, command: 'boot-check', was_applying: was_applying, warnings: warnings, generation: state.generation, enabled: state.enabled, health_check: 'not-run (zapret2 not started)' });
 	exit(0);
 }
 
--- ---------------------------------------------------------------------------
--- Dispatch
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Dispatch
+// ---------------------------------------------------------------------------
 
 let sub = length(ARGV) > 0 ? ARGV[0] : '';
 let rest = [];

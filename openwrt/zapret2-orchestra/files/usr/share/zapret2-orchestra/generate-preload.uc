@@ -1,31 +1,31 @@
 'use strict';
 
--- zapret2-orchestra preload generator and manifest checker.
---
--- Modes (selected by ARGV[1]):
---   generate  (default)  read the persistent JSON seeds under STATE_DIR, render
---                        preload.lua + whitelist.txt, and write a manifest.json
---                        that records the byte length and a 31-bit rolling
---                        hash of each generated file. The manifest is written
---                        LAST and atomically, so its presence with matching
---                        hashes is proof of a complete generation.
---   check                read manifest.json and verify that preload.lua and
---                        whitelist.txt exist and match the recorded length and
---                        hash. Exit 0 if consistent, non-zero otherwise.
---
--- The generated preload contains only data calls supplied by the Orchestra
--- extension (slm_preload_history, slm_preload_locked, slm_preload_blocked) and
--- an assignment to ORCHESTRA_WHITELIST, as specified in
--- docs/orchestra-state-schema.md. The generator never writes under /etc and
--- never invokes shell commands; it uses only ucode-mod-fs and the built-in
--- json() function.
---
--- Override paths with ORCHESTRA_STATE_DIR / ORCHESTRA_RUNTIME_DIR /
--- ORCHESTRA_PRELOAD_FILE / ORCHESTRA_WHITELIST_FILE / ORCHESTRA_MANIFEST_FILE
--- (used by tests).
---
--- Exit status: 0 on success, non-zero (with a diagnostic on stderr) on any
--- read, schema, or write error.
+// zapret2-orchestra preload generator and manifest checker.
+//
+// Modes (selected by ARGV[1]):
+//   generate  (default)  read the persistent JSON seeds under STATE_DIR, render
+//                        preload.lua + whitelist.txt, and write a manifest.json
+//                        that records the byte length and a 31-bit rolling
+//                        hash of each generated file. The manifest is written
+//                        LAST and atomically, so its presence with matching
+//                        hashes is proof of a complete generation.
+//   check                read manifest.json and verify that preload.lua and
+//                        whitelist.txt exist and match the recorded length and
+//                        hash. Exit 0 if consistent, non-zero otherwise.
+//
+// The generated preload contains only data calls supplied by the Orchestra
+// extension (slm_preload_history, slm_preload_locked, slm_preload_blocked) and
+// an assignment to ORCHESTRA_WHITELIST, as specified in
+// docs/orchestra-state-schema.md. The generator never writes under /etc and
+// never invokes shell commands; it uses only ucode-mod-fs and the built-in
+// json() function.
+//
+// Override paths with ORCHESTRA_STATE_DIR / ORCHESTRA_RUNTIME_DIR /
+// ORCHESTRA_PRELOAD_FILE / ORCHESTRA_WHITELIST_FILE / ORCHESTRA_MANIFEST_FILE
+// (used by tests).
+//
+// Exit status: 0 on success, non-zero (with a diagnostic on stderr) on any
+// read, schema, or write error.
 
 import { readfile, writefile, mkdir, rename, unlink, stat } from 'fs';
 
@@ -118,9 +118,9 @@ function ensure_dir(path) {
 		fail(path + ' is not a directory');
 }
 
--- Atomic write: write a sibling temp file in the same directory (therefore on
--- the same filesystem) and rename it over the target. rename is atomic on the
--- same filesystem, so a reader never observes a partially written file.
+// Atomic write: write a sibling temp file in the same directory (therefore on
+// the same filesystem) and rename it over the target. rename is atomic on the
+// same filesystem, so a reader never observes a partially written file.
 function atomic_write(path, data) {
 	let tmp = path + '.tmp';
 	if (writefile(tmp, data) == null)
@@ -131,10 +131,10 @@ function atomic_write(path, data) {
 	}
 }
 
--- 31-bit rolling hash (djb2 variant). Kept under 2^31 so that the intermediate
--- product (hash * 33 + byte) stays below 2^36, well within the exact integer
--- range of double precision. Used only to detect mismatched/truncated
--- generated files, not for any security purpose.
+// 31-bit rolling hash (djb2 variant). Kept under 2^31 so that the intermediate
+// product (hash * 33 + byte) stays below 2^36, well within the exact integer
+// range of double precision. Used only to detect mismatched/truncated
+// generated files, not for any security purpose.
 function hash31(data) {
 	let h = 5381;
 	for (let i = 0; i < length(data); i++) {
@@ -277,9 +277,9 @@ function generate() {
 	ensure_dir(RUNTIME_DIR);
 	atomic_write(PRELOAD_FILE, preload);
 	atomic_write(WHITELIST_FILE, whitelist);
-	-- The manifest is written LAST and atomically. A reader that observes a
-	-- manifest whose recorded lengths/hashes match the files has proof that
-	-- the whole generation completed.
+	// The manifest is written LAST and atomically. A reader that observes a
+	// manifest whose recorded lengths/hashes match the files has proof that
+	// the whole generation completed.
 	write_manifest(preload, whitelist);
 
 	printf('orchestra preload generated: %s\n', PRELOAD_FILE);

@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=zapret2
 PKG_VERSION:=0.9.20260307
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 # Official source: bol-van/zapret2 at the pinned submodule SHA.
 # The OpenWrt build system downloads this via the standard source contract.
@@ -95,9 +95,21 @@ define Package/zapret2/install
 	# Fake binary data
 	$(INSTALL_DIR) $(1)/opt/zapret2/files/fake
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/files/fake/*.bin $(1)/opt/zapret2/files/fake/
-	# ipset scripts
+	# ipset scripts and data. Upstream marks every *.sh (except def.sh) as
+	# executable (0755): create_ipset.sh is invoked directly by the firewall
+	# include via functions ("$IPSET_CR" "$@"), clear_lists.sh and the
+	# get_*.sh scripts are executed directly by cron/systemd/init. They MUST
+	# be installed with INSTALL_BIN (0755) or the post-install firewall reload
+	# fails with "create_ipset.sh: Permission denied" (router blocker).
+	# def.sh has no shebang and is sourced (not executed); upstream marks it
+	# 0644, so it stays INSTALL_DATA. Data files (antifilter.helper, *.default)
+	# are INSTALL_DATA.
 	$(INSTALL_DIR) $(1)/opt/zapret2/ipset
-	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipset/* $(1)/opt/zapret2/ipset/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ipset/*.sh $(1)/opt/zapret2/ipset/
+	# def.sh is sourced, not executed — keep it non-executable (0644) per upstream.
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipset/def.sh $(1)/opt/zapret2/ipset/def.sh
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipset/antifilter.helper $(1)/opt/zapret2/ipset/antifilter.helper
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/ipset/zapret-hosts-user-exclude.txt.default $(1)/opt/zapret2/ipset/
 	# Config
 	$(INSTALL_DIR) $(1)/opt/zapret2
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/config.default $(1)/opt/zapret2/config

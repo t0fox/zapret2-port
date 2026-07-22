@@ -51,7 +51,7 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
 
     def test_apply_uc_uses_strict_and_fs_only(self) -> None:
         self.assertIn("'use strict';", self.uc)
-        self.assertIn("import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname, popen } from 'fs';", self.uc)
+        self.assertIn("import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname, opendir, popen } from 'fs';", self.uc)
         # readlink must NOT be imported — it is unused.
         self.assertNotIn("readlink", self.uc)
         # Array-form popen (execvp, no shell) is allowed for sh -n and the
@@ -126,7 +126,7 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
         # The applying marker must be written BEFORE the config rename,
         # within the apply transaction function body.
         fn_start = self.uc.index("function do_apply_transaction")
-        fn_end = self.uc.index("-- ----", fn_start + 10)
+        fn_end = self.uc.index("// ----", fn_start + 10)
         fn_body = self.uc[fn_start:fn_end]
         applying_pos = fn_body.index("state.states = ['applying']")
         rename_pos = fn_body.index("rename(CANDIDATE_FILE, CONFIG_FILE)")
@@ -142,7 +142,7 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
     def test_apply_uc_rollback_no_relock(self) -> None:
         # internal_rollback must NOT call lock_acquire (no nested lock).
         rollback_body_start = self.uc.index("function internal_rollback")
-        rollback_body_end = self.uc.index("-- ----", rollback_body_start + 10)
+        rollback_body_end = self.uc.index("// ----", rollback_body_start + 10)
         rollback_body = self.uc[rollback_body_start:rollback_body_end]
         self.assertNotIn("lock_acquire", rollback_body, "internal_rollback must not re-acquire the lock")
         self.assertNotIn("lock_release", rollback_body, "internal_rollback must not release the lock")
