@@ -30,7 +30,7 @@ jobs:
         run: |
           set -eu
           sudo apt-get update
-          sudo apt-get install -y zstd binutils file
+          sudo apt-get install -y zstd binutils file cmake libjson-c-dev
 
       - name: Download and verify SDK
         run: |
@@ -432,51 +432,73 @@ jobs:
           done
 
       - name: Build host ucode for runtime tests
-        working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
           # The zapret2-orchestra .uc sources use the ucode interpreter's
           # ECMAScript syntax (// comments, printf %J, etc.). The CI gap that
           # let Lua-style -- comments ship undetected was that the Python test
           # suite skips ucode runtime tests when ucode is not on PATH. We
-          # close it by building the host ucode from the base feed (the same
-          # feed the packages are built from) and putting it on PATH so the
+          # close it by building a host ucode and putting it on PATH so the
           # runtime tests actually execute.
           #
-          # ucode's OpenWrt Makefile includes host-build.mk and exports
-          # HostBuild, so `make package/ucode/host/compile` produces
-          # staging_dir/host/bin/ucode with FS_SUPPORT=ON. We also need the
-          # fs module (staging_dir/host/lib/ucode/fs.so) which host-build
-          # installs automatically.
-          echo "=== feeds install ucode (host-build capable) ==="
-          ./scripts/feeds install ucode
-          echo "=== make package/ucode/host/compile ==="
-          make package/ucode/host/compile -j$(nproc) BUILD_LOG=1
-          UCODE_HOST="$(find staging_dir/host -name ucode -type f -print -quit)"
-          if [ -z "$UCODE_HOST" ]; then
-            echo "ERROR: host ucode binary not found after build"
-            find staging_dir/host -name 'ucode*' 2>/dev/null || true
+          # We build ucode directly from the jow-/ucode source with cmake
+          # (the approach the ucode README recommends for non-OpenWrt Linux)
+          # rather than via the SDK's host-build system, which has kconfig
+          # recursive-dependency warnings in this SDK that prevent the
+          # staging_dir install from completing reliably.
+          echo "=== clone jow-/ucode ==="
+          git clone --depth 1 https://github.com/jow-/ucode.git /tmp/ucode-src
+          cd /tmp/ucode-src
+          echo "=== cmake (FS_SUPPORT=ON, no OpenWrt-specific modules) ==="
+          cmake \
+            -DUBUS_SUPPORT=OFF \
+            -DUCI_SUPPORT=OFF \
+            -DULOOP_SUPPORT=OFF \
+            -DNL80211_SUPPORT=OFF \
+            -DRESOLV_SUPPORT=OFF \
+            -DRTNL_SUPPORT=OFF \
+            -DSTRUCT_SUPPORT=OFF \
+            -DFS_SUPPORT=ON \
+            -DMATH_SUPPORT=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            .
+          echo "=== make ==="
+          make -j$(nproc)
+          UCODE_HOST="/tmp/ucode-src/ucode"
+          if [ ! -x "$UCODE_HOST" ]; then
+            echo "ERROR: ucode binary not found at $UCODE_HOST"
+            find /tmp/ucode-src -name 'ucode' -type f 2>/dev/null || true
             exit 1
           fi
           echo "host ucode: $UCODE_HOST"
           "$UCODE_HOST" --version 2>&1 | head -n 3 || true
-          # Verify the fs module is present.
-          if ! find staging_dir/host -name 'fs.so' -path '*/ucode/*' -print -quit | grep -q .; then
-            echo "ERROR: ucode-mod-fs (fs.so) not found in staging_dir/host"
-            find staging_dir/host -name '*.so' -path '*ucode*' 2>/dev/null || true
+          # Verify the fs module .so is built alongside.
+          FS_SO="$(find /tmp/ucode-src -name 'fs.so' -type f -print -quit)"
+          if [ -z "$FS_SO" ]; then
+            echo "ERROR: ucode-mod-fs (fs.so) not built"
+            find /tmp/ucode-src -name '*.so' 2>/dev/null || true
             exit 1
           fi
-          echo "OK: host ucode + fs module built"
+          echo "fs module: $FS_SO"
+          # Smoke test: // comments work, -- comments fail (proves we have
+          # the real ECMAScript-oriented ucode).
+          printf 'print("ok");\n' | "$UCODE_HOST" - 2>&1 | grep -q ok || {
+            echo "ERROR: ucode smoke test failed"
+            exit 1
+          }
+          printf '// cmt\nprint("ok2");\n' | "$UCODE_HOST" - 2>&1 | grep -q ok2 || {
+            echo "ERROR: ucode // comment test failed"
+            exit 1
+          }
+          echo "OK: host ucode + fs module built and smoke-tested"
 
       - name: ucode compile + Python runtime tests + sandbox sequence
-        working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
-          SDK_ABS="$GITHUB_WORKSPACE/$SDK_DIR"
-          UCODE_HOST="$(find "$SDK_ABS/staging_dir/host" -name ucode -type f -print -quit)"
-          HOST_LIB="$(dirname "$(dirname "$UCODE_HOST")")/lib"
-          HOST_UCODE_MODS="$(find "$SDK_ABS/staging_dir/host" -name 'fs.so' -path '*/ucode/*' -printf '%h' -quit)"
-          export PATH="$(dirname "$UCODE_HOST"):$PATH"
+          UCODE_HOST="/tmp/ucode-src/ucode"
+          HOST_LIB="$(dirname "$UCODE_HOST")"
+          HOST_UCODE_MODS="$(find /tmp/ucode-src -name 'fs.so' -printf '%h' -quit)"
+          export PATH="$HOST_LIB:$PATH"
           export LD_LIBRARY_PATH="$HOST_LIB"
           export UCODE_MOD_PATH="$HOST_UCODE_MODS"
           echo "ucode on PATH: $(which ucode)"
