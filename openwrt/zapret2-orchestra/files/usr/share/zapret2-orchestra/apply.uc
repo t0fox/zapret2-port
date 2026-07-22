@@ -654,12 +654,12 @@ function profile_value_ok(s) {
 function validate_profile(name) {
 	let problems = [];
 	if (name == null || length(name) == 0) {
-		problems.push('profile name is empty');
+		push(problems, 'profile name is empty');
 		return { ok: false, problems: problems };
 	}
 	// Reject path traversal in the name.
 	if (index(name, '/') >= 0 || index(name, '..') >= 0 || index(name, '\x00') >= 0) {
-		problems.push('profile name contains path traversal');
+		push(problems, 'profile name contains path traversal');
 		return { ok: false, problems: problems };
 	}
 
@@ -676,33 +676,33 @@ function validate_profile(name) {
 		source_type = 'builtin';
 	}
 	if (chosen == null) {
-		problems.push('profile not found in user or builtin directory');
+		push(problems, 'profile not found in user or builtin directory');
 		return { ok: false, problems: problems };
 	}
 
 	let text = readfile(chosen);
 	if (text == null) {
-		problems.push('cannot read ' + chosen);
+		push(problems, 'cannot read ' + chosen);
 		return { ok: false, problems: problems };
 	}
 
 	let p = parse_nfqws2_opt(text);
 	if (!p.ok) {
-		problems.push('profile parse error: ' + p.error);
+		push(problems, 'profile parse error: ' + p.error);
 		return { ok: false, problems: problems, source: chosen, source_type: source_type };
 	}
 	let verr = profile_value_ok(p.value);
 	if (verr != null)
-		problems.push('profile value rejected: ' + verr);
+		push(problems, 'profile value rejected: ' + verr);
 
 	// Orchestra runtime markers: init.lua and the whitelist seed must exist,
 	// and circular_quality must be referenced by the profile value.
 	if (stat(ORCH_LUA + '/init.lua')?.type != 'file')
-		problems.push('orchestra init.lua missing');
+		push(problems, 'orchestra init.lua missing');
 	if (stat(ORCH_DIR + '/whitelist.json')?.type != 'file')
-		problems.push('orchestra whitelist.json seed missing');
+		push(problems, 'orchestra whitelist.json seed missing');
 	if (index(p.value, 'circular_quality') < 0)
-		problems.push('profile does not reference circular_quality');
+		push(problems, 'profile does not reference circular_quality');
 
 	// The profile is NOT applied to the config in Phase 1A.
 	return { ok: length(problems) == 0, problems: problems, source: chosen, source_type: source_type, value_bytes: length(p.value) };

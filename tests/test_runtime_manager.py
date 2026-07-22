@@ -787,6 +787,9 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
 
     def _run_wrapper(self, *args: str, config_text: str | None = None) -> subprocess.CompletedProcess:
         env = self._env()
+        # The wrapper hardcodes /usr/share/.../apply.uc but honors
+        # ZAPRET2_APPLY_UC for tests; point it at the repo source tree.
+        env["ZAPRET2_APPLY_UC"] = str(APPLY_UC)
         if config_text is not None:
             (self.opt / "config").write_text(config_text, encoding="utf-8")
         # The wrapper execs ucode; run it through sh for the case statement.
@@ -804,7 +807,7 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         doc = json.loads(r.stdout)
         self.assertTrue(doc["ok"])
-        self.assertEqual(doc["phase"], "1a")
+        self.assertEqual(doc["phase"], "1b")
         self.assertIn("config", doc)
         self.assertIn("nfqws2_opt", doc)
         self.assertIn("state", doc)

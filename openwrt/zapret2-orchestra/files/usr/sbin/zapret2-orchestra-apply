@@ -21,7 +21,7 @@
 # Override paths via the ZAPRET2_* environment variables documented in
 # /usr/share/zapret2-orchestra/apply.uc (used by tests).
 
-UC=/usr/share/zapret2-orchestra/apply.uc
+UC="${ZAPRET2_APPLY_UC:-/usr/share/zapret2-orchestra/apply.uc}"
 SUB="${1:-}"
 [ $# -gt 0 ] && shift
 
