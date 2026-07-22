@@ -628,10 +628,12 @@ function profile_value_ok(s) {
 		return 'pipe |';
 	if (index(s, '&&') >= 0)
 		return 'shell separator &&';
-	if (index(s, '>') >= 0)
-		return 'redirect >';
-	if (index(s, '<') >= 0)
-		return 'redirect <';
+	// Note: '<' and '>' are NOT rejected. NFQWS2_OPT values legitimately
+	// use <HOSTLIST> placeholder tokens (e.g. "--filter-l7=tls <HOSTLIST>").
+	// The value is always placed inside a double-quoted NFQWS2_OPT="..."
+	// assignment with proper escaping of '"' and '\', so '<' and '>' inside
+	// the quotes cannot act as shell redirects. The unclosed-quote check
+	// below and the $()`;|&& checks above are sufficient for injection safety.
 	// unclosed single or double quote
 	let dq = 0, sq = 0;
 	for (let i = 0; i < length(s); i++) {

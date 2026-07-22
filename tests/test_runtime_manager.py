@@ -205,7 +205,7 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
 
     def test_apply_uc_profile_validator_rejects_dangerous_sequences(self) -> None:
         # The ucode source must contain the rejection checks by name.
-        for token in ("command substitution", "backtick", "NUL", "carriage return", "shell separator", "pipe", "redirect", "unclosed"):
+        for token in ("command substitution", "backtick", "NUL", "carriage return", "shell separator", "pipe", "unclosed"):
             self.assertIn(token, self.uc, token)
 
     def test_apply_uc_lock_uses_mkdir_not_flock_or_rm_rf(self) -> None:
@@ -449,10 +449,8 @@ def profile_value_ok(s: str | None) -> str | None:
         return "pipe |"
     if "&&" in s:
         return "shell separator &&"
-    if ">" in s:
-        return "redirect >"
-    if "<" in s:
-        return "redirect <"
+    # '<' and '>' are NOT rejected: NFQWS2_OPT values legitimately use
+    # <HOSTLIST> placeholder tokens; the value is double-quoted and escaped.
     if s.count('"') % 2 != 0:
         return "unclosed double quote"
     if s.count("'") % 2 != 0:
@@ -476,8 +474,13 @@ class ProfileValidationOracleTest(unittest.TestCase):
         self.assertIsNotNone(profile_value_ok("a\rb"))
 
     def test_rejects_shell_separators(self) -> None:
-        for bad in (";", "|", "&&", ">", "<"):
+        for bad in (";", "|", "&&"):
             self.assertIsNotNone(profile_value_ok(f"a{bad}b"), bad)
+
+    def test_accepts_hostlist_placeholder(self) -> None:
+        # NFQWS2_OPT values legitimately use <HOSTLIST> tokens; the value is
+        # double-quoted and escaped, so '<' and '>' are not shell redirects.
+        self.assertIsNone(profile_value_ok("--filter-l7=tls <HOSTLIST> --payload=tls_client_hello"))
 
     def test_rejects_unclosed_quotes(self) -> None:
         self.assertIsNotNone(profile_value_ok('a "b'))
