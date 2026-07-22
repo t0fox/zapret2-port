@@ -28,25 +28,28 @@
 --   enable, disable, apply, rollback, boot-check
 --
 -- Override paths (for tests):
---   ZAPRET2_CONFIG            /opt/zapret2/config
---   ZAPRET2_ORCHESTRA_DIR     /etc/zapret2-orchestra
---   ZAPRET2_RUNTIME_DIR       /tmp/zapret2-orchestra
---   ZAPRET2_STATE_FILE        <RUNTIME_DIR>/manager-state.json
---   ZAPRET2_LOCK_DIR          <RUNTIME_DIR>/apply.lock
---   ZAPRET2_VALIDATE_OUT      <RUNTIME_DIR>/validate-config.cfg
---   ZAPRET2_PROFILES_DIR      /etc/zapret2-orchestra/profiles
---   ZAPRET2_ORCHESTRA_LUA     /opt/zapret2/lua/orchestra-extra
---   ZAPRET2_PRELOAD_WRAPPER   /usr/sbin/zapret2-orchestra-preload
+--   ZAPRET2_CONFIG              /opt/zapret2/config
+--   ZAPRET2_ORCHESTRA_DIR       /etc/zapret2-orchestra
+--   ZAPRET2_RUNTIME_DIR         /tmp/zapret2-orchestra
+--   ZAPRET2_STATE_FILE          <ORCH_DIR>/manager-state.json
+--   ZAPRET2_LOCK_DIR            /var/lock/zapret2-orchestra-apply.lock
+--   ZAPRET2_VALIDATE_OUT        <RUNTIME_DIR>/validate-config.cfg
+--   ZAPRET2_USER_PROFILES_DIR   /etc/zapret2-orchestra/profiles
+--   ZAPRET2_BUILTIN_PROFILES_DIR /usr/share/zapret2-orchestra/profiles
+--   ZAPRET2_ORCHESTRA_LUA       /opt/zapret2/lua/orchestra-extra
+--   ZAPRET2_PRELOAD_WRAPPER     /usr/sbin/zapret2-orchestra-preload
 
-import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, readlink } from 'fs';
+import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname } from 'fs';
 
 const ORCH_DIR      = getenv('ZAPRET2_ORCHESTRA_DIR')  ?? '/etc/zapret2-orchestra';
 const RUNTIME_DIR   = getenv('ZAPRET2_RUNTIME_DIR')   ?? '/tmp/zapret2-orchestra';
+const SHARE_DIR     = getenv('ZAPRET2_SHARE_DIR')     ?? '/usr/share/zapret2-orchestra';
 const CONFIG_FILE   = getenv('ZAPRET2_CONFIG')        ?? '/opt/zapret2/config';
-const STATE_FILE    = getenv('ZAPRET2_STATE_FILE')    ?? (RUNTIME_DIR + '/manager-state.json');
-const LOCK_DIR      = getenv('ZAPRET2_LOCK_DIR')      ?? (RUNTIME_DIR + '/apply.lock');
+const STATE_FILE    = getenv('ZAPRET2_STATE_FILE')    ?? (ORCH_DIR + '/manager-state.json');
+const LOCK_DIR      = getenv('ZAPRET2_LOCK_DIR')      ?? '/var/lock/zapret2-orchestra-apply.lock';
 const VALIDATE_OUT  = getenv('ZAPRET2_VALIDATE_OUT')  ?? (RUNTIME_DIR + '/validate-config.cfg');
-const PROFILES_DIR  = getenv('ZAPRET2_PROFILES_DIR')  ?? (ORCH_DIR + '/profiles');
+const USER_PROFILES_DIR    = getenv('ZAPRET2_USER_PROFILES_DIR')    ?? (ORCH_DIR + '/profiles');
+const BUILTIN_PROFILES_DIR = getenv('ZAPRET2_BUILTIN_PROFILES_DIR') ?? (SHARE_DIR + '/profiles');
 const ORCH_LUA      = getenv('ZAPRET2_ORCHESTRA_LUA') ?? '/opt/zapret2/lua/orchestra-extra';
 const PRELOAD_WRAPPER = getenv('ZAPRET2_PRELOAD_WRAPPER') ?? '/usr/sbin/zapret2-orchestra-preload';
 
@@ -213,8 +216,9 @@ function hash31(data) {
 -- }
 --
 -- The FULL NFQWS2_OPT value is never stored; only its hash.
--- manager-state.json is NOT a conffile (it lives under /tmp and is rebuilt
--- at boot by the boot hook).
+-- manager-state.json lives under /etc/zapret2-orchestra/ (persistent) and
+-- is NOT a conffile — it is rebuilt by the manager and may be safely
+-- deleted; the manager recreates it with the default state on next read.
 
 const STATE_SCHEMA_VERSION = 1;
 
@@ -268,10 +272,25 @@ function validate_state(doc) {
 	return null;
 }
 
+-- Ensure the parent directory of STATE_FILE exists (the persistent
+-- /etc/zapret2-orchestra/ is created by the package install, but tests
+-- may override the path to a temp location).
+function ensure_state_dir() {
+	let parent = dirname(STATE_FILE);
+	let info = stat(parent);
+	if (info == null) {
+		if (!mkdir(parent))
+			fail('cannot create state dir ' + parent);
+		info = stat(parent);
+	}
+	if (info?.type != 'directory')
+		fail(parent + ' is not a directory');
+}
+
 -- Atomic write: tmp + rename in the same directory. Validate the serialized
 -- bytes by re-parsing before installing.
 function atomic_write_state(doc) {
-	ensure_runtime_dir();
+	ensure_state_dir();
 	let err = validate_state(doc);
 	if (err)
 		fail('state validation failed: ' + err);
@@ -317,10 +336,19 @@ function read_state() {
 -- ---------------------------------------------------------------------------
 
 -- mkdir is atomic on POSIX filesystems: exactly one caller succeeds.
--- The lock directory holds a `pid` file with the holder's PID. Stale locks
--- (pid absent, not our executable, or cmdline mismatch) are recovered.
--- Release removes only the pid file and the lock dir (no bulk removal), and only
--- if the recorded PID is still ours (guards against PID reuse).
+-- The lock is a directory at LOCK_DIR. After a successful mkdir the holder
+-- immediately writes a `pid` file inside it. To avoid the race between
+-- mkdir and writefile (a second caller could see the dir with no pid and
+-- wrongly treat it as stale) we NEVER remove a lock that has no pid file —
+-- it may belong to a holder still inside the writefile window.
+--
+-- Stale recovery is safe: we remove only when the pid file IS present AND
+-- the recorded PID is confirmed dead (no /proc entry or cmdline mismatch).
+-- Before removing we re-read the pid file to ensure it hasn't changed
+-- (another process may have already recovered and a new holder may have
+-- written a new pid). Release removes only the pid file and the lock dir
+-- (no bulk removal), and only if the recorded PID is still ours (guards
+-- against PID reuse).
 
 function my_pid() {
 	let p = readfile('/proc/self/stat');
@@ -346,39 +374,55 @@ function pid_alive_and_is_manager(pid) {
 }
 
 function lock_acquire() {
-	ensure_runtime_dir();
-	let first = true;
-	while (true) {
+	if (mkdir(LOCK_DIR)) {
+		-- we won the mkdir; record our pid immediately.
+		let pid = my_pid();
+		if (writefile(LOCK_DIR + '/pid', '' + pid + '\n') == null) {
+			rmdir(LOCK_DIR);
+			return { ok: false, error: 'cannot write pid file' };
+		}
+		return { ok: true, pid: pid, stale_recovered: false };
+	}
+
+	-- mkdir failed: the lock dir already exists. Inspect the holder.
+	let pidraw = readfile(LOCK_DIR + '/pid');
+	if (pidraw == null) {
+		-- No pid file: the holder may still be inside the writefile
+		-- window between mkdir and writefile. Do NOT remove — treat as
+		-- busy. This closes the mkdir/writefile race.
+		return { ok: false, error: 'lock busy (no pid file)' };
+	}
+
+	let holder = int(trim(pidraw));
+	if (holder > 0 && !pid_alive_and_is_manager(holder)) {
+		-- Stale: the holder PID is dead or not our executable. Safe
+		-- re-check: re-read the pid file to confirm it hasn't changed
+		-- (another process may have already recovered this lock).
+		let pidraw2 = readfile(LOCK_DIR + '/pid');
+		if (pidraw2 == null || int(trim(pidraw2)) != holder) {
+			-- The pid file changed (or was removed) between our two
+			-- reads: someone else already recovered. Report busy.
+			return { ok: false, error: 'lock busy (recovered by another)' };
+		}
+		-- Confirmed stale: unlink the pid file and rmdir, then retry
+		-- the mkdir exactly once. This removes only the dead holder's
+		-- pid file and the dir — never a live holder's lock.
+		unlink(LOCK_DIR + '/pid');
+		rmdir(LOCK_DIR);
 		if (mkdir(LOCK_DIR)) {
-			-- we won the mkdir race; record our pid.
 			let pid = my_pid();
 			if (writefile(LOCK_DIR + '/pid', '' + pid + '\n') == null) {
 				rmdir(LOCK_DIR);
 				return { ok: false, error: 'cannot write pid file' };
 			}
-			return { ok: true, pid: pid, stale_recovered: false };
+			return { ok: true, pid: pid, stale_recovered: true };
 		}
-		-- mkdir failed: dir exists. Inspect the holder.
-		let pidraw = readfile(LOCK_DIR + '/pid');
-		let holder = int(trim(pidraw ?? ''));
-		if (holder > 0 && !pid_alive_and_is_manager(holder)) {
-			-- stale: holder is gone or not us. Recover by removing the pid
-			-- file and the dir, then retry. This removes only the pid
-			-- file (whose owner is dead) and the dir itself are removed.
-			unlink(LOCK_DIR + '/pid');
-			rmdir(LOCK_DIR);
-			continue;
-		}
-		-- live holder: wait briefly once, then report busy.
-		if (first) {
-			-- single retry after a short yield; no long blocking in Phase 1A.
-			first = false;
-			let slept = 0;
-			while (slept < 1) { slept += 0; break; }
-			continue;
-		}
-		return { ok: false, error: 'lock busy', holder: holder };
+		-- Lost the retry race to another recoverer.
+		return { ok: false, error: 'lock busy (lost retry)' };
 	}
+
+	-- Live holder.
+	return { ok: false, error: 'lock busy', holder: holder };
 }
 
 -- Release only if the recorded PID equals ours.
@@ -436,9 +480,11 @@ function profile_value_ok(s) {
 	return null;
 }
 
--- A profile is a directory under PROFILES_DIR containing a `profile.conf`
--- whose NFQWS2_OPT value passes profile_value_ok. User profiles override
--- builtins of the same name. Builtins live under PROFILES_DIR/builtin.
+-- A profile is a single .opt file containing an NFQWS2_OPT assignment.
+-- The user override at /etc/zapret2-orchestra/profiles/<name>.opt takes
+-- priority over the builtin at /usr/share/zapret2-orchestra/profiles/<name>.opt.
+-- The profile value must pass profile_value_ok, and the Orchestra runtime
+-- markers (init.lua, whitelist seed, circular_quality) must be present.
 function validate_profile(name) {
 	let problems = [];
 	if (name == null || length(name) == 0) {
@@ -451,13 +497,18 @@ function validate_profile(name) {
 		return { ok: false, problems: problems };
 	}
 
-	let user_path = PROFILES_DIR + '/' + name + '/profile.conf';
-	let builtin_path = PROFILES_DIR + '/builtin/' + name + '/profile.conf';
+	let user_path = USER_PROFILES_DIR + '/' + name + '.opt';
+	let builtin_path = BUILTIN_PROFILES_DIR + '/' + name + '.opt';
 	let chosen = null;
-	if (stat(user_path)?.type == 'file')
+	let source_type = null;
+	if (stat(user_path)?.type == 'file') {
 		chosen = user_path;
-	else if (stat(builtin_path)?.type == 'file')
+		source_type = 'user';
+	}
+	else if (stat(builtin_path)?.type == 'file') {
 		chosen = builtin_path;
+		source_type = 'builtin';
+	}
 	if (chosen == null) {
 		problems.push('profile not found in user or builtin directory');
 		return { ok: false, problems: problems };
@@ -471,8 +522,8 @@ function validate_profile(name) {
 
 	let p = parse_nfqws2_opt(text);
 	if (!p.ok) {
-		problems.push('profile.conf parse error: ' + p.error);
-		return { ok: false, problems: problems, source: chosen };
+		problems.push('profile parse error: ' + p.error);
+		return { ok: false, problems: problems, source: chosen, source_type: source_type };
 	}
 	let verr = profile_value_ok(p.value);
 	if (verr != null)
@@ -488,7 +539,7 @@ function validate_profile(name) {
 		problems.push('profile does not reference circular_quality');
 
 	-- The profile is NOT applied to the config in Phase 1A.
-	return { ok: length(problems) == 0, problems: problems, source: chosen, value_bytes: length(p.value) };
+	return { ok: length(problems) == 0, problems: problems, source: chosen, source_type: source_type, value_bytes: length(p.value) };
 }
 
 -- ---------------------------------------------------------------------------
@@ -568,7 +619,7 @@ function cmd_validate_profile() {
 	if (name == null)
 		fail('usage: validate-profile <name>');
 	let r = validate_profile(name);
-	emit({ ok: r.ok, profile: name, source: r.source, problems: r.problems, value_bytes: r.value_bytes });
+	emit({ ok: r.ok, profile: name, source: r.source, source_type: r.source_type, problems: r.problems, value_bytes: r.value_bytes });
 	exit(r.ok ? 0 : 1);
 }
 

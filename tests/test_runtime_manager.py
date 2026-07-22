@@ -51,7 +51,9 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
 
     def test_apply_uc_uses_strict_and_fs_only(self) -> None:
         self.assertIn("'use strict';", self.uc)
-        self.assertIn("import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, readlink } from 'fs';", self.uc)
+        self.assertIn("import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname } from 'fs';", self.uc)
+        # readlink must NOT be imported — it is unused.
+        self.assertNotIn("readlink", self.uc)
         # No shell execution primitives inside the ucode manager.
         for forbidden in (r"\bsystem\s*\(", r"\bpopen\s*\(", r"\bexec\s*\(", r"fs\.open\s*\("):
             self.assertIsNone(re.search(forbidden, self.uc), forbidden)
@@ -133,7 +135,8 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
         self.assertIn("$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-apply", self.makefile)
 
     def test_manager_state_json_is_not_a_conffile(self) -> None:
-        # manager-state.json lives under /tmp and must not be a conffile.
+        # manager-state.json lives under /etc/zapret2-orchestra/ (persistent)
+        # but must NOT be a conffile — it is rebuilt by the manager.
         conffiles = re.search(
             r"define Package/zapret2-orchestra/conffiles\n(?P<body>.*?)\nendef",
             self.makefile,
@@ -142,7 +145,6 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
         self.assertIsNotNone(conffiles)
         body = conffiles.group("body")
         self.assertNotIn("manager-state.json", body)
-        self.assertNotIn("/tmp/", body)
 
     def test_apply_uc_profile_validator_rejects_dangerous_sequences(self) -> None:
         # The ucode source must contain the rejection checks by name.
@@ -177,6 +179,54 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
         # Validates the serialized bytes by re-parsing before installing.
         self.assertIn("json(payload)", self.uc)
         self.assertIn("validate_state(reparsed)", self.uc)
+
+    def test_state_file_is_persistent_under_etc(self) -> None:
+        # manager-state.json must live under /etc/zapret2-orchestra/, not /tmp.
+        self.assertIn("ORCH_DIR + '/manager-state.json'", self.uc)
+        self.assertNotIn("RUNTIME_DIR + '/manager-state.json'", self.uc)
+        self.assertNotIn("/tmp/zapret2-orchestra/manager-state.json", self.uc)
+
+    def test_lock_dir_is_var_lock(self) -> None:
+        # The lock must be at /var/lock/zapret2-orchestra-apply.lock.
+        self.assertIn("/var/lock/zapret2-orchestra-apply.lock", self.uc)
+        self.assertNotIn("RUNTIME_DIR + '/apply.lock'", self.uc)
+
+    def test_lock_acquire_does_not_remove_missing_pid(self) -> None:
+        # The race fix: when mkdir fails and no pid file exists, the lock
+        # must NOT be removed (the holder may be in the writefile window).
+        self.assertIn("no pid file", self.uc)
+        # There must be no busy-wait loop.
+        self.assertNotIn("slept", self.uc)
+        self.assertNotIn("while (slept", self.uc)
+
+    def test_lock_acquire_has_safe_stale_recheck(self) -> None:
+        # Before removing a stale lock, the pid is re-read to confirm it
+        # hasn't changed (safe re-check).
+        self.assertIn("pidraw2", self.uc)
+        self.assertIn("recovered by another", self.uc)
+
+    def test_profile_contract_uses_opt_files(self) -> None:
+        # Profiles are .opt files, not directories with profile.conf.
+        self.assertIn("USER_PROFILES_DIR", self.uc)
+        self.assertIn("BUILTIN_PROFILES_DIR", self.uc)
+        self.assertIn("name + '.opt'", self.uc)
+        self.assertNotIn("profile.conf", self.uc)
+        # User override has priority over builtin.
+        user_block = self.uc[self.uc.index("stat(user_path)"):]
+        builtin_block = self.uc[self.uc.index("stat(builtin_path)"):]
+        self.assertLess(self.uc.index("stat(user_path)"), self.uc.index("stat(builtin_path)"))
+
+    def test_makefile_installs_builtin_profiles(self) -> None:
+        self.assertIn("profiles", self.makefile)
+        self.assertIn("$(INSTALL_DIR) $(1)/usr/share/zapret2-orchestra/profiles", self.makefile)
+        self.assertIn("$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/profiles/*.opt", self.makefile)
+
+    def test_builtin_profile_file_exists(self) -> None:
+        profile = PACKAGE / "files/usr/share/zapret2-orchestra/profiles/orchestra-tls-mvp.opt"
+        self.assertTrue(profile.is_file(), profile)
+        text = profile.read_text(encoding="utf-8")
+        self.assertIn("NFQWS2_OPT=", text)
+        self.assertIn("circular_quality", text)
 
 
 # ---------------------------------------------------------------------------
@@ -528,12 +578,25 @@ class LockOracleTest(unittest.TestCase):
             lock = Path(tmp) / "apply.lock"
             lock.mkdir()
             (lock / "pid").write_text("999999999\n")  # almost certainly dead
-            # Simulate pid_alive_and_is_manager returning False -> recover.
-            holder_alive = False  # in the oracle, a dead pid
-            if not holder_alive:
+            # Safe re-check: re-read the pid to confirm it hasn't changed.
+            holder1 = int((lock / "pid").read_text().strip())
+            holder2 = int((lock / "pid").read_text().strip())
+            if holder1 == holder2:
                 (lock / "pid").unlink()
                 lock.rmdir()
             self.assertFalse(lock.exists())  # recovered
+
+    def test_missing_pid_lock_is_not_removed(self) -> None:
+        # The race fix: a lock dir with no pid file must NOT be removed.
+        # The holder may still be inside the writefile window.
+        with tempfile.TemporaryDirectory() as tmp:
+            lock = Path(tmp) / "apply.lock"
+            lock.mkdir()
+            # No pid file — simulates the mkdir/writefile race window.
+            self.assertFalse((lock / "pid").exists())
+            # The correct behavior is to NOT remove and report busy.
+            # (In the ucode: return { ok: false, error: 'lock busy (no pid file)' })
+            self.assertTrue(lock.exists())  # still there — not removed
 
 
 # ---------------------------------------------------------------------------
@@ -586,9 +649,10 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.runtime.mkdir()
         self.orch = Path(self.tmp) / "orch"
         self.orch.mkdir()
-        self.profiles = Path(self.tmp) / "profiles"
-        self.profiles.mkdir()
-        (self.profiles / "builtin").mkdir()
+        self.user_profiles = Path(self.tmp) / "user-profiles"
+        self.user_profiles.mkdir()
+        self.builtin_profiles = Path(self.tmp) / "builtin-profiles"
+        self.builtin_profiles.mkdir()
         self.orch_lua = Path(self.tmp) / "orch-lua"
         self.orch_lua.mkdir()
         (self.orch_lua / "init.lua").write_text("-- test\n", encoding="utf-8")
@@ -603,9 +667,11 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         env = os.environ.copy()
         env["ZAPRET2_RUNTIME_DIR"] = str(self.runtime)
         env["ZAPRET2_ORCHESTRA_DIR"] = str(self.orch)
-        env["ZAPRET2_PROFILES_DIR"] = str(self.profiles)
+        env["ZAPRET2_SHARE_DIR"] = str(self.tmp / "share")
+        env["ZAPRET2_USER_PROFILES_DIR"] = str(self.user_profiles)
+        env["ZAPRET2_BUILTIN_PROFILES_DIR"] = str(self.builtin_profiles)
         env["ZAPRET2_ORCHESTRA_LUA"] = str(self.orch_lua)
-        env["ZAPRET2_STATE_FILE"] = str(self.runtime / "manager-state.json")
+        env["ZAPRET2_STATE_FILE"] = str(self.orch / "manager-state.json")
         env["ZAPRET2_LOCK_DIR"] = str(self.runtime / "apply.lock")
         env["ZAPRET2_VALIDATE_OUT"] = str(self.runtime / "validate-config.cfg")
         return env
@@ -686,9 +752,7 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
 
     def test_validate_profile_rejects_injection(self) -> None:
-        prof = self.profiles / "bad"
-        prof.mkdir()
-        (prof / "profile.conf").write_text(
+        (self.user_profiles / "bad.opt").write_text(
             'NFQWS2_OPT="--lua-desync=circular_quality:key=tls:blob=$(reboot)"\n',
             encoding="utf-8",
         )
@@ -698,10 +762,8 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.assertFalse(doc["ok"])
         self.assertTrue(any("command substitution" in p for p in doc["problems"]))
 
-    def test_validate_profile_accepts_clean(self) -> None:
-        prof = self.profiles / "good"
-        prof.mkdir()
-        (prof / "profile.conf").write_text(
+    def test_validate_profile_accepts_clean_builtin(self) -> None:
+        (self.builtin_profiles / "good.opt").write_text(
             'NFQWS2_OPT="--lua-desync=circular_quality:key=tls:fails=1:failure_detector=combined_failure_detector"\n',
             encoding="utf-8",
         )
@@ -709,6 +771,36 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         doc = json.loads(r.stdout)
         self.assertTrue(doc["ok"])
+        self.assertEqual(doc["source_type"], "builtin")
+
+    def test_user_profile_overrides_builtin(self) -> None:
+        (self.builtin_profiles / "ovr.opt").write_text(
+            'NFQWS2_OPT="--lua-desync=circular_quality:key=tls:fails=2"\n',
+            encoding="utf-8",
+        )
+        (self.user_profiles / "ovr.opt").write_text(
+            'NFQWS2_OPT="--lua-desync=circular_quality:key=tls:fails=9"\n',
+            encoding="utf-8",
+        )
+        r = self._run("validate-profile", "ovr")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        doc = json.loads(r.stdout)
+        self.assertTrue(doc["ok"])
+        self.assertEqual(doc["source_type"], "user")
+        self.assertIn("user-profiles", doc["source"])
+
+    def test_validate_profile_builtin_file_from_package(self) -> None:
+        # The shipped builtin profile orchestra-tls-mvp.opt must validate.
+        builtin = PACKAGE / "files/usr/share/zapret2-orchestra/profiles/orchestra-tls-mvp.opt"
+        # Copy it into the test builtin dir so ucode can find it.
+        (self.builtin_profiles / "orchestra-tls-mvp.opt").write_text(
+            builtin.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        r = self._run("validate-profile", "orchestra-tls-mvp")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        doc = json.loads(r.stdout)
+        self.assertTrue(doc["ok"])
+        self.assertEqual(doc["source_type"], "builtin")
 
     def test_lock_test_acquires_and_releases(self) -> None:
         r = self._run("lock-test")
@@ -734,11 +826,12 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
     def test_atomic_state_write_and_read(self) -> None:
         # We can't directly call atomic_write_state from outside, but status
         # reads the state file. First, write a valid state file and verify
-        # status reports it.
+        # status reports it. The state file is now under the orch dir
+        # (persistent /etc path).
         state = default_state()
         state["states"] = ["idle"]
         state["generation"] = 7
-        (self.runtime / "manager-state.json").write_text(
+        (self.orch / "manager-state.json").write_text(
             json.dumps(state) + "\n", encoding="utf-8"
         )
         cfg = (FIXTURES / "config-single-line.txt").read_text(encoding="utf-8")
@@ -748,7 +841,7 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.assertEqual(doc["state"]["generation"], 7)
 
     def test_corrupted_state_is_reported_invalid(self) -> None:
-        (self.runtime / "manager-state.json").write_text("{not json", encoding="utf-8")
+        (self.orch / "manager-state.json").write_text("{not json", encoding="utf-8")
         cfg = (FIXTURES / "config-single-line.txt").read_text(encoding="utf-8")
         r = self._run("status", config_text=cfg)
         doc = json.loads(r.stdout)

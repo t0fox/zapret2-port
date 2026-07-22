@@ -65,6 +65,9 @@ define Package/zapret2-orchestra/install
 	# Never sources/evals the config; the CLI wrapper runs `sh -n` on a
 	# temp copy only.
 	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/apply.uc $(1)/usr/share/zapret2-orchestra/apply.uc
+	# builtin profiles (user overrides live under /etc and are not shipped)
+	$(INSTALL_DIR) $(1)/usr/share/zapret2-orchestra/profiles
+	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/profiles/*.opt $(1)/usr/share/zapret2-orchestra/profiles/
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-preload $(1)/usr/sbin/zapret2-orchestra-preload
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-apply $(1)/usr/sbin/zapret2-orchestra-apply
