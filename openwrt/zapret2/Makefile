@@ -117,23 +117,24 @@ define Package/zapret2/install
 	# blockcheck2 — DPI bypass strategy tester.
 	# blockcheck2.sh is the entry point (#!/bin/sh, upstream 0755) → INSTALL_BIN.
 	# blockcheck2.d/ holds strategy modules that blockcheck2.sh SOURCES via
-	# `. "$script"` (no shebangs; upstream marks every file there 0644). Per the
-	# package contract the *.sh modules are installed INSTALL_BIN (0755) so each
-	# is individually runnable for diagnostics, while the data files (def.inc,
-	# README, *.txt strategy lists) stay INSTALL_DATA (0644). Upstream path
-	# structure is preserved under /opt/zapret2/blockcheck2.d/{standard,custom}/.
-	# blockcheck2.sh derives ZAPRET_BASE from `dirname "$0"` → /opt/zapret2, so
-	# its expected tool paths (nfq2/nfqws2, mdig/mdig, common/*.sh, the
-	# blockcheck2.d tree) all resolve against the package root. No new runtime
-	# deps are needed: nft/curl/gzip/sort/sleep are already DEPENDS below, ip/
-	# nslookup/seq/head come from the busybox base, mdig/nfqws2 ship in this
-	# package, and iptables/ipset are only used on the legacy non-fw4 fwtype.
+	# `. "$script"` (no shebangs; upstream marks every file there 0644). Because
+	# they are sourced (`. "$script"`), not executed, the *.sh modules MUST be
+	# INSTALL_DATA (0644) — matching upstream — never INSTALL_BIN. The data
+	# files (def.inc, README, *.txt strategy lists) are also INSTALL_DATA (0644).
+	# Upstream path structure is preserved under
+	# /opt/zapret2/blockcheck2.d/{standard,custom}/. blockcheck2.sh derives
+	# ZAPRET_BASE from `dirname "$0"` → /opt/zapret2, so its expected tool paths
+	# (nfq2/nfqws2, mdig/mdig, common/*.sh, the blockcheck2.d tree) all resolve
+	# against the package root. No new runtime deps are needed: nft/curl/gzip/
+	# sort/sleep are already DEPENDS below, ip/nslookup/seq/head come from the
+	# busybox base, mdig/nfqws2 ship in this package, and iptables/ipset are
+	# only used on the legacy non-fw4 fwtype.
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.sh $(1)/opt/zapret2/blockcheck2.sh
 	$(INSTALL_DIR) $(1)/opt/zapret2/blockcheck2.d/standard
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/standard/*.sh $(1)/opt/zapret2/blockcheck2.d/standard/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/standard/*.sh $(1)/opt/zapret2/blockcheck2.d/standard/
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/standard/def.inc $(1)/opt/zapret2/blockcheck2.d/standard/def.inc
 	$(INSTALL_DIR) $(1)/opt/zapret2/blockcheck2.d/custom
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.sh $(1)/opt/zapret2/blockcheck2.d/custom/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.sh $(1)/opt/zapret2/blockcheck2.d/custom/
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.txt $(1)/opt/zapret2/blockcheck2.d/custom/
 	# Init script
 	$(INSTALL_DIR) $(1)/etc/init.d

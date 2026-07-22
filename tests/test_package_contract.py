@@ -431,13 +431,18 @@ class Blockcheck2PackageContractTest(unittest.TestCase):
         )
 
     def test_blockcheck2_d_standard_tree_installed(self) -> None:
-        """standard/ *.sh modules -> INSTALL_BIN (0755); def.inc -> INSTALL_DATA (0644)."""
+        """standard/ *.sh modules -> INSTALL_DATA (0644); def.inc -> INSTALL_DATA (0644).
+
+        blockcheck2.sh sources each module via ``. "$script"`` (no shebang),
+        so the *.sh modules are NEVER executed directly — upstream marks them
+        0644 and the Makefile must preserve that with INSTALL_DATA, not
+        INSTALL_BIN."""
         self.assertIn(
             "$(INSTALL_DIR) $(1)/opt/zapret2/blockcheck2.d/standard",
             self.install_body,
         )
         self.assertIn(
-            "$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/standard/*.sh "
+            "$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/standard/*.sh "
             "$(1)/opt/zapret2/blockcheck2.d/standard/",
             self.install_body,
         )
@@ -447,21 +452,34 @@ class Blockcheck2PackageContractTest(unittest.TestCase):
             "$(1)/opt/zapret2/blockcheck2.d/standard/def.inc",
             self.install_body,
         )
+        # The *.sh modules are sourced, not executed — must NOT be INSTALL_BIN.
+        self.assertNotIn(
+            "$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/standard/*.sh",
+            self.install_body,
+        )
 
     def test_blockcheck2_d_custom_tree_installed(self) -> None:
-        """custom/ *.sh module -> INSTALL_BIN (0755); lists + README -> INSTALL_DATA (0644)."""
+        """custom/ *.sh module -> INSTALL_DATA (0644); lists + README -> INSTALL_DATA (0644).
+
+        The custom *.sh module is sourced by blockcheck2.sh (no shebang), so it
+        is INSTALL_DATA (0644) per upstream — never INSTALL_BIN."""
         self.assertIn(
             "$(INSTALL_DIR) $(1)/opt/zapret2/blockcheck2.d/custom",
             self.install_body,
         )
         self.assertIn(
-            "$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.sh "
+            "$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.sh "
             "$(1)/opt/zapret2/blockcheck2.d/custom/",
             self.install_body,
         )
         self.assertIn(
             "$(INSTALL_DATA) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.txt "
             "$(1)/opt/zapret2/blockcheck2.d/custom/",
+            self.install_body,
+        )
+        # The *.sh module is sourced, not executed — must NOT be INSTALL_BIN.
+        self.assertNotIn(
+            "$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/custom/*.sh",
             self.install_body,
         )
 
@@ -567,8 +585,10 @@ class Blockcheck2PackageContractTest(unittest.TestCase):
                          "zapret2-core submodule not checked out")
     def test_upstream_shell_modules_are_sourced_not_executed(self) -> None:
         """blockcheck2.d/*.sh have no shebang and are sourced by blockcheck2.sh
-        (``. "$script"``). They ship executable per the package contract but are
-        never invoked directly — confirming the no-shebang/source contract."""
+        (``. "$script"``). They are never invoked directly, so the package
+        contract installs them INSTALL_DATA (0644) — never INSTALL_BIN (0755).
+        This confirms the no-shebang/source contract that the Makefile relies
+        on."""
         for sub in ("standard", "custom"):
             for p in sorted((self.UPSTREAM / "blockcheck2.d" / sub).glob("*.sh")):
                 first = p.read_text(encoding="utf-8", errors="replace").lstrip()
@@ -578,6 +598,13 @@ class Blockcheck2PackageContractTest(unittest.TestCase):
                 )
         bc = (self.UPSTREAM / "blockcheck2.sh").read_text(encoding="utf-8")
         self.assertIn('. "$script"', bc)
+        # The *.sh modules are sourced, not executed → Makefile uses INSTALL_DATA.
+        for sub in ("standard", "custom"):
+            self.assertNotIn(
+                f"$(INSTALL_BIN) $(PKG_BUILD_DIR)/blockcheck2.d/{sub}/*.sh",
+                self.install_body,
+                f"blockcheck2.d/{sub}/*.sh must be INSTALL_DATA (sourced), not INSTALL_BIN",
+            )
 
 
 class Blockcheck2StaticCheckTest(unittest.TestCase):
