@@ -1,0 +1,7 @@
+NFQWS2_OPT="
+--filter-tcp=443 --filter-l7=tls <HOSTLIST> --payload=tls_client_hello
+--lua-desync=circular_quality:key=tls:fails=1:failure_detector=combined_failure_detector:success_detector=combined_success_detector:lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:inseq=0x1000:nld=3
+--lua-desync=multisplit:pos=host:strategy=1
+--lua-desync=multidisorder:pos=1,midsld:strategy=2
+--lua-desync=fake:blob=fake_default_tls:tls_mod=rnd:strategy=3
+"

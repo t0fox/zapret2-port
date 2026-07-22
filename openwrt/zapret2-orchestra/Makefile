@@ -65,9 +65,13 @@ define Package/zapret2-orchestra/install
 	# Never sources/evals the config; the CLI wrapper runs `sh -n` on a
 	# temp copy only.
 	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/apply.uc $(1)/usr/share/zapret2-orchestra/apply.uc
-	# builtin profiles (user overrides live under /etc and are not shipped)
+	# builtin profiles (user overrides live under /etc and are not shipped).
+	# The *.opt wildcard picks up every ready nfqws2 profile; profiles.tsv is
+	# the simple TSV manifest (id<TAB>name<TAB>transport<TAB>source) consumed by
+	# the zapret2-orchestra-profile list command — pure shell, no extra deps.
 	$(INSTALL_DIR) $(1)/usr/share/zapret2-orchestra/profiles
 	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/profiles/*.opt $(1)/usr/share/zapret2-orchestra/profiles/
+	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/profiles.tsv $(1)/usr/share/zapret2-orchestra/profiles.tsv
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-preload $(1)/usr/sbin/zapret2-orchestra-preload
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-apply $(1)/usr/sbin/zapret2-orchestra-apply
