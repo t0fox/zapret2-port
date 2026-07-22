@@ -3,23 +3,39 @@ name: Build zapret2-orchestra APK
 on:
   workflow_dispatch:
     inputs:
-      sdk_url:
-        description: 'SDK download URL'
+      mode:
+        description: 'fast = validate only (ucode + tests + sandbox, no APK build); full = validate + SDK APK build + audits + artifacts'
         required: false
-        default: 'https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst'
-      sdk_sha256:
-        description: 'Expected SHA256 of the SDK archive'
-        required: false
-        default: 'ff4a38a397caa2cfe1c39e18f84ddede14878221b3593c3f2c4cfe24e3ec4c25'
+        default: 'fast'
+        type: choice
+        options:
+          - fast
+          - full
 
 env:
   SDK_URL: ${{ inputs.sdk_url || 'https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst' }}
   SDK_SHA256: ${{ inputs.sdk_sha256 || 'ff4a38a397caa2cfe1c39e18f84ddede14878221b3593c3f2c4cfe24e3ec4c25' }}
   SDK_DIR: openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64
+  # Pin the host ucode to the same commit the OpenWrt 25.12.5 base feed ships
+  # (router version ucode-2026.01.16~85922056-r1). Never use master: a drift
+  # could change syntax semantics between CI and the router.
+  UCODE_PIN: 85922056ef7abeace3cca3ab28bc1ac2d88e31b1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  # ─────────────────────────────────────────────────────────────────────
+  # validate: runs in BOTH fast and full modes. No SDK, no APK build.
+  # Builds a host ucode from the pinned commit, compiles every shipped .uc
+  # source, runs the Python test suite (ucode runtime tests must NOT skip),
+  # and exercises the real runtime manager in an isolated /tmp sandbox.
+  # Target duration: 1–2 minutes.
+  # ─────────────────────────────────────────────────────────────────────
+  validate:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: Checkout zapret2-port
         uses: actions/checkout@v4
@@ -30,26 +46,232 @@ jobs:
         run: |
           set -eu
           sudo apt-get update
-          sudo apt-get install -y zstd binutils file cmake libjson-c-dev
+          sudo apt-get install -y cmake libjson-c-dev
+
+      - name: Build and install host ucode (pinned commit)
+        run: |
+          set -eu
+          # Fetch exactly the pinned commit (shallow), not master.
+          git init /tmp/ucode-src
+          cd /tmp/ucode-src
+          git remote add origin https://github.com/jow-/ucode.git
+          git fetch --depth 1 origin "$UCODE_PIN"
+          git checkout FETCH_HEAD
+          echo "checked out: $(git rev-parse HEAD)"
+          # FS_SUPPORT=ON is required — apply.uc imports opendir/readfile/etc.
+          # Disable OpenWrt-specific modules (ubus/uci/uloop/nl80211/rtnl) that
+          # need libraries not present on the runner.
+          cmake \
+            -DUBUS_SUPPORT=OFF \
+            -DUCI_SUPPORT=OFF \
+            -DULOOP_SUPPORT=OFF \
+            -DNL80211_SUPPORT=OFF \
+            -DRESOLV_SUPPORT=OFF \
+            -DRTNL_SUPPORT=OFF \
+            -DSTRUCT_SUPPORT=OFF \
+            -DFS_SUPPORT=ON \
+            -DMATH_SUPPORT=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            .
+          make -j"$(nproc)"
+          sudo make install
+          # Register /usr/local/lib/libucode.so.0 with the dynamic linker so
+          # the installed ucode binary can start (cmake sets empty RPATH).
+          sudo ldconfig
+          echo "ucode: $(command -v ucode)"
+          ucode --version 2>&1 | head -n 2 || true
+
+      - name: Smoke-test host ucode (fs import + comment style)
+        run: |
+          set -eu
+          # Prove the fs module resolves through the default search path
+          # (/usr/local/lib/ucode/*.so).
+          printf 'import { stat } from "fs";\nprint("fs_ok");\n' | ucode - 2>&1 | grep -q fs_ok || {
+            echo "FAIL: ucode fs import smoke test"
+            exit 1
+          }
+          # // comments must work (ECMAScript-oriented ucode).
+          printf '// cmt\nprint("cmt_ok");\n' | ucode - 2>&1 | grep -q cmt_ok || {
+            echo "FAIL: ucode // comment test"
+            exit 1
+          }
+          echo "OK: host ucode smoke-tested"
+
+      - name: Compile/parse all shipped ucode sources
+        run: |
+          set -eu
+          # ucode -c compiles (parses) without executing. A syntax error here
+          # is the gate that would have caught the Lua-style -- comment bug.
+          #
+          # apply.uc and generate-preload.uc import only the 'fs' module (built
+          # with FS_SUPPORT=ON), so they can be fully compile-checked here.
+          # The rpcd backend (zapret2.orchestra) imports 'uci' which is an
+          # OpenWrt-specific module not available on the runner; it is covered
+          # by the comment-lint regression test (test_ucode_comment_style.py,
+          # which scans all three sources for Lua-style -- comments) and by the
+          # static contract tests in test_status_contract.py.
+          for uc in \
+            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/apply.uc" \
+            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc"
+          do
+            echo "--- ucode -c $(basename "$uc") ---"
+            ucode -c "$uc"
+            echo "compile_rc=$?"
+          done
+          echo "=== comment-lint check on rpcd backend (uci module not available for -c) ==="
+          # Verify the rpcd backend has no Lua-style -- comments using the
+          # same lexer the regression test uses.
+          python3 -c "
+          import sys; sys.path.insert(0, '$GITHUB_WORKSPACE/tests')
+          from _ucode_comment_lint import scan_source
+          from pathlib import Path
+          src = Path('$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/rpcd/ucode/zapret2.orchestra')
+          comments, _ = scan_source(src.read_text())
+          assert comments == [], f'{len(comments)} Lua-style -- comments in rpcd backend'
+          print('OK: rpcd backend has no Lua-style -- comments')
+          "
+
+      - name: Python tests (ucode runtime tests must NOT skip)
+        run: |
+          set -eu
+          cd "$GITHUB_WORKSPACE"
+          python3 -m unittest discover -s tests -v 2>&1 | tee /tmp/test-output.txt
+          # The CI gap: ucode runtime tests were skipped because ucode was not
+          # on PATH. Now that it is, zero skips from ucode absence are allowed.
+          UCODE_SKIPS=$(grep -c 'ucode executable not found on PATH' /tmp/test-output.txt || true)
+          if [ "$UCODE_SKIPS" -gt 0 ]; then
+            echo "FAIL: $UCODE_SKIPS ucode runtime tests skipped despite ucode on PATH"
+            exit 1
+          fi
+          echo "OK: no ucode runtime tests skipped"
+          # The comment-lint regression test (tests/test_ucode_comment_style.py)
+          # is part of the suite and asserts no Lua-style -- comments remain in
+          # shipped .uc sources while preserving -- inside string literals.
+          tail -n 3 /tmp/test-output.txt | grep -qE '^(OK|OK \(skipped=' && echo "tests OK" || {
+            echo "FAIL: test suite did not pass"
+            exit 1
+          }
+
+      - name: Sandbox runtime sequence (isolated /tmp, no live paths)
+        run: |
+          set -eu
+          export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
+          SBX="$(mktemp -d /tmp/orch-sandbox-XXXXXX)"
+          APPLY_UC="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/apply.uc"
+          GEN_UC="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc"
+          REPO_FILES="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files"
+          # All ZAPRET2_* paths point into the sandbox — never live /opt, /etc,
+          # or /var/lock. The builtin profile and orchestra-extra lua are read
+          # from the repo source tree (read-only).
+          export ZAPRET2_CONFIG="$SBX/config"
+          export ZAPRET2_ORCHESTRA_DIR="$SBX/orch"
+          export ZAPRET2_RUNTIME_DIR="$SBX/runtime"
+          export ZAPRET2_STATE_FILE="$SBX/orch/manager-state.json"
+          export ZAPRET2_LOCK_DIR="$SBX/lock"
+          export ZAPRET2_CANDIDATE_FILE="$SBX/candidate.tmp"
+          export ZAPRET2_BACKUP_DIR="$SBX/orch/backup"
+          export ZAPRET2_USER_PROFILES_DIR="$SBX/profiles"
+          export ZAPRET2_BUILTIN_PROFILES_DIR="$REPO_FILES/usr/share/zapret2-orchestra/profiles"
+          export ZAPRET2_ORCHESTRA_LUA="$REPO_FILES/opt/zapret2/lua/orchestra-extra"
+          # generate-preload.uc env overrides (sandbox runtime files).
+          export ORCHESTRA_STATE_DIR="$SBX/orch"
+          export ORCHESTRA_RUNTIME_DIR="$SBX/runtime"
+          export ORCHESTRA_PRELOAD_FILE="$SBX/runtime/preload.lua"
+          export ORCHESTRA_WHITELIST_FILE="$SBX/runtime/whitelist.txt"
+          export ORCHESTRA_MANIFEST_FILE="$SBX/runtime/manifest.json"
+          mkdir -p "$SBX/orch" "$SBX/runtime" "$SBX/orch/backup" "$SBX/profiles"
+          # Seed a minimal config with an NFQWS2_OPT assignment containing the
+          # circular_quality marker (required by validate-profile).
+          printf 'NFQWS2_OPT="--lua-desync --lua-init=circular_quality --filter-tls=1"\n' > "$SBX/config"
+          # Copy the persistent JSON seeds so generate-preload.uc can read them
+          # and validate-profile finds whitelist.json.
+          cp "$REPO_FILES/etc/zapret2-orchestra/"*.json "$SBX/orch/"
+          # Create a temp preload wrapper that execs ucode with the repo's
+          # generate-preload.uc (the shipped wrapper hardcodes
+          # /usr/share/zapret2-orchestra/generate-preload.uc which doesn't
+          # exist on the runner). apply.uc calls this via popen([...], 'r').
+          cat > "$SBX/preload-wrapper.sh" <<WRAPPER
+          #!/bin/sh
+          exec ucode "$GEN_UC" "\$@"
+          WRAPPER
+          chmod +x "$SBX/preload-wrapper.sh"
+          export ZAPRET2_PRELOAD_WRAPPER="$SBX/preload-wrapper.sh"
+          # Run the full transaction sequence. Each step exits non-zero on
+          # failure (set -eu), which fails the job.
+          ucode "$GEN_UC" generate
+          ucode "$GEN_UC" check
+          ucode "$APPLY_UC" status
+          ucode "$APPLY_UC" validate-config
+          ucode "$APPLY_UC" validate-profile orchestra-tls-mvp
+          ucode "$APPLY_UC" lock-test
+          ucode "$APPLY_UC" enable orchestra-tls-mvp
+          ucode "$APPLY_UC" enable orchestra-tls-mvp          # idempotent
+          ucode "$APPLY_UC" rollback
+          ucode "$APPLY_UC" disable
+          ucode "$APPLY_UC" disable                            # idempotent
+          ucode "$APPLY_UC" boot-check
+          echo "=== sandbox sequence PASS ==="
+          rm -rf "$SBX"
+
+  # ─────────────────────────────────────────────────────────────────────
+  # build-apk: runs only in full mode, after validate passes.
+  # Builds both APKs from the OpenWrt SDK with ccache, extracts and audits
+  # them, verifies create_ipset.sh is 0755, and uploads artifacts.
+  # ─────────────────────────────────────────────────────────────────────
+  build-apk:
+    needs: validate
+    if: github.event.inputs.mode == 'full'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout zapret2-port
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install host dependencies
+        run: |
+          set -eu
+          sudo apt-get update
+          sudo apt-get install -y zstd binutils file
+
+      - name: Restore SDK archive cache
+        id: sdk-archive-cache
+        uses: actions/cache@v4
+        with:
+          key: sdk-archive-${{ env.SDK_SHA256 }}
+          path: ${{ env.SDK_DIR }}.tar.zst
 
       - name: Download and verify SDK
         run: |
           set -eu
           ARCHIVE="$(basename "$SDK_URL")"
-          echo "Downloading SDK: $SDK_URL"
-          curl -fSL --retry 5 --retry-delay 5 -o "$ARCHIVE" "$SDK_URL"
+          if [ -f "$ARCHIVE" ]; then
+            echo "SDK archive restored from cache: $ARCHIVE"
+          else
+            echo "Downloading SDK: $SDK_URL"
+            curl -fSL --retry 5 --retry-delay 5 -o "$ARCHIVE" "$SDK_URL"
+          fi
           echo "Verifying SHA256..."
           ACTUAL=$(sha256sum "$ARCHIVE" | awk '{print $1}')
           echo "Expected: $SDK_SHA256"
           echo "Actual:   $ACTUAL"
           if [ "$ACTUAL" != "$SDK_SHA256" ]; then
-            echo "ERROR: SHA256 mismatch"
-            exit 1
+            echo "ERROR: SHA256 mismatch — removing cached archive and re-downloading"
+            rm -f "$ARCHIVE"
+            curl -fSL --retry 5 --retry-delay 5 -o "$ARCHIVE" "$SDK_URL"
+            ACTUAL=$(sha256sum "$ARCHIVE" | awk '{print $1}')
+            [ "$ACTUAL" = "$SDK_SHA256" ] || { echo "ERROR: SHA256 mismatch on re-download"; exit 1; }
           fi
           echo "Extracting SDK..."
           tar --zstd -xf "$ARCHIVE"
-          rm -f "$ARCHIVE"
           echo "SDK ready at $SDK_DIR"
+
+      - name: Restore SDK dl/ cache
+        uses: actions/cache@v4
+        with:
+          key: sdk-dl-${{ env.SDK_SHA256 }}
+          path: ${{ env.SDK_DIR }}/dl/
 
       - name: Verify SDK layout
         working-directory: ${{ env.SDK_DIR }}
@@ -58,19 +280,28 @@ jobs:
           test -d include || { echo "ERROR: SDK include/ not found"; exit 1; }
           test -f include/package.mk || { echo "ERROR: include/package.mk not found"; exit 1; }
           test -d staging_dir/host/bin || { echo "ERROR: staging_dir/host/bin not found"; exit 1; }
-          # The OpenWrt SDK ships a prebuilt host apk used by the build
-          # system to produce .apk packages. Verify it is present and runs.
-          # Do not hard-reject on a specific version; the SDK pins the
-          # correct apk for this OpenWrt release.
           test -x staging_dir/host/bin/apk || {
             echo "ERROR: SDK host apk not found or not executable"
-            echo "staging_dir/host/bin contents:"
             ls -la staging_dir/host/bin/ 2>&1 | head -40 || true
             exit 1
           }
           echo "=== SDK host apk ==="
           staging_dir/host/bin/apk --version
           echo "SDK layout verified"
+
+      - name: Restore ccache
+        id: ccache-restore
+        uses: actions/cache@v4
+        with:
+          # Composite key: runner OS, SDK SHA, OpenWrt release/target, and a
+          # hash of the package sources. A source change (e.g. a .uc comment
+          # fix) changes the hash → new key, but the restore-key prefix (by
+          # SDK SHA + target) matches the previous cache, so ccache contents
+          # are reused and only the changed files are recompiled.
+          key: ${{ runner.os }}-ccache-sdk${{ env.SDK_SHA256 }}-owrt25.12.5-mediatek-filogic-${{ hashFiles('openwrt/zapret2/**', 'zapret2-core/**') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-sdk${{ env.SDK_SHA256 }}-owrt25.12.5-mediatek-filogic-
+          path: ${{ env.SDK_DIR }}/.ccache
 
       - name: Prepare package tree
         working-directory: ${{ env.SDK_DIR }}
@@ -91,11 +322,6 @@ jobs:
             echo "ERROR: feeds.conf.default not found"
             exit 1
           fi
-          # Rewrite git.openwrt.org URLs to GitHub mirrors. Only the URL
-          # prefix is replaced, so any branch/revision suffix (e.g.
-          # ";openwrt-25.12") after the repo URL is preserved. Do not
-          # suppress errors: a feeds failure must stop the workflow here
-          # rather than surface later as an opaque package build error.
           sed -i \
             -e 's|https://git.openwrt.org/feed/|https://github.com/openwrt/|' \
             -e 's|https://git.openwrt.org/project/|https://github.com/openwrt/|' \
@@ -106,51 +332,43 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Init config
+      - name: Init config (ccache enabled)
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
           make defconfig
-          echo "=== .config excerpt (zapret) ==="
-          grep -i zapret .config || echo "(no zapret in config)"
+          # Enable ccache for cross-compilation. The ccache dir defaults to
+          # $(TOPDIR)/.ccache which is cached by the actions/cache step above.
+          echo 'CONFIG_CCACHE=y' >> .config
+          make defconfig
+          echo "=== .config excerpt (ccache + zapret) ==="
+          grep -iE 'CONFIG_CCACHE|zapret' .config || echo "(no matches)"
 
-      - name: Build zapret2 (parallel)
-        id: build-zapret2
+      - name: Build both packages (parallel, merged make)
+        id: build
         continue-on-error: true
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eu
-          echo "Building zapret2 with -j$(nproc)..."
-          make package/zapret2/compile -j$(nproc) BUILD_LOG=1
-          echo "zapret2 build succeeded"
+          echo "Building zapret2 + zapret2-orchestra with -j$(nproc)..."
+          make package/zapret2/compile package/zapret2-orchestra/compile -j"$(nproc)" BUILD_LOG=1
+          echo "both packages built successfully"
 
-      - name: Build zapret2 (retry single-threaded with verbose)
-        if: steps.build-zapret2.outcome == 'failure'
+      - name: Build both packages (retry single-threaded with verbose)
+        if: steps.build.outcome == 'failure'
         working-directory: ${{ env.SDK_DIR }}
         run: |
           set -eux
-          echo "Retrying zapret2 with -j1 V=sc..."
-          make package/zapret2/compile -j1 V=sc BUILD_LOG=1
-          echo "zapret2 single-threaded build succeeded"
+          echo "Retrying both packages with -j1 V=sc..."
+          make package/zapret2/compile package/zapret2-orchestra/compile -j1 V=sc BUILD_LOG=1
+          echo "both packages single-threaded build succeeded"
 
-      - name: Build zapret2-orchestra (parallel)
-        id: build-orchestra
-        continue-on-error: true
-        working-directory: ${{ env.SDK_DIR }}
-        run: |
-          set -eu
-          echo "Building zapret2-orchestra with -j$(nproc)..."
-          make package/zapret2-orchestra/compile -j$(nproc) BUILD_LOG=1
-          echo "zapret2-orchestra build succeeded"
-
-      - name: Build zapret2-orchestra (retry single-threaded with verbose)
-        if: steps.build-orchestra.outcome == 'failure'
-        working-directory: ${{ env.SDK_DIR }}
-        run: |
-          set -eux
-          echo "Retrying zapret2-orchestra with -j1 V=sc..."
-          make package/zapret2-orchestra/compile -j1 V=sc BUILD_LOG=1
-          echo "zapret2-orchestra single-threaded build succeeded"
+      - name: Save ccache immediately after successful compilation
+        if: steps.build.outcome == 'success' || (steps.build.outcome == 'failure' && success())
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
+          path: ${{ env.SDK_DIR }}/.ccache
 
       - name: Locate built APKs
         id: locate-apk
@@ -201,18 +419,6 @@ jobs:
           file "$Z2_APK"
 
           echo "=== Extract APKs (apk --allow-untrusted extract --destination) ==="
-          # apk info --description and apk manifest require an installed
-          # database (they do not read a package file).  apk extract
-          # --destination is the reliable way to unpack a local .apk.
-          # The SDK builds packages with a locally generated signing key
-          # that is not in the trusted keyring, so apk rejects them with
-          # "UNTRUSTED signature" (exit 99) unless --allow-untrusted is
-          # passed.  We are only inspecting locally built artifacts (not
-          # installing them), so trusting the signature here is safe and
-          # is the same flag the OpenWrt build system uses when staging
-          # its own packages.  Extraction failure is fatal: a silent WARN
-          # here would surface downstream as a misleading "nfqws2 not
-          # found" contract failure and hide the real cause.
           if "$APK_BIN" --allow-untrusted extract --destination /tmp/apk-orch "$ORCH_APK"; then
             echo "OK: orchestra extracted"
           else
@@ -226,7 +432,6 @@ jobs:
             exit 1
           fi
 
-          # Dump file inventories from the extracted trees for the artifacts
           echo "=== Extracted orchestra file listing ==="
           find /tmp/apk-orch -type f 2>/dev/null | sort > "$ART_DIR/orchestra-files.txt"
           cat "$ART_DIR/orchestra-files.txt"
@@ -368,9 +573,6 @@ jobs:
           set -eu
           ART_DIR="$GITHUB_WORKSPACE/artifacts"
           mkdir -p "$ART_DIR"
-          # /tmp/apk-orch and /tmp/apk-z2 were populated by the previous step
-          # with `apk --allow-untrusted extract --destination`. They persist
-          # across steps on the same runner.
 
           echo "=== SHA256 of built APKs ==="
           {
@@ -379,9 +581,6 @@ jobs:
           } | tee "$ART_DIR/apk-sha256.txt"
 
           echo "=== ELF inventory: every ELF file in the zapret2 APK ==="
-          # An ELF file is a host (x86_64) binary leaked into the target
-          # package; every executable shipped by zapret2 must be an aarch64
-          # target binary. List them all and reject any x86_64 ELF.
           find /tmp/apk-z2 -type f -print0 | xargs -0 file 2>/dev/null | grep -i 'ELF' > "$ART_DIR/zapret2-elf-inventory.txt" || true
           cat "$ART_DIR/zapret2-elf-inventory.txt"
           if grep -i 'x86-64' "$ART_DIR/zapret2-elf-inventory.txt" >/dev/null 2>&1; then
@@ -431,192 +630,6 @@ jobs:
             cat "$root/lib/apk/packages/$p.conffiles_static" 2>/dev/null | tee -a "$ART_DIR/package-manifests.txt"
           done
 
-      - name: Build host ucode for runtime tests
-        run: |
-          set -eu
-          # The zapret2-orchestra .uc sources use the ucode interpreter's
-          # ECMAScript syntax (// comments, printf %J, etc.). The CI gap that
-          # let Lua-style -- comments ship undetected was that the Python test
-          # suite skips ucode runtime tests when ucode is not on PATH. We
-          # close it by building a host ucode and putting it on PATH so the
-          # runtime tests actually execute.
-          #
-          # We build ucode directly from the jow-/ucode source with cmake
-          # (the approach the ucode README recommends for non-OpenWrt Linux)
-          # rather than via the SDK's host-build system, which has kconfig
-          # recursive-dependency warnings in this SDK that prevent the
-          # staging_dir install from completing reliably.
-          echo "=== clone jow-/ucode ==="
-          git clone --depth 1 https://github.com/jow-/ucode.git /tmp/ucode-src
-          cd /tmp/ucode-src
-          echo "=== cmake (FS_SUPPORT=ON, no OpenWrt-specific modules) ==="
-          cmake \
-            -DUBUS_SUPPORT=OFF \
-            -DUCI_SUPPORT=OFF \
-            -DULOOP_SUPPORT=OFF \
-            -DNL80211_SUPPORT=OFF \
-            -DRESOLV_SUPPORT=OFF \
-            -DRTNL_SUPPORT=OFF \
-            -DSTRUCT_SUPPORT=OFF \
-            -DFS_SUPPORT=ON \
-            -DMATH_SUPPORT=ON \
-            -DCMAKE_BUILD_TYPE=Release \
-            .
-          echo "=== make ==="
-          make -j$(nproc)
-          echo "=== sudo make install ==="
-          # Install to /usr/local so the ucode binary lands in /usr/local/bin
-          # (on PATH) and fs.so lands in /usr/local/lib/ucode/fs.so, which is
-          # part of ucode's compiled-in default LIB_SEARCH_PATH
-          # (${prefix}/lib/ucode/*.so). This means `ucode` resolves the fs
-          # module automatically — no -L flag needed in any downstream step.
-          sudo make install
-          # Register /usr/local/lib/libucode.so.0 with the dynamic linker
-          # cache so the installed ucode binary can find its shared library
-          # at runtime (cmake set the RPATH to empty, so without ldconfig
-          # or LD_LIBRARY_PATH the binary fails to start).
-          sudo ldconfig
-          UCODE_HOST="$(command -v ucode)"
-          if [ -z "$UCODE_HOST" ]; then
-            echo "ERROR: ucode not on PATH after install"
-            find /usr/local -name 'ucode' -type f 2>/dev/null || true
-            exit 1
-          fi
-          echo "host ucode: $UCODE_HOST"
-          "$UCODE_HOST" --version 2>&1 | head -n 3 || true
-          # Verify the fs module is installed where the default search path
-          # expects it.
-          FS_SO="$(find /usr/local/lib/ucode -name 'fs.so' -type f -print -quit 2>/dev/null || true)"
-          if [ -z "$FS_SO" ]; then
-            echo "ERROR: fs.so not installed to /usr/local/lib/ucode/"
-            find /usr/local -name 'fs.so' 2>/dev/null || true
-            exit 1
-          fi
-          echo "fs module: $FS_SO"
-          # Smoke test: // comments work (proves we have the real
-          # ECMAScript-oriented ucode), and the fs import resolves.
-          printf 'import { stat } from "fs";\nprint("ok");\n' | "$UCODE_HOST" - 2>&1 | grep -q ok || {
-            echo "ERROR: ucode fs import smoke test failed"
-            printf 'import { stat } from "fs";\nprint("ok");\n' | "$UCODE_HOST" - 2>&1 || true
-            exit 1
-          }
-          printf '// cmt\nprint("ok2");\n' | "$UCODE_HOST" - 2>&1 | grep -q ok2 || {
-            echo "ERROR: ucode // comment test failed"
-            exit 1
-          }
-          echo "OK: host ucode + fs module installed and smoke-tested"
-
-      - name: ucode compile + Python runtime tests + sandbox sequence
-        run: |
-          set -eu
-          # ucode was installed to /usr/local by the previous step, so it is
-          # on PATH and the fs module resolves through the compiled-in
-          # default search path (/usr/local/lib/ucode/*.so). No -L or
-          # UCODE_MOD_PATH needed.
-          export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
-          echo "ucode on PATH: $(which ucode)"
-          ucode --version 2>&1 | head -n 2 || true
-
-          echo "=== compile/parse all shipped ucode sources ==="
-          # ucode -c compiles (parses) the source without executing it.
-          # A syntax error here fails the step — this is the gate that would
-          # have caught the Lua-style -- comment bug.
-          for uc in \
-            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/apply.uc" \
-            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc" \
-            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/rpcd/ucode/zapret2.orchestra"
-          do
-            echo "--- ucode -c $uc ---"
-            ucode -c "$uc"
-            echo "compile_rc=$?"
-          done
-
-          echo "=== Python tests with ucode on PATH (no skips) ==="
-          cd "$GITHUB_WORKSPACE"
-          python3 -m pip install --quiet --user --break-system-packages 2>/dev/null || true
-          python3 -m unittest discover -s tests -v 2>&1 | tee /tmp/test-output.txt
-          # Fail if ANY test was skipped due to ucode absence (the CI gap).
-          # Other legitimate skips (router-baseline evidence) are acceptable.
-          UCODE_SKIPS=$(grep -c 'ucode executable not found on PATH' /tmp/test-output.txt || true)
-          if [ "$UCODE_SKIPS" -gt 0 ]; then
-            echo "FAIL: $UCODE_SKIPS ucode runtime tests were skipped despite host ucode being on PATH"
-            exit 1
-          fi
-          echo "OK: no ucode runtime tests skipped"
-          # Overall result must be success.
-          tail -n 3 /tmp/test-output.txt | grep -qE '^(OK|OK \(skipped=' && echo "tests OK" || {
-            echo "FAIL: test suite did not pass"
-            exit 1
-          }
-
-          echo "=== sandbox runtime sequence (ZAPRET2_* overrides, temp only) ==="
-          # Run the real ucode manager against a fully isolated sandbox under
-          # /tmp. No live /opt, /etc, or /var/lock access. All paths point
-          # into the temp sandbox.
-          SBX="$(mktemp -d /tmp/orch-sandbox-XXXXXX)"
-          export ZAPRET2_CONFIG="$SBX/config"
-          export ZAPRET2_ORCHESTRA_DIR="$SBX/orch"
-          export ZAPRET2_RUNTIME_DIR="$SBX/runtime"
-          export ZAPRET2_STATE_FILE="$SBX/orch/manager-state.json"
-          export ZAPRET2_LOCK_DIR="$SBX/lock"
-          export ZAPRET2_CANDIDATE_FILE="$SBX/candidate.tmp"
-          export ZAPRET2_BACKUP_DIR="$SBX/orch/backup"
-          export ZAPRET2_USER_PROFILES_DIR="$SBX/profiles"
-          export ZAPRET2_BUILTIN_PROFILES_DIR="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/profiles"
-          export ZAPRET2_ORCHESTRA_LUA="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/opt/zapret2/lua/orchestra-extra"
-          export ZAPRET2_PRELOAD_WRAPPER="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/sbin/zapret2-orchestra-preload"
-          export ORCHESTRA_STATE_DIR="$SBX/orch"
-          export ORCHESTRA_RUNTIME_DIR="$SBX/runtime"
-          export ORCHESTRA_PRELOAD_FILE="$SBX/runtime/preload.lua"
-          export ORCHESTRA_WHITELIST_FILE="$SBX/runtime/whitelist.txt"
-          export ORCHESTRA_MANIFEST_FILE="$SBX/runtime/manifest.json"
-          mkdir -p "$SBX/orch" "$SBX/runtime" "$SBX/orch/backup"
-          # Seed a minimal config with an NFQWS2_OPT assignment containing the
-          # circular_quality marker (required by validate-profile).
-          printf 'NFQWS2_OPT="--lua-desync --lua-init=circular_quality --filter-tls=1"\n' > "$SBX/config"
-          # Seed the whitelist JSON (required by validate-profile).
-          printf '{"hosts":[]}' > "$SBX/orch/whitelist.json"
-          # Point the preload wrapper at the real generate-preload.uc so it
-          # runs in the sandbox via ucode.
-          APPLY_UC="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/apply.uc"
-          GEN_UC="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc"
-          # The wrapper execs ucode; override the generator path so the
-          # sandbox preload goes to the temp runtime dir.
-          run_cmd() {
-            local desc="$1"; shift
-            echo "--- $desc ---"
-            "$@" 2>&1
-            local rc=$?
-            echo "rc=$rc"
-            return $rc
-          }
-          # preload generate
-          ucode "$GEN_UC" generate || { echo "FAIL: preload generate"; exit 1; }
-          # preload check
-          ucode "$GEN_UC" check || { echo "FAIL: preload check"; exit 1; }
-          # status
-          ucode "$APPLY_UC" status || { echo "FAIL: status"; exit 1; }
-          # validate-config
-          ucode "$APPLY_UC" validate-config || { echo "FAIL: validate-config"; exit 1; }
-          # validate-profile orchestra-tls-mvp
-          ucode "$APPLY_UC" validate-profile orchestra-tls-mvp || { echo "FAIL: validate-profile"; exit 1; }
-          # lock-test
-          ucode "$APPLY_UC" lock-test || { echo "FAIL: lock-test"; exit 1; }
-          # enable
-          ucode "$APPLY_UC" enable orchestra-tls-mvp || { echo "FAIL: enable"; exit 1; }
-          # repeated enable (idempotent)
-          ucode "$APPLY_UC" enable orchestra-tls-mvp || { echo "FAIL: idempotent enable"; exit 1; }
-          # rollback
-          ucode "$APPLY_UC" rollback || { echo "FAIL: rollback"; exit 1; }
-          # disable
-          ucode "$APPLY_UC" disable || { echo "FAIL: disable"; exit 1; }
-          # idempotent disable
-          ucode "$APPLY_UC" disable || { echo "FAIL: idempotent disable"; exit 1; }
-          # boot-check
-          ucode "$APPLY_UC" boot-check || { echo "FAIL: boot-check"; exit 1; }
-          echo "=== sandbox sequence PASS ==="
-          rm -rf "$SBX"
-
       - name: Verify create_ipset.sh executable mode in APK
         working-directory: ${{ env.SDK_DIR }}
         run: |
@@ -624,8 +637,7 @@ jobs:
           # The router blocker: create_ipset.sh was installed as 0644
           # (INSTALL_DATA) instead of 0755, causing "Permission denied" in
           # the post-install firewall reload. The Makefile fix uses
-          # INSTALL_BIN for ipset/*.sh. Verify the mode inside the built APK
-          # by checking the extracted tree (populated by the inspect step).
+          # INSTALL_BIN for ipset/*.sh. Verify the mode inside the built APK.
           IPSET_SH="$(find /tmp/apk-z2 -name create_ipset.sh -type f -print -quit)"
           if [ -z "$IPSET_SH" ]; then
             echo "FAIL: create_ipset.sh not found in zapret2 APK extraction"
@@ -655,11 +667,6 @@ jobs:
           set +e
           mkdir -p "$GITHUB_WORKSPACE/artifacts"
           SDK_PATH="$GITHUB_WORKSPACE/$SDK_DIR"
-          # Don't use working-directory: an early failure (host deps, SDK
-          # download) can leave SDK_DIR absent, and a cd would mask the real
-          # error with "No such file or directory". Never fail this step:
-          # missing logs must not abort log collection or hide the upstream
-          # error.
           if [ ! -d "$SDK_PATH" ]; then
             echo "No OpenWrt build logs found (SDK_DIR $SDK_DIR not present)."
             exit 0
@@ -669,8 +676,6 @@ jobs:
             tar -cJf "$GITHUB_WORKSPACE/artifacts/build-logs.tar.xz" -C "$SDK_PATH" logs/
             HAVE_LOGS=1
           fi
-          # Capture packageinfo and a bin/packages listing for diagnosis
-          # when a build failed before producing logs.
           if [ -f "$SDK_PATH/tmp/.packageinfo" ]; then
             cp "$SDK_PATH/tmp/.packageinfo" "$GITHUB_WORKSPACE/artifacts/packageinfo.txt"
           fi
