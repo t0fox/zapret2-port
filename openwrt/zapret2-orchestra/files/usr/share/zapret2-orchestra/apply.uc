@@ -14,13 +14,21 @@
 // Security model
 // --------------
 // The config file is NEVER sourced, eval'd, or executed. The NFQWS2_OPT
-// value is located and edited with pure byte operations. The only subprocess
-// calls are array-form popen() to two trusted binaries:
-//   sh -n <candidate>          (parse-only shell syntax check, no execution)
-//   zapret2-orchestra-preload  (our own ucode preload generator)
-// Array-form popen uses execvp() directly — no shell is involved, so
-// arguments are never interpreted as shell syntax. String-form popen (which
-// would invoke a shell) is never used.
+// value is located and edited with pure byte operations, and the user value
+// is never placed on a command line — it lives only inside the candidate
+// FILE, which `sh -n` validates as file content (parse-only, no execution).
+//
+// ucode has no array-form popen: fs.popen() always invokes /bin/sh -c (see
+// lib/fs.c — it calls popen(ucv_string_get(comm), ..)). So the two subprocess
+// calls use the mechanism that fits each case:
+//   sh -n <candidate>          via system([..]) — execvp directly, NO shell.
+//   zapret2-orchestra-preload  via popen(.., 'r') — shell, but the command
+//                              string is only shell-quoted controlled paths
+//                              and a literal mode; no user input is on the
+//                              command line, so there is no injection vector.
+//                              popen('r') is used here (not system()) so the
+//                              wrapper's stdout is captured rather than
+//                              polluting this program's JSON emit() output.
 //
 // Phase 1B scope
 // --------------
@@ -70,6 +78,14 @@ function fail(msg) {
 
 function emit(obj) {
 	printf('%J\n', obj);
+}
+
+// Single-quote a string for a /bin/sh -c context. Embedded single quotes are
+// closed, escaped, and reopened (the standard '..'\''..' trick). Used only on
+// controlled paths/literals (never user NFQWS2_OPT input, which lives in the
+// candidate FILE, not on any command line).
+function shell_quote(s) {
+	return "'" + replace(s, "'", "'\\''") + "'";
 }
 
 function line_of(text, index) {
@@ -203,22 +219,24 @@ function hash31(data) {
 // ---------------------------------------------------------------------------
 
 // Run `sh -n <path>` (parse-only syntax check, never executes the file).
+// Uses system() with an array — execvp directly, NO shell. sh -n writes any
+// syntax error to its (inherited) stderr; we only need the exit code.
 // Returns { ok: bool, rc: int, stderr: string }.
 function run_sh_n(path) {
-	let proc = popen(['sh', '-n', path], 'r');
-	if (proc == null)
-		return { ok: false, rc: -1, stderr: 'popen failed' };
-	let err = proc.read('all');
-	let rc = proc.close();
-	return { ok: rc == 0, rc: rc, stderr: err ?? '' };
+	let rc = system(['sh', '-n', path]);
+	if (rc == null)
+		return { ok: false, rc: -1, stderr: 'system() failed' };
+	return { ok: rc == 0, rc: rc, stderr: '' };
 }
 
 // Run the preload wrapper with the given mode ('generate' or 'check').
-// Uses array-form popen — no shell, execvp directly. The wrapper is our
-// own trusted binary at PRELOAD_WRAPPER.
+// ucode's fs.popen is shell-based (/bin/sh -c); the command string is only
+// shell-quoted controlled paths + a literal mode (no user input on the
+// command line). popen('r') captures the wrapper's stdout so its
+// "orchestra preload generated: ..." line does not pollute our JSON emit().
 // Returns { ok: bool, rc: int, stdout: string, stderr: string }.
 function run_preload(mode) {
-	let proc = popen([PRELOAD_WRAPPER, mode], 'r');
+	let proc = popen(shell_quote(PRELOAD_WRAPPER) + ' ' + shell_quote(mode), 'r');
 	if (proc == null)
 		return { ok: false, rc: -1, stdout: '', stderr: 'popen failed' };
 	let out = proc.read('all');
