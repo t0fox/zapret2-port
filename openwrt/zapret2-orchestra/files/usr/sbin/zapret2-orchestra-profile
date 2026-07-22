@@ -1,0 +1,161 @@
+#!/bin/sh
+# zapret2-orchestra-profile — ready profile selection CLI.
+#
+# A thin, read-only front end over the builtin nfqws2 profiles shipped by the
+# zapret2-orchestra package and the existing transactional runtime manager
+# (/usr/sbin/zapret2-orchestra-apply). It does NOT reimplement state, locking,
+# backup, rollback, config parsing or profile validation — it only lists and
+# shows profiles, and dispatches validate/enable/disable/status to the manager.
+#
+# Usage:
+#   zapret2-orchestra-profile list
+#   zapret2-orchestra-profile show <id>
+#   zapret2-orchestra-profile validate <id>
+#   zapret2-orchestra-profile enable <id>
+#   zapret2-orchestra-profile status
+#   zapret2-orchestra-profile disable
+#
+# Security:
+#   * Profile IDs are validated against a strict allowlist character class
+#     ([A-Za-z0-9_.-]) before any use. Path traversal (/, ..), whitespace and
+#     every shell metacharacter are rejected, so an ID can never escape the
+#     profiles directory or inject into a command line.
+#   * `show` prints the .opt file with `cat` — it never sources, evals or
+#     otherwise executes the profile contents.
+#   * The manager is invoked via plain positional argv (exec / the wrapper);
+#     user text is never interpolated into a shell string via eval/sed.
+#
+# Path overrides (mirror apply.uc, used by tests):
+#   ZAPRET2_SHARE_DIR             /usr/share/zapret2-orchestra
+#   ZAPRET2_BUILTIN_PROFILES_DIR  <SHARE_DIR>/profiles
+#   ZAPRET2_USER_PROFILES_DIR     /etc/zapret2-orchestra/profiles
+#   ZAPRET2_APPLY                 /usr/sbin/zapret2-orchestra-apply
+
+set -eu
+
+SHARE_DIR="${ZAPRET2_SHARE_DIR:-/usr/share/zapret2-orchestra}"
+BUILTIN_PROFILES_DIR="${ZAPRET2_BUILTIN_PROFILES_DIR:-${SHARE_DIR}/profiles}"
+USER_PROFILES_DIR="${ZAPRET2_USER_PROFILES_DIR:-/etc/zapret2-orchestra/profiles}"
+MANIFEST="${SHARE_DIR}/profiles.tsv"
+APPLY="${ZAPRET2_APPLY:-/usr/sbin/zapret2-orchestra-apply}"
+
+# --- helpers ----------------------------------------------------------------
+
+# Print to stderr and exit non-zero.
+die() {
+	printf '%s\n' "zapret2-orchestra-profile: $1" >&2
+	exit "${2:-2}"
+}
+
+# Validate a profile id: non-empty, only [A-Za-z0-9_.-], no leading dot/dash
+# segment that could form a path escape, and must not be "." or "..".
+# Returns 0 if valid, non-zero otherwise. Sets REJECT_REASON on failure.
+id_ok() {
+	_id="$1"
+	[ -n "$_id" ] || { REJECT_REASON="id is empty"; return 1; }
+	# Reject anything outside the allowlist class. The bracket expression is
+	# literal POSIX — no reliance on locale-specific character classes.
+	case "$_id" in
+		*[!A-Za-z0-9_.-]*) REJECT_REASON="id has disallowed characters (only A-Z a-z 0-9 . _ - allowed)"; return 1 ;;
+	esac
+	case "$_id" in
+		.|..) REJECT_REASON="id must not be . or .."; return 1 ;;
+		.*)   REJECT_REASON="id must not start with a dot"; return 1 ;;
+	esac
+	REJECT_REASON=""
+	return 0
+}
+
+# Resolve a profile id to an existing .opt path, user override first (mirrors
+# apply.uc's validate_profile priority). Echoes the path, or returns 1.
+resolve_opt() {
+	_id="$1"
+	if [ -f "${USER_PROFILES_DIR}/${_id}.opt" ]; then
+		printf '%s\n' "${USER_PROFILES_DIR}/${_id}.opt"
+		return 0
+	fi
+	if [ -f "${BUILTIN_PROFILES_DIR}/${_id}.opt" ]; then
+		printf '%s\n' "${BUILTIN_PROFILES_DIR}/${_id}.opt"
+		return 0
+	fi
+	return 1
+}
+
+usage() {
+	cat <<'EOF'
+usage: zapret2-orchestra-profile <command> [args]
+
+  list                 list ready profiles (id, name, transport)
+  show <id>            print the <id>.opt profile (no execution)
+  validate <id>        validate <id> via the runtime manager
+  enable <id>          validate then enable <id> via the runtime manager
+  status               show Orchestra runtime status
+  disable              disable Orchestra (restore last backup)
+EOF
+}
+
+# --- commands ---------------------------------------------------------------
+
+cmd_list() {
+	[ -f "$MANIFEST" ] || die "manifest not found: $MANIFEST" 2
+	# Header + one line per profile. TSV fields: id<TAB>name<TAB>transport<TAB>source.
+	# Print id, name and transport only. Skip the header row and blank lines.
+	awk -F'\t' '
+		NF >= 3 && $1 != "id" { printf "%s\t%s\t%s\n", $1, $2, $3 }
+	' "$MANIFEST"
+}
+
+cmd_show() {
+	[ $# -ge 1 ] || die "usage: zapret2-orchestra-profile show <id>" 2
+	id_ok "$1" || die "invalid id: $REJECT_REASON" 2
+	_path=$(resolve_opt "$1") || die "profile not found: $1" 1
+	# cat, never source/eval. cat is a builtin-safe read in busybox; it does not
+	# execute the file.
+	cat "$_path"
+}
+
+cmd_validate() {
+	[ $# -ge 1 ] || die "usage: zapret2-orchestra-profile validate <id>" 2
+	id_ok "$1" || die "invalid id: $REJECT_REASON" 2
+	# Confirm the profile exists locally before delegating, so a missing profile
+	# is reported by this CLI rather than as a manager parse error.
+	resolve_opt "$1" >/dev/null || die "profile not found: $1" 1
+	exec "$APPLY" validate-profile "$1"
+}
+
+cmd_enable() {
+	[ $# -ge 1 ] || die "usage: zapret2-orchestra-profile enable <id>" 2
+	id_ok "$1" || die "invalid id: $REJECT_REASON" 2
+	resolve_opt "$1" >/dev/null || die "profile not found: $1" 1
+	# Validate first (read-only), then enable. The manager's enable is itself
+	# transactional; we pre-validate so an invalid profile never reaches the
+	# apply transaction.
+	"$APPLY" validate-profile "$1"
+	_rc=$?
+	[ "$_rc" -eq 0 ] || die "profile failed validation: $1 (rc=$_rc)" "$_rc"
+	exec "$APPLY" enable "$1"
+}
+
+cmd_status() {
+	exec "$APPLY" status
+}
+
+cmd_disable() {
+	exec "$APPLY" disable
+}
+
+# --- dispatch ---------------------------------------------------------------
+
+_cmd="${1:-}"
+[ $# -gt 0 ] && shift
+
+case "$_cmd" in
+	list)     cmd_list "$@" ;;
+	show)     cmd_show "$@" ;;
+	validate) cmd_validate "$@" ;;
+	enable)   cmd_enable "$@" ;;
+	status)   cmd_status "$@" ;;
+	disable)  cmd_disable "$@" ;;
+	""|-h|--help|help) usage; [ -n "$_cmd" ] && exit 0 || exit 2 ;;
+	*) die "unknown command: $_cmd" 2 ;;
+esac
