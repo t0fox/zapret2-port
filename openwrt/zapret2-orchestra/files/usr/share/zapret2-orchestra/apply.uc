@@ -955,7 +955,7 @@ function cmd_apply() {
 	// Validate the profile first (read-only, no lock needed)
 	let pv = validate_profile(profile_name);
 	if (!pv.ok)
-		fail('profile invalid: ' + join(pv.problems, '; '));
+		fail('profile invalid: ' + join('; ', pv.problems));
 	// Read the profile value
 	let ptext = readfile(pv.source);
 	if (ptext == null)
@@ -996,7 +996,7 @@ function cmd_enable() {
 	// Validate the profile
 	let pv = validate_profile(profile_name);
 	if (!pv.ok)
-		fail('profile invalid: ' + join(pv.problems, '; '));
+		fail('profile invalid: ' + join('; ', pv.problems));
 	let ptext = readfile(pv.source);
 	if (ptext == null)
 		fail('cannot read profile ' + pv.source);

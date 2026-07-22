@@ -44,6 +44,13 @@ function is_int(v) {
 }
 
 function as_int(v, ctx) {
+	// JSON object keys are always strings, but strategy keys and similar
+	// fields are conceptually integers (e.g. {"10": {"successes": 1}}).
+	// Coerce string representations of integers before the type check so
+	// that parsed JSON seeds work correctly. int("abc") returns NaN which
+	// is_int() rejects, so non-numeric strings still fail.
+	if (type(v) == 'string')
+		v = int(v);
 	if (!is_int(v))
 		fail(ctx + ': expected integer');
 	return int(v);
@@ -100,7 +107,7 @@ function lua_quote(s) {
 }
 
 function lua_int_list(values) {
-	return '{' + join(values, ', ') + '}';
+	return '{' + join(', ', values) + '}';
 }
 
 function sorted_keys(obj) {
@@ -155,7 +162,7 @@ function render_whitelist_table(seeds) {
 	let entries = [];
 	for (let i = 0; i < length(hosts); i++)
 		push(entries, '[' + lua_quote(hosts[i]) + ']=true');
-	return 'ORCHESTRA_WHITELIST = { ' + join(entries, ', ') + ' }';
+	return 'ORCHESTRA_WHITELIST = { ' + join(', ', entries) + ' }';
 }
 
 function render_blocked(lines, seeds) {
@@ -230,14 +237,14 @@ function render_preload(seeds) {
 	render_blocked(lines, seeds);
 	render_learned(lines, seeds);
 	render_manual_locks(lines, seeds);
-	return join(lines, '\n') + '\n';
+	return join('\n', lines) + '\n';
 }
 
 function render_whitelist_txt(seeds) {
 	let hosts = sorted_unique_hosts(seeds.whitelist.hosts ?? []);
 	if (length(hosts) == 0)
 		return '';
-	return join(hosts, '\n') + '\n';
+	return join('\n', hosts) + '\n';
 }
 
 function load_seeds() {

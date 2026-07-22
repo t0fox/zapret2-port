@@ -147,7 +147,7 @@ jobs:
           # The comment-lint regression test (tests/test_ucode_comment_style.py)
           # is part of the suite and asserts no Lua-style -- comments remain in
           # shipped .uc sources while preserving -- inside string literals.
-          tail -n 3 /tmp/test-output.txt | grep -qE '^(OK|OK \(skipped=' && echo "tests OK" || {
+          tail -n 3 /tmp/test-output.txt | grep -q '^OK' && echo "tests OK" || {
             echo "FAIL: test suite did not pass"
             exit 1
           }

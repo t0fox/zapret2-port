@@ -726,7 +726,7 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         )
         # Create a fake preload wrapper that succeeds and creates placeholder
         # runtime files so the manager's preload check passes.
-        fake_preload = self.tmp / "fake-preload.sh"
+        fake_preload = Path(self.tmp) / "fake-preload.sh"
         fake_preload.write_text(
             "#!/bin/sh\n"
             "mkdir -p \"$ORCHESTRA_RUNTIME_DIR\"\n"
