@@ -471,6 +471,11 @@ jobs:
           # (${prefix}/lib/ucode/*.so). This means `ucode` resolves the fs
           # module automatically — no -L flag needed in any downstream step.
           sudo make install
+          # Register /usr/local/lib/libucode.so.0 with the dynamic linker
+          # cache so the installed ucode binary can find its shared library
+          # at runtime (cmake set the RPATH to empty, so without ldconfig
+          # or LD_LIBRARY_PATH the binary fails to start).
+          sudo ldconfig
           UCODE_HOST="$(command -v ucode)"
           if [ -z "$UCODE_HOST" ]; then
             echo "ERROR: ucode not on PATH after install"
