@@ -464,43 +464,51 @@ jobs:
             .
           echo "=== make ==="
           make -j$(nproc)
-          UCODE_HOST="/tmp/ucode-src/ucode"
-          if [ ! -x "$UCODE_HOST" ]; then
-            echo "ERROR: ucode binary not found at $UCODE_HOST"
-            find /tmp/ucode-src -name 'ucode' -type f 2>/dev/null || true
+          echo "=== sudo make install ==="
+          # Install to /usr/local so the ucode binary lands in /usr/local/bin
+          # (on PATH) and fs.so lands in /usr/local/lib/ucode/fs.so, which is
+          # part of ucode's compiled-in default LIB_SEARCH_PATH
+          # (${prefix}/lib/ucode/*.so). This means `ucode` resolves the fs
+          # module automatically — no -L flag needed in any downstream step.
+          sudo make install
+          UCODE_HOST="$(command -v ucode)"
+          if [ -z "$UCODE_HOST" ]; then
+            echo "ERROR: ucode not on PATH after install"
+            find /usr/local -name 'ucode' -type f 2>/dev/null || true
             exit 1
           fi
           echo "host ucode: $UCODE_HOST"
           "$UCODE_HOST" --version 2>&1 | head -n 3 || true
-          # Verify the fs module .so is built alongside.
-          FS_SO="$(find /tmp/ucode-src -name 'fs.so' -type f -print -quit)"
+          # Verify the fs module is installed where the default search path
+          # expects it.
+          FS_SO="$(find /usr/local/lib/ucode -name 'fs.so' -type f -print -quit 2>/dev/null || true)"
           if [ -z "$FS_SO" ]; then
-            echo "ERROR: ucode-mod-fs (fs.so) not built"
-            find /tmp/ucode-src -name '*.so' 2>/dev/null || true
+            echo "ERROR: fs.so not installed to /usr/local/lib/ucode/"
+            find /usr/local -name 'fs.so' 2>/dev/null || true
             exit 1
           fi
           echo "fs module: $FS_SO"
-          # Smoke test: // comments work, -- comments fail (proves we have
-          # the real ECMAScript-oriented ucode).
-          printf 'print("ok");\n' | "$UCODE_HOST" - 2>&1 | grep -q ok || {
-            echo "ERROR: ucode smoke test failed"
+          # Smoke test: // comments work (proves we have the real
+          # ECMAScript-oriented ucode), and the fs import resolves.
+          printf 'import { stat } from "fs";\nprint("ok");\n' | "$UCODE_HOST" - 2>&1 | grep -q ok || {
+            echo "ERROR: ucode fs import smoke test failed"
+            printf 'import { stat } from "fs";\nprint("ok");\n' | "$UCODE_HOST" - 2>&1 || true
             exit 1
           }
           printf '// cmt\nprint("ok2");\n' | "$UCODE_HOST" - 2>&1 | grep -q ok2 || {
             echo "ERROR: ucode // comment test failed"
             exit 1
           }
-          echo "OK: host ucode + fs module built and smoke-tested"
+          echo "OK: host ucode + fs module installed and smoke-tested"
 
       - name: ucode compile + Python runtime tests + sandbox sequence
         run: |
           set -eu
-          UCODE_HOST="/tmp/ucode-src/ucode"
-          HOST_LIB="$(dirname "$UCODE_HOST")"
-          HOST_UCODE_MODS="$(find /tmp/ucode-src -name 'fs.so' -printf '%h' -quit)"
-          export PATH="$HOST_LIB:$PATH"
-          export LD_LIBRARY_PATH="$HOST_LIB"
-          export UCODE_MOD_PATH="$HOST_UCODE_MODS"
+          # ucode was installed to /usr/local by the previous step, so it is
+          # on PATH and the fs module resolves through the compiled-in
+          # default search path (/usr/local/lib/ucode/*.so). No -L or
+          # UCODE_MOD_PATH needed.
+          export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
           echo "ucode on PATH: $(which ucode)"
           ucode --version 2>&1 | head -n 2 || true
 
