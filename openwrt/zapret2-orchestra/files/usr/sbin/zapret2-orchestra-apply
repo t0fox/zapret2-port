@@ -1,0 +1,58 @@
+#!/bin/sh
+# zapret2-orchestra-apply — Runtime manager CLI (Phase 1A: safe foundation).
+#
+# Usage:
+#   zapret2-orchestra-apply status                 report config/state/lock status as JSON
+#   zapret2-orchestra-apply validate-config        parse /opt/zapret2/config NFQWS2_OPT,
+#                                                  re-emit to a temp file, and run `sh -n`
+#                                                  on the result (parse-only, no execution)
+#   zapret2-orchestra-apply validate-profile NAME  validate a named profile
+#   zapret2-orchestra-apply lock-test              acquire and release the mkdir lock
+#   zapret2-orchestra-apply enable|disable|apply|rollback|boot-check
+#                                                  not implemented in Phase 1A
+#
+# Security: the config is parsed as text by the ucode manager and is NEVER
+# sourced or eval'd. The only shell execution is `sh -n` on a re-emitted
+# COPY written under /tmp, which is parse-only and never mutates the real
+# config. Phase 1A performs no live apply, no rollback, and no writes to
+# /opt/zapret2/config.
+#
+# Override paths via the ZAPRET2_* environment variables documented in
+# /usr/share/zapret2-orchestra/apply.uc (used by tests).
+
+UC=/usr/share/zapret2-orchestra/apply.uc
+SUB="${1:-}"
+[ $# -gt 0 ] && shift
+
+case "$SUB" in
+	validate-config)
+		tmp="${ZAPRET2_VALIDATE_OUT:-/tmp/zapret2-orchestra/validate-config.cfg}"
+		# Ensure the parent exists so ucode can write the re-emitted config.
+		mkdir -p "$(dirname "$tmp")" 2>/dev/null || true
+		report=$(ZAPRET2_VALIDATE_OUT="$tmp" ucode "$UC" validate-config)
+		rc=$?
+		printf '%s\n' "$report"
+		if [ "$rc" -eq 0 ] && [ -f "$tmp" ]; then
+			# sh -n is parse-only: it checks shell syntax WITHOUT executing
+			# the file. This validates that the transformed output is valid
+			# shell without ever running untrusted content.
+			if sh -n "$tmp" 2>/dev/null; then
+				printf '{"sh_n_ok":true,"validate":"%s"}\n' "$tmp"
+			else
+				printf '{"sh_n_ok":false,"validate":"%s"}\n' "$tmp"
+				rc=1
+			fi
+		else
+			printf '{"sh_n_ok":false,"reason":"parse_failed"}\n'
+		fi
+		exit "$rc"
+		;;
+	""|status|validate-profile|lock-test|enable|disable|apply|rollback|boot-check)
+		exec ucode "$UC" "$SUB" "$@"
+		;;
+	*)
+		printf '%s\n' "zapret2-orchestra-apply: unknown subcommand '$SUB'" >&2
+		printf '%s\n' "usage: zapret2-orchestra-apply {status|validate-config|validate-profile <name>|lock-test|enable|disable|apply|rollback|boot-check}" >&2
+		exit 2
+		;;
+esac

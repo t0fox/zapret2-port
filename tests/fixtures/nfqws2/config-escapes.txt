@@ -1,0 +1,3 @@
+A=1
+NFQWS2_OPT="line with \"escaped quote\" and \\backslash and $dollar"
+B=2

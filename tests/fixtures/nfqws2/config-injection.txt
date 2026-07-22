@@ -1,0 +1,3 @@
+A=1
+NFQWS2_OPT="value containing $(reboot) and `touch /tmp/pwn` and ; rm -rf / ; which is just text"
+B=2

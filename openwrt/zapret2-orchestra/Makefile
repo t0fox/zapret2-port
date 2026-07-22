@@ -60,8 +60,14 @@ define Package/zapret2-orchestra/install
 	# preload generator, manifest checker and shell wrapper
 	$(INSTALL_DIR) $(1)/usr/share/zapret2-orchestra
 	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/generate-preload.uc $(1)/usr/share/zapret2-orchestra/generate-preload.uc
+	# runtime manager (Phase 1A): safe NFQWS2_OPT parser/transformer,
+	# atomic JSON state, mkdir lock, profile validator, CLI dispatcher.
+	# Never sources/evals the config; the CLI wrapper runs `sh -n` on a
+	# temp copy only.
+	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/apply.uc $(1)/usr/share/zapret2-orchestra/apply.uc
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-preload $(1)/usr/sbin/zapret2-orchestra-preload
+	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-apply $(1)/usr/sbin/zapret2-orchestra-apply
 	# boot hook (one-shot backup regeneration, START=20 runs before zapret2 START=21)
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(CURDIR)/files/etc/init.d/zapret2-orchestra $(1)/etc/init.d/zapret2-orchestra

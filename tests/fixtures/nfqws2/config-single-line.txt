@@ -1,0 +1,3 @@
+A=1
+NFQWS2_OPT="simple single-line value"
+B=2
