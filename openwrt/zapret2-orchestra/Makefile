@@ -75,6 +75,10 @@ define Package/zapret2-orchestra/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-preload $(1)/usr/sbin/zapret2-orchestra-preload
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-apply $(1)/usr/sbin/zapret2-orchestra-apply
+	# working-prototype CLI: ready profile selection. Lists/shows/validates/
+	# enables/disables profiles by dispatching to the transactional manager
+	# (never evals profile content).
+	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-profile $(1)/usr/sbin/zapret2-orchestra-profile
 	# boot hook (one-shot backup regeneration, START=20 runs before zapret2 START=21)
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(CURDIR)/files/etc/init.d/zapret2-orchestra $(1)/etc/init.d/zapret2-orchestra
