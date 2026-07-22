@@ -21,6 +21,12 @@
 START=20
 
 start() {
+	# Phase 1B: run the boot-time integrity check first. This detects an
+	# interrupted apply (persistent state=applying), recovers from backup if
+	# needed, and regenerates the preload if missing. It does NOT start or
+	# health-check the zapret2 service (that starts later at START=21).
+	/usr/sbin/zapret2-orchestra-apply boot-check
+	# Backup preload regeneration (in case boot-check did not already do it).
 	/usr/sbin/zapret2-orchestra-preload
 }
 

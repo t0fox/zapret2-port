@@ -1,21 +1,22 @@
 #!/bin/sh
-# zapret2-orchestra-apply — Runtime manager CLI (Phase 1A: safe foundation).
+# zapret2-orchestra-apply — Runtime manager CLI (Phase 1B: transactional).
 #
 # Usage:
 #   zapret2-orchestra-apply status                 report config/state/lock status as JSON
-#   zapret2-orchestra-apply validate-config        parse /opt/zapret2/config NFQWS2_OPT,
-#                                                  re-emit to a temp file, and run `sh -n`
-#                                                  on the result (parse-only, no execution)
+#   zapret2-orchestra-apply validate-config        parse config, re-emit to temp, run sh -n
 #   zapret2-orchestra-apply validate-profile NAME  validate a named profile
 #   zapret2-orchestra-apply lock-test              acquire and release the mkdir lock
-#   zapret2-orchestra-apply enable|disable|apply|rollback|boot-check
-#                                                  not implemented in Phase 1A
+#   zapret2-orchestra-apply apply NAME             apply a profile to the config (transactional)
+#   zapret2-orchestra-apply enable [NAME]          apply profile + mark Orchestra enabled
+#   zapret2-orchestra-apply disable                restore last backup, mark disabled
+#   zapret2-orchestra-apply rollback [--force] [--gen N]  restore a backup generation
+#   zapret2-orchestra-apply boot-check             boot-time integrity check + recovery
 #
 # Security: the config is parsed as text by the ucode manager and is NEVER
-# sourced or eval'd. The only shell execution is `sh -n` on a re-emitted
-# COPY written under /tmp, which is parse-only and never mutates the real
-# config. Phase 1A performs no live apply, no rollback, and no writes to
-# /opt/zapret2/config.
+# sourced or eval'd. The ucode manager uses array-form popen() (execvp, no
+# shell) for sh -n on candidate configs and for the preload wrapper. The
+# validate-config subcommand also runs sh -n on a re-emitted copy via this
+# wrapper. sh -n is parse-only: it never executes the config.
 #
 # Override paths via the ZAPRET2_* environment variables documented in
 # /usr/share/zapret2-orchestra/apply.uc (used by tests).
@@ -47,12 +48,12 @@ case "$SUB" in
 		fi
 		exit "$rc"
 		;;
-	""|status|validate-profile|lock-test|enable|disable|apply|rollback|boot-check)
+	""|status|validate-profile|lock-test|apply|enable|disable|rollback|boot-check)
 		exec ucode "$UC" "$SUB" "$@"
 		;;
 	*)
 		printf '%s\n' "zapret2-orchestra-apply: unknown subcommand '$SUB'" >&2
-		printf '%s\n' "usage: zapret2-orchestra-apply {status|validate-config|validate-profile <name>|lock-test|enable|disable|apply|rollback|boot-check}" >&2
+		printf '%s\n' "usage: zapret2-orchestra-apply {status|validate-config|validate-profile <name>|lock-test|apply <name>|enable [name]|disable|rollback [--force]|boot-check}" >&2
 		exit 2
 		;;
 esac

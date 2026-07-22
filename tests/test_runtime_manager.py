@@ -51,11 +51,16 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
 
     def test_apply_uc_uses_strict_and_fs_only(self) -> None:
         self.assertIn("'use strict';", self.uc)
-        self.assertIn("import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname } from 'fs';", self.uc)
+        self.assertIn("import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname, popen } from 'fs';", self.uc)
         # readlink must NOT be imported — it is unused.
         self.assertNotIn("readlink", self.uc)
-        # No shell execution primitives inside the ucode manager.
-        for forbidden in (r"\bsystem\s*\(", r"\bpopen\s*\(", r"\bexec\s*\(", r"fs\.open\s*\("):
+        # Array-form popen (execvp, no shell) is allowed for sh -n and the
+        # preload wrapper. String-form popen (which invokes /bin/sh -c) is
+        # forbidden — it would interpret arguments as shell syntax.
+        self.assertNotRegex(self.uc, r"popen\s*\(\s*['\"]")
+        self.assertRegex(self.uc, r"popen\s*\(\s*\[")
+        # No other shell execution primitives inside the ucode manager.
+        for forbidden in (r"\bsystem\s*\(", r"\bexec\s*\(", r"fs\.open\s*\("):
             self.assertIsNone(re.search(forbidden, self.uc), forbidden)
 
     def test_apply_uc_has_all_components(self) -> None:
@@ -64,6 +69,8 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
             "escape_value",
             "transform_nfqws2_opt",
             "hash31",
+            "run_sh_n",
+            "run_preload",
             "atomic_write_state",
             "validate_state",
             "read_state",
@@ -76,7 +83,12 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
             "cmd_validate_config",
             "cmd_validate_profile",
             "cmd_lock_test",
-            "cmd_not_implemented",
+            "cmd_apply",
+            "cmd_enable",
+            "cmd_disable",
+            "cmd_rollback",
+            "cmd_boot_check",
+            "do_apply_transaction",
         ):
             self.assertIn(sym, self.uc, sym)
 
@@ -100,13 +112,58 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
         self.assertNotIn("nfqws2_opt_value", self.uc)
         self.assertNotIn("full_value", self.uc)
 
-    def test_apply_uc_not_implemented_commands_return_phase_1a(self) -> None:
-        for cmd in ("enable", "disable", "apply", "rollback", "boot-check"):
-            self.assertIn(cmd, self.uc, cmd)
-        self.assertIn("not-implemented-phase-1a", self.uc)
-        # The not-implemented exit code is non-zero (2), not 0.
-        self.assertIn("function cmd_not_implemented", self.uc)
-        self.assertIn("exit(2)", self.uc)
+    def test_apply_uc_transaction_uses_same_fs_candidate(self) -> None:
+        # The candidate must be on the same filesystem as the config for
+        # an atomic rename. /opt/zapret2/.config.orchestra.tmp → /opt/zapret2/config.
+        self.assertIn("CANDIDATE_FILE", self.uc)
+        self.assertIn("rename(CANDIDATE_FILE, CONFIG_FILE)", self.uc)
+        self.assertIn("/opt/zapret2/.config.orchestra.tmp", self.uc)
+        # The candidate must NOT be under /tmp (cross-filesystem rename is
+        # not atomic).
+        self.assertNotIn("/tmp/.config.orchestra", self.uc)
+
+    def test_apply_uc_writes_state_applying_before_rename(self) -> None:
+        # The applying marker must be written BEFORE the config rename,
+        # within the apply transaction function body.
+        fn_start = self.uc.index("function do_apply_transaction")
+        fn_end = self.uc.index("-- ----", fn_start + 10)
+        fn_body = self.uc[fn_start:fn_end]
+        applying_pos = fn_body.index("state.states = ['applying']")
+        rename_pos = fn_body.index("rename(CANDIDATE_FILE, CONFIG_FILE)")
+        self.assertLess(applying_pos, rename_pos, "state=applying must be written before rename in do_apply_transaction")
+
+    def test_apply_uc_generation_only_after_success(self) -> None:
+        # generation++ must happen AFTER the rename and preload checks,
+        # not before.
+        rename_pos = self.uc.index("rename(CANDIDATE_FILE, CONFIG_FILE)")
+        gen_inc_pos = self.uc.index("state.generation = gen + 1")
+        self.assertLess(rename_pos, gen_inc_pos, "generation must increase only after rename")
+
+    def test_apply_uc_rollback_no_relock(self) -> None:
+        # internal_rollback must NOT call lock_acquire (no nested lock).
+        rollback_body_start = self.uc.index("function internal_rollback")
+        rollback_body_end = self.uc.index("-- ----", rollback_body_start + 10)
+        rollback_body = self.uc[rollback_body_start:rollback_body_end]
+        self.assertNotIn("lock_acquire", rollback_body, "internal_rollback must not re-acquire the lock")
+        self.assertNotIn("lock_release", rollback_body, "internal_rollback must not release the lock")
+
+    def test_apply_uc_rollback_conflict_and_force(self) -> None:
+        self.assertIn("rollback-conflict", self.uc)
+        self.assertIn("--force", self.uc)
+        # Without --force, rollback must refuse to overwrite a drifted config.
+        self.assertIn("use --force to override", self.uc)
+
+    def test_apply_uc_boot_check_no_health_check(self) -> None:
+        self.assertIn("cmd_boot_check", self.uc)
+        self.assertIn("health_check", self.uc)
+        self.assertIn("not-run", self.uc)
+        # boot-check must NOT start or restart the zapret2 service.
+        self.assertNotRegex(self.uc, r"/etc/init\.d/zapret2\s+(start|stop|restart|reload)")
+
+    def test_apply_uc_candidate_is_not_tmp_for_rename(self) -> None:
+        # The final rename target must be CONFIG_FILE, and the source must
+        # be CANDIDATE_FILE (same FS), not a /tmp path.
+        self.assertIn("rename(CANDIDATE_FILE, CONFIG_FILE)", self.uc)
 
     def test_apply_uc_status_reports_state_and_lock_but_not_value(self) -> None:
         # status emits JSON with the config/state/lock summary. The NFQWS2_OPT
@@ -167,10 +224,11 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
 
     def test_apply_uc_validate_config_writes_only_to_temp(self) -> None:
         # validate-config writes to VALIDATE_OUT (a temp under /tmp), never
-        # to CONFIG_FILE.
+        # to CONFIG_FILE. The apply transaction writes to CANDIDATE_FILE
+        # (same FS) then renames — never writefile to CONFIG_FILE.
         self.assertIn("VALIDATE_OUT", self.uc)
         self.assertIn("writefile(VALIDATE_OUT", self.uc)
-        # No writefile to CONFIG_FILE anywhere in the manager.
+        # No writefile to CONFIG_FILE anywhere in the manager (only rename).
         self.assertNotIn("writefile(CONFIG_FILE", self.uc)
 
     def test_apply_uc_atomic_state_write_uses_tmp_and_rename(self) -> None:
@@ -649,6 +707,8 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.runtime.mkdir()
         self.orch = Path(self.tmp) / "orch"
         self.orch.mkdir()
+        self.opt = Path(self.tmp) / "opt" / "zapret2"
+        self.opt.mkdir(parents=True)
         self.user_profiles = Path(self.tmp) / "user-profiles"
         self.user_profiles.mkdir()
         self.builtin_profiles = Path(self.tmp) / "builtin-profiles"
@@ -659,6 +719,32 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         (self.orch / "whitelist.json").write_text(
             json.dumps({"schema_version": 1, "hosts": []}), encoding="utf-8"
         )
+        # Copy the builtin profile into the test builtin dir
+        builtin = PACKAGE / "files/usr/share/zapret2-orchestra/profiles/orchestra-tls-mvp.opt"
+        (self.builtin_profiles / "orchestra-tls-mvp.opt").write_text(
+            builtin.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        # Create a fake preload wrapper that succeeds and creates placeholder
+        # runtime files so the manager's preload check passes.
+        fake_preload = self.tmp / "fake-preload.sh"
+        fake_preload.write_text(
+            "#!/bin/sh\n"
+            "mkdir -p \"$ORCHESTRA_RUNTIME_DIR\"\n"
+            'case "$1" in\n'
+            "  generate)\n"
+            '    echo "preload" > "$ORCHESTRA_RUNTIME_DIR/preload.lua"\n'
+            '    echo "whitelist" > "$ORCHESTRA_RUNTIME_DIR/whitelist.txt"\n'
+            '    echo \'{"schema_version":1}\' > "$ORCHESTRA_RUNTIME_DIR/manifest.json"\n'
+            "    exit 0 ;;\n"
+            "  check)\n"
+            "    [ -f \"$ORCHESTRA_RUNTIME_DIR/preload.lua\" ] && exit 0 || exit 1 ;;\n"
+            "  *) exit 1 ;;\n"
+            "esac\n",
+            encoding="utf-8",
+        )
+        fake_preload.chmod(0o755)
+        # Write a default config so most tests don't need to set it up
+        self._write_default_config()
 
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -674,14 +760,23 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         env["ZAPRET2_STATE_FILE"] = str(self.orch / "manager-state.json")
         env["ZAPRET2_LOCK_DIR"] = str(self.runtime / "apply.lock")
         env["ZAPRET2_VALIDATE_OUT"] = str(self.runtime / "validate-config.cfg")
+        env["ZAPRET2_CANDIDATE_FILE"] = str(self.opt / ".config.orchestra.tmp")
+        env["ZAPRET2_BACKUP_DIR"] = str(self.orch / "backup")
+        env["ZAPRET2_CONFIG"] = str(self.opt / "config")
+        env["ZAPRET2_PRELOAD_WRAPPER"] = str(self.tmp / "fake-preload.sh")
         return env
+
+    def _write_default_config(self, nfqws2_opt: str = "--lua-desync=fake:blob=default") -> None:
+        """Write a valid config with the given NFQWS2_OPT value."""
+        (self.opt / "config").write_text(
+            f'NFQWS2_ENABLE=0\nNFQWS2_OPT="{nfqws2_opt}"\nMODE_FILTER=none\n',
+            encoding="utf-8",
+        )
 
     def _run(self, *args: str, config_text: str | None = None) -> subprocess.CompletedProcess:
         env = self._env()
         if config_text is not None:
-            cfg = Path(self.tmp) / "config"
-            cfg.write_text(config_text, encoding="utf-8")
-            env["ZAPRET2_CONFIG"] = str(cfg)
+            (self.opt / "config").write_text(config_text, encoding="utf-8")
         return subprocess.run(
             [self.ucode, str(APPLY_UC), *args],
             env=env,
@@ -693,9 +788,7 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
     def _run_wrapper(self, *args: str, config_text: str | None = None) -> subprocess.CompletedProcess:
         env = self._env()
         if config_text is not None:
-            cfg = Path(self.tmp) / "config"
-            cfg.write_text(config_text, encoding="utf-8")
-            env["ZAPRET2_CONFIG"] = str(cfg)
+            (self.opt / "config").write_text(config_text, encoding="utf-8")
         # The wrapper execs ucode; run it through sh for the case statement.
         return subprocess.run(
             ["sh", str(APPLY_WRAPPER), *args],
@@ -813,15 +906,25 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         # The lock dir is gone after release.
         self.assertFalse((self.runtime / "apply.lock").exists())
 
-    def test_not_implemented_commands_return_phase_1a(self) -> None:
-        for cmd in ("enable", "disable", "apply", "rollback", "boot-check"):
+    def test_transactional_commands_are_implemented(self) -> None:
+        # In Phase 1B, enable/disable/apply/rollback/boot-check are implemented.
+        # They must NOT return "not-implemented-phase-1a".
+        for cmd in ("apply", "enable", "disable", "rollback", "boot-check"):
             with self.subTest(cmd=cmd):
-                r = self._run(cmd)
-                self.assertEqual(r.returncode, 2, f"{cmd}: {r.stderr}")
-                doc = json.loads(r.stdout)
-                self.assertFalse(doc["ok"])
-                self.assertEqual(doc["error"], "not-implemented-phase-1a")
-                self.assertEqual(doc["command"], cmd)
+                if cmd == "apply":
+                    r = self._run(cmd, "orchestra-tls-mvp")
+                elif cmd == "enable":
+                    r = self._run(cmd, "orchestra-tls-mvp")
+                elif cmd == "disable":
+                    r = self._run(cmd)
+                elif cmd == "rollback":
+                    r = self._run(cmd, "--force")
+                else:
+                    r = self._run(cmd)
+                if r.stdout.strip():
+                    doc = json.loads(r.stdout)
+                    self.assertNotEqual(doc.get("error"), "not-implemented-phase-1a",
+                                        f"{cmd} still returns not-implemented")
 
     def test_atomic_state_write_and_read(self) -> None:
         # We can't directly call atomic_write_state from outside, but status
@@ -855,6 +958,211 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         # The wrapper emits a sh_n_ok:true line.
         self.assertIn('"sh_n_ok":true', r.stdout)
+
+    # ------------------------------------------------------------------
+    # Phase 1B transactional tests
+    # ------------------------------------------------------------------
+
+    def test_apply_success(self) -> None:
+        r = self._run("apply", "orchestra-tls-mvp")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        doc = json.loads(r.stdout)
+        self.assertTrue(doc["ok"])
+        self.assertEqual(doc["command"], "apply")
+        self.assertEqual(doc["profile"], "orchestra-tls-mvp")
+        self.assertEqual(doc["generation"], 1)
+        # Config was modified — the NFQWS2_OPT value should now contain circular_quality
+        cfg = (self.opt / "config").read_text(encoding="utf-8")
+        self.assertIn("circular_quality", cfg)
+        # A backup was created
+        backups = list((self.orch / "backup").glob("config.gen-*.bak"))
+        self.assertEqual(len(backups), 1)
+
+    def test_apply_validation_failure_no_config_change(self) -> None:
+        # Make sh -n fail by creating a profile with invalid shell syntax.
+        # We can't easily make sh -n fail on a well-formed config, so we
+        # test parse failure instead: remove NFQWS2_OPT from the config.
+        self._write_default_config()
+        (self.opt / "config").write_text("A=1\nB=2\n", encoding="utf-8")
+        before = (self.opt / "config").read_bytes()
+        r = self._run("apply", "orchestra-tls-mvp")
+        self.assertNotEqual(r.returncode, 0)
+        after = (self.opt / "config").read_bytes()
+        self.assertEqual(before, after, "config was changed despite validation failure")
+        # No backup created
+        self.assertFalse((self.orch / "backup").exists())
+
+    def test_apply_generation_increments_only_on_success(self) -> None:
+        # First successful apply
+        r1 = self._run("apply", "orchestra-tls-mvp")
+        self.assertEqual(r1.returncode, 0, r1.stderr)
+        self.assertEqual(json.loads(r1.stdout)["generation"], 1)
+        # Second successful apply
+        r2 = self._run("apply", "orchestra-tls-mvp")
+        self.assertEqual(r2.returncode, 0, r2.stderr)
+        self.assertEqual(json.loads(r2.stdout)["generation"], 2)
+        # Failed apply (broken config) — generation must NOT increase
+        (self.opt / "config").write_text("A=1\n", encoding="utf-8")
+        r3 = self._run("apply", "orchestra-tls-mvp")
+        self.assertNotEqual(r3.returncode, 0)
+        # State generation should still be 2
+        state = json.loads((self.orch / "manager-state.json").read_text())
+        self.assertEqual(state["generation"], 2)
+
+    def test_apply_candidate_same_filesystem(self) -> None:
+        # The candidate file must be under /opt (same FS as config), not /tmp.
+        # We verify by checking that CANDIDATE_FILE is a sibling of CONFIG_FILE.
+        env = self._env()
+        candidate = env["ZAPRET2_CANDIDATE_FILE"]
+        config = env["ZAPRET2_CONFIG"]
+        self.assertEqual(str(Path(candidate).parent), str(Path(config).parent))
+
+    def test_apply_injection_payloads_not_executed(self) -> None:
+        # A profile containing $(reboot) must be REJECTED by profile_value_ok
+        # before any config change.
+        (self.user_profiles / "evil.opt").write_text(
+            'NFQWS2_OPT="--lua-desync=circular_quality:blob=$(reboot)"\n',
+            encoding="utf-8",
+        )
+        before = (self.opt / "config").read_bytes()
+        r = self._run("apply", "evil")
+        self.assertNotEqual(r.returncode, 0)
+        after = (self.opt / "config").read_bytes()
+        self.assertEqual(before, after, "config was changed by injection attempt")
+
+    def test_rollback_restores_backup(self) -> None:
+        # First apply to create a backup
+        r1 = self._run("apply", "orchestra-tls-mvp")
+        self.assertEqual(r1.returncode, 0, r1.stderr)
+        applied_cfg = (self.opt / "config").read_bytes()
+        # Now manually change the config (simulating a second apply or edit)
+        self._write_default_config("--lua-desync=something_else")
+        # Rollback should restore the backup
+        r2 = self._run("rollback", "--force")
+        self.assertEqual(r2.returncode, 0, r2.stderr)
+        doc = json.loads(r2.stdout)
+        self.assertTrue(doc["ok"])
+        self.assertTrue(doc["forced"])
+        restored_cfg = (self.opt / "config").read_text(encoding="utf-8")
+        self.assertIn("circular_quality", restored_cfg)
+
+    def test_rollback_conflict_without_force(self) -> None:
+        # Apply to create state
+        r1 = self._run("apply", "orchestra-tls-mvp")
+        self.assertEqual(r1.returncode, 0, r1.stderr)
+        # Externally modify the config (drift)
+        self._write_default_config("--lua-desync=external_edit")
+        # Rollback without --force should detect conflict
+        r2 = self._run("rollback")
+        self.assertNotEqual(r2.returncode, 0)
+        doc = json.loads(r2.stdout)
+        self.assertFalse(doc["ok"])
+        self.assertEqual(doc["error"], "rollback-conflict")
+        # Config should NOT be changed
+        cfg = (self.opt / "config").read_text(encoding="utf-8")
+        self.assertIn("external_edit", cfg)
+
+    def test_rollback_force_overrides_conflict(self) -> None:
+        # Apply, drift, then --force rollback
+        self._run("apply", "orchestra-tls-mvp")
+        self._write_default_config("--lua-desync=external_edit")
+        r = self._run("rollback", "--force")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        doc = json.loads(r.stdout)
+        self.assertTrue(doc["ok"])
+        self.assertTrue(doc["forced"])
+        self.assertTrue(doc["drift"])
+
+    def test_enable_disable_idempotent(self) -> None:
+        # First enable
+        r1 = self._run("enable", "orchestra-tls-mvp")
+        self.assertEqual(r1.returncode, 0, r1.stderr)
+        # Second enable (same profile) — idempotent
+        r2 = self._run("enable", "orchestra-tls-mvp")
+        self.assertEqual(r2.returncode, 0, r2.stderr)
+        doc2 = json.loads(r2.stdout)
+        self.assertTrue(doc2["idempotent"])
+        # Disable
+        r3 = self._run("disable")
+        self.assertEqual(r3.returncode, 0, r3.stderr)
+        # Second disable — idempotent
+        r4 = self._run("disable")
+        self.assertEqual(r4.returncode, 0, r4.stderr)
+        doc4 = json.loads(r4.stdout)
+        self.assertTrue(doc4["idempotent"])
+
+    def test_repeated_enable_disable_cycle(self) -> None:
+        for _ in range(3):
+            r_en = self._run("enable", "orchestra-tls-mvp")
+            self.assertEqual(r_en.returncode, 0, r_en.stderr)
+            state = json.loads((self.orch / "manager-state.json").read_text())
+            self.assertTrue(state["enabled"])
+            r_dis = self._run("disable")
+            self.assertEqual(r_dis.returncode, 0, r_dis.stderr)
+            state = json.loads((self.orch / "manager-state.json").read_text())
+            self.assertFalse(state["enabled"])
+
+    def test_boot_check_detects_interrupted_apply(self) -> None:
+        # Simulate an interrupted apply by writing state=applying manually
+        state = {
+            "schema_version": 1,
+            "states": ["applying"],
+            "generation": 5,
+            "previous_state": None,
+            "enabled": False,
+            "profile": None,
+            "applying_gen": 5,
+            "applying_backup": None,
+            "hash_algorithm": "djb2-31",
+            "hashes": {"nfqws2_opt": "00000000", "preload": "00000000", "whitelist": "00000000", "manifest": "00000000"},
+            "updated_at": 0,
+            "last_error": None,
+            "warnings": [],
+        }
+        (self.orch / "manager-state.json").write_text(json.dumps(state) + "\n", encoding="utf-8")
+        # Create a backup so boot-check can restore
+        (self.orch / "backup").mkdir()
+        (self.orch / "backup" / "config.gen-5.bak").write_text(
+            'NFQWS2_OPT="--lua-desync=circular_quality:key=tls"\n', encoding="utf-8"
+        )
+        r = self._run("boot-check")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        doc = json.loads(r.stdout)
+        self.assertTrue(doc["ok"])
+        self.assertTrue(doc["was_applying"])
+        # State should be recovered to idle
+        state2 = json.loads((self.orch / "manager-state.json").read_text())
+        self.assertIn("idle", state2["states"])
+
+    def test_boot_check_no_health_check(self) -> None:
+        r = self._run("boot-check")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        doc = json.loads(r.stdout)
+        self.assertIn("not-run", doc["health_check"])
+
+    def test_no_nested_lock_in_rollback(self) -> None:
+        # If apply fails after rename, internal_rollback is called without
+        # re-acquiring the lock. We verify statically that internal_rollback
+        # does not contain lock_acquire.
+        # (Already covered by test_apply_uc_rollback_no_relock, but this is
+        # a runtime confirmation that the lock is released after a failed
+        # apply, proving no lock leak.)
+        # Make preload fail by removing the fake wrapper
+        env = self._env()
+        env["ZAPRET2_PRELOAD_WRAPPER"] = "/nonexistent/path"
+        (self.opt / "config").write_text(
+            'NFQWS2_OPT="--lua-desync=fake"\n', encoding="utf-8"
+        )
+        r = subprocess.run(
+            [self.ucode, str(APPLY_UC), "apply", "orchestra-tls-mvp"],
+            env=env, capture_output=True, text=True, timeout=10,
+        )
+        # The apply should fail (preload can't run), but the lock should be
+        # released. We verify by running lock-test after.
+        r2 = self._run("lock-test")
+        self.assertEqual(r2.returncode, 0, r2.stderr)
+        lines = [json.loads(l) for l in r2.stdout.strip().split("\n") if l.strip()]
+        self.assertTrue(lines[0]["ok"], "lock was not released after failed apply")
 
 
 if __name__ == "__main__":
