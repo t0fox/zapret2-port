@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout zapret2-port
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -47,6 +47,8 @@ jobs:
           set -eu
           sudo apt-get update
           sudo apt-get install -y cmake libjson-c-dev
+          # Diagnostics dir for the validate artifact (uploaded with if: always()).
+          mkdir -p "$GITHUB_WORKSPACE/diagnostics"
 
       - name: Build and install host ucode (pinned commit)
         run: |
@@ -79,7 +81,12 @@ jobs:
           # the installed ucode binary can start (cmake sets empty RPATH).
           sudo ldconfig
           echo "ucode: $(command -v ucode)"
-          ucode --version 2>&1 | head -n 2 || true
+          # ucode has no --version flag (its getopt optspec has no v/V, so
+          # `--version`/`-v` print "invalid option"). The pinned commit SHA is
+          # the authoritative build identity; capture `ucode -h` for the
+          # diagnostic artifact.
+          echo "ucode pinned build: $UCODE_PIN (checked out: $(git rev-parse HEAD))"
+          ucode -h > "$GITHUB_WORKSPACE/diagnostics/ucode-help.txt" 2>&1 || true
 
       - name: Smoke-test host ucode (fs import + comment style)
         run: |
@@ -97,66 +104,113 @@ jobs:
           }
           echo "OK: host ucode smoke-tested"
 
-      - name: Compile/parse all shipped ucode sources
+      - name: Compile/parse all shipped ucode sources (incl. rpcd backend)
         run: |
           set -eu
-          # ucode -c compiles (parses) without executing. A syntax error here
-          # is the gate that would have caught the Lua-style -- comment bug.
-          #
-          # apply.uc and generate-preload.uc import only the 'fs' module (built
-          # with FS_SUPPORT=ON), so they can be fully compile-checked here.
-          # The rpcd backend (zapret2.orchestra) imports 'uci' which is an
-          # OpenWrt-specific module not available on the runner; it is covered
-          # by the comment-lint regression test (test_ucode_comment_style.py,
-          # which scans all three sources for Lua-style -- comments) and by the
-          # static contract tests in test_status_contract.py.
-          for uc in \
-            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/apply.uc" \
-            "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc"
-          do
-            echo "--- ucode -c $(basename "$uc") ---"
-            ucode -c "$uc"
-            echo "compile_rc=$?"
+          DIAG="$GITHUB_WORKSPACE/diagnostics"
+          CI_MODDIR="$GITHUB_WORKSPACE/tests/ci"
+          ORCH="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files"
+          mkdir -p "$DIAG"
+          # Environment paths for the diagnostic artifact (no secrets).
+          {
+            echo "ucode_pin=$UCODE_PIN"
+            echo "ucode_bin=$(command -v ucode)"
+            echo "github_workspace=$GITHUB_WORKSPACE"
+            echo "ci_moddir=$CI_MODDIR"
+            echo "runner_os=${RUNNER_OS:-}"
+          } > "$DIAG/env.txt"
+          # ucode CLI (verified from main.c optspec "he:p:tg:ST::RD:F:U:l:L:c::o:s"):
+          #   -L <dir>   prepend <dir>/*.so and <dir>/*.uc to the module search path
+          #   -c         compile to bytecode (parse) without executing; still resolves imports
+          #   -o <path>  bytecode output (default ./uc.out) -> /dev/null, no binary in the tree
+          # The rpcd backend imports 'uci' (OpenWrt-native, absent on the runner).
+          # tests/ci/uci.uc is a CI-only stub exporting cursor() so that import
+          # resolves via -L tests/ci. The rpcd backend is NOT excluded from this
+          # syntax gate -- all three sources are -c compiled for real.
+          # --- 1) prove the uci stub resolves + cursor() is callable (separate command) ---
+          printf 'import { cursor } from "uci";\ncursor();\nprint("uci_stub_ok");\n' > "$DIAG/uci-stub-test.uc"
+          set +e
+          ucode -L "$CI_MODDIR" "$DIAG/uci-stub-test.uc" > "$DIAG/uci-stub-test.out" 2>"$DIAG/uci-stub-test.err"
+          STUB_RC=$?
+          set -e
+          echo "--- uci stub resolution test (rc=$STUB_RC) ---"
+          cat "$DIAG/uci-stub-test.out"
+          if [ "$STUB_RC" -ne 0 ] || ! grep -q 'uci_stub_ok' "$DIAG/uci-stub-test.out"; then
+            echo "FAIL: uci stub did not resolve (rc=$STUB_RC)"
+            echo "--- stderr ---"
+            cat "$DIAG/uci-stub-test.err"
+            exit 1
+          fi
+          echo "OK: uci stub resolves, cursor() callable"
+          # --- 2) -c compile every shipped source, capturing per-file stdout/stderr/rc ---
+          : > "$DIAG/compile-summary.txt"
+          SRC_ARR=(
+            "$ORCH/usr/share/zapret2-orchestra/apply.uc"
+            "$ORCH/usr/share/zapret2-orchestra/generate-preload.uc"
+            "$ORCH/usr/share/rpcd/ucode/zapret2.orchestra"
+          )
+          for uc in "${SRC_ARR[@]}"; do
+            name="$(basename "$uc")"
+            echo "--- ucode -c $name ---" | tee -a "$DIAG/compile-summary.txt"
+            set +e
+            ucode -L "$CI_MODDIR" -c -o /dev/null "$uc" >"$DIAG/${name}.compile.stdout" 2>"$DIAG/${name}.compile.stderr"
+            RC=$?
+            set -e
+            echo "rc=$RC file=$name" | tee -a "$DIAG/compile-summary.txt"
+            echo "command=ucode -L $CI_MODDIR -c -o /dev/null $uc" | tee -a "$DIAG/compile-summary.txt"
+            if [ -s "$DIAG/${name}.compile.stderr" ]; then
+              echo "--- stderr ---" | tee -a "$DIAG/compile-summary.txt"
+              cat "$DIAG/${name}.compile.stderr" | tee -a "$DIAG/compile-summary.txt"
+            fi
+            if [ "$RC" -ne 0 ]; then
+              echo "FAIL: $name compile failed (rc=$RC) - full stderr above" | tee -a "$DIAG/compile-summary.txt"
+              exit 1
+            fi
+            echo "OK: $name compiled" | tee -a "$DIAG/compile-summary.txt"
           done
-          echo "=== comment-lint check on rpcd backend (uci module not available for -c) ==="
-          # Verify the rpcd backend has no Lua-style -- comments using the
-          # same lexer the regression test uses.
-          python3 -c "
-          import sys; sys.path.insert(0, '$GITHUB_WORKSPACE/tests')
-          from _ucode_comment_lint import scan_source
-          from pathlib import Path
-          src = Path('$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/rpcd/ucode/zapret2.orchestra')
-          comments, _ = scan_source(src.read_text())
-          assert comments == [], f'{len(comments)} Lua-style -- comments in rpcd backend'
-          print('OK: rpcd backend has no Lua-style -- comments')
-          "
+          echo "=== all shipped ucode sources compile ==="
 
       - name: Python tests (ucode runtime tests must NOT skip)
         run: |
-          set -eu
+          set -uo pipefail
           cd "$GITHUB_WORKSPACE"
-          python3 -m unittest discover -s tests -v 2>&1 | tee /tmp/test-output.txt
-          # The CI gap: ucode runtime tests were skipped because ucode was not
-          # on PATH. Now that it is, zero skips from ucode absence are allowed.
-          UCODE_SKIPS=$(grep -c 'ucode executable not found on PATH' /tmp/test-output.txt || true)
+          DIAG="$GITHUB_WORKSPACE/diagnostics"
+          mkdir -p "$DIAG"
+          # pipefail + ${PIPESTATUS[0]} = unittest's real exit code, preserved
+          # through tee. Replaces the fragile `tail -n 3 | grep '^OK'` heuristic
+          # that broke if unittest's summary line format ever changed.
+          python3 -m unittest discover -s tests -v 2>&1 | tee "$DIAG/python-tests.log"
+          PY_RC=${PIPESTATUS[0]}
+          echo "python_unittest_rc=$PY_RC" | tee -a "$DIAG/python-tests.log"
+          # Surface every skip line + reason for the report (legitimate skips
+          # are not hidden, just enumerated).
+          echo "--- skip lines ---" | tee -a "$DIAG/python-tests.log"
+          grep -nE 'skipped' "$DIAG/python-tests.log" | tee -a "$DIAG/python-tests.log" || true
+          # The CI gap: ucode runtime tests must not skip due to ucode absence.
+          UCODE_SKIPS=$(grep -c 'ucode executable not found on PATH' "$DIAG/python-tests.log" || true)
           if [ "$UCODE_SKIPS" -gt 0 ]; then
             echo "FAIL: $UCODE_SKIPS ucode runtime tests skipped despite ucode on PATH"
             exit 1
           fi
           echo "OK: no ucode runtime tests skipped"
-          # The comment-lint regression test (tests/test_ucode_comment_style.py)
-          # is part of the suite and asserts no Lua-style -- comments remain in
-          # shipped .uc sources while preserving -- inside string literals.
-          tail -n 3 /tmp/test-output.txt | grep -q '^OK' && echo "tests OK" || {
-            echo "FAIL: test suite did not pass"
+          if [ "$PY_RC" -ne 0 ]; then
+            echo "FAIL: unittest exit code $PY_RC"
             exit 1
-          }
+          fi
+          echo "OK: python test suite passed (rc=$PY_RC)"
 
       - name: Sandbox runtime sequence (isolated /tmp, no live paths)
         run: |
-          set -eu
+          set -euo pipefail
           export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
+          DIAG="$GITHUB_WORKSPACE/diagnostics"
+          mkdir -p "$DIAG"
           SBX="$(mktemp -d /tmp/orch-sandbox-XXXXXX)"
+          SBX_LOG="$DIAG/sandbox-sequence.log"
+          : > "$SBX_LOG"
+          # Cleanup on exit OR error: always remove the temp sandbox. The trap
+          # never touches /opt, /etc, /var/lock, nftables, or runner services.
+          trap 'rm -rf "$SBX"' EXIT
           APPLY_UC="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/apply.uc"
           GEN_UC="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/generate-preload.uc"
           REPO_FILES="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files"
@@ -183,35 +237,59 @@ jobs:
           # Seed a minimal config with an NFQWS2_OPT assignment containing the
           # circular_quality marker (required by validate-profile).
           printf 'NFQWS2_OPT="--lua-desync --lua-init=circular_quality --filter-tls=1"\n' > "$SBX/config"
-          # Copy the persistent JSON seeds so generate-preload.uc can read them
-          # and validate-profile finds whitelist.json.
+          # Copy the real persistent JSON seeds (blocked/learned/manual-locks/
+          # whitelist) so generate-preload.uc and validate-profile find them.
           cp "$REPO_FILES/etc/zapret2-orchestra/"*.json "$SBX/orch/"
-          # Create a temp preload wrapper that execs ucode with the repo's
-          # generate-preload.uc (the shipped wrapper hardcodes
-          # /usr/share/zapret2-orchestra/generate-preload.uc which doesn't
-          # exist on the runner). apply.uc calls this via popen([...], 'r').
+          # CI-only preload wrapper: exec ucode with the repo's generate-preload.uc.
+          # The shipped wrapper hardcodes /usr/share/.../generate-preload.uc which
+          # doesn't exist on the runner, so we override it here. apply.uc calls
+          # this via popen([...], 'r').
           cat > "$SBX/preload-wrapper.sh" <<WRAPPER
           #!/bin/sh
           exec ucode "$GEN_UC" "\$@"
           WRAPPER
           chmod +x "$SBX/preload-wrapper.sh"
           export ZAPRET2_PRELOAD_WRAPPER="$SBX/preload-wrapper.sh"
-          # Run the full transaction sequence. Each step exits non-zero on
-          # failure (set -eu), which fails the job.
-          ucode "$GEN_UC" generate
-          ucode "$GEN_UC" check
-          ucode "$APPLY_UC" status
-          ucode "$APPLY_UC" validate-config
-          ucode "$APPLY_UC" validate-profile orchestra-tls-mvp
-          ucode "$APPLY_UC" lock-test
-          ucode "$APPLY_UC" enable orchestra-tls-mvp
-          ucode "$APPLY_UC" enable orchestra-tls-mvp          # idempotent
-          ucode "$APPLY_UC" rollback
-          ucode "$APPLY_UC" disable
-          ucode "$APPLY_UC" disable                            # idempotent
-          ucode "$APPLY_UC" boot-check
-          echo "=== sandbox sequence PASS ==="
-          rm -rf "$SBX"
+          # run_cmd: print rc + stderr per command, accumulate failures, never
+          # abort early so every step's outcome is visible in the log.
+          OVERALL=0
+          run_cmd() {
+            local desc="$1"; shift
+            echo "--- $desc ---" | tee -a "$SBX_LOG"
+            set +e
+            "$@" 2>&1 | tee -a "$SBX_LOG"
+            local rc=${PIPESTATUS[0]}
+            set -e
+            echo "rc=$rc" | tee -a "$SBX_LOG"
+            if [ "$rc" -ne 0 ]; then OVERALL=1; fi
+          }
+          run_cmd "1 preload generate"            ucode "$GEN_UC" generate
+          run_cmd "2 preload check"               ucode "$GEN_UC" check
+          run_cmd "3 status"                      ucode "$APPLY_UC" status
+          run_cmd "4 validate-config"             ucode "$APPLY_UC" validate-config
+          run_cmd "5 validate-profile"            ucode "$APPLY_UC" validate-profile orchestra-tls-mvp
+          run_cmd "6 lock-test"                   ucode "$APPLY_UC" lock-test
+          run_cmd "7 enable"                      ucode "$APPLY_UC" enable orchestra-tls-mvp
+          run_cmd "8 enable (idempotent)"         ucode "$APPLY_UC" enable orchestra-tls-mvp
+          run_cmd "9 rollback"                    ucode "$APPLY_UC" rollback
+          run_cmd "10 disable"                    ucode "$APPLY_UC" disable
+          run_cmd "11 disable (idempotent)"       ucode "$APPLY_UC" disable
+          run_cmd "12 boot-check"                 ucode "$APPLY_UC" boot-check
+          echo "=== sandbox overall rc=$OVERALL ===" | tee -a "$SBX_LOG"
+          if [ "$OVERALL" -ne 0 ]; then
+            echo "FAIL: one or more sandbox steps failed (see $SBX_LOG)" | tee -a "$SBX_LOG"
+            exit 1
+          fi
+          echo "=== sandbox sequence PASS ===" | tee -a "$SBX_LOG"
+
+      - name: Upload validate diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: zapret2-validate-diagnostics
+          path: |
+            diagnostics/
+          if-no-files-found: warn
 
   # ─────────────────────────────────────────────────────────────────────
   # build-apk: runs only in full mode, after validate passes.
@@ -225,7 +303,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout zapret2-port
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -237,7 +315,7 @@ jobs:
 
       - name: Restore SDK archive cache
         id: sdk-archive-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           key: sdk-archive-${{ env.SDK_SHA256 }}
           path: ${{ env.SDK_DIR }}.tar.zst
@@ -268,7 +346,7 @@ jobs:
           echo "SDK ready at $SDK_DIR"
 
       - name: Restore SDK dl/ cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           key: sdk-dl-${{ env.SDK_SHA256 }}
           path: ${{ env.SDK_DIR }}/dl/
@@ -291,7 +369,7 @@ jobs:
 
       - name: Restore ccache
         id: ccache-restore
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # Composite key: runner OS, SDK SHA, OpenWrt release/target, and a
           # hash of the package sources. A source change (e.g. a .uc comment
@@ -365,7 +443,7 @@ jobs:
 
       - name: Save ccache immediately after successful compilation
         if: steps.build.outcome == 'success' || (steps.build.outcome == 'failure' && success())
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
           path: ${{ env.SDK_DIR }}/.ccache
@@ -696,7 +774,7 @@ jobs:
 
       - name: Upload APKs
         if: always() && steps.locate-apk.outcome == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zapret2-apks
           path: artifacts/*.apk
@@ -704,7 +782,7 @@ jobs:
 
       - name: Upload metadata and file lists
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zapret2-metadata
           path: |
@@ -723,7 +801,7 @@ jobs:
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: zapret2-orchestra-build-logs
           path: artifacts/build-logs.tar.xz
