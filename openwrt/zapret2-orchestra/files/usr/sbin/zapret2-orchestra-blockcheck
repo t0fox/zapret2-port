@@ -1,0 +1,237 @@
+#!/bin/sh
+# zapret2-orchestra-blockcheck — batch wrapper around the official pinned
+# blockcheck2 (bol-van/zapret2 at the package PKG_SOURCE_VERSION).
+#
+# It runs blockcheck2 NON-interactively for a single domain, captures the log
+# to a stable path, and surfaces the real exit code. It deliberately does NOT
+# stop or restart zapret/zapret2/Orchestra services and does NOT delete nft
+# tables on the normal path — upstream blockcheck2 uses a PID-unique table
+# (blockcheck$$) and its own unprepare_all() cleanup. Stopping services here
+# would risk losing SSH or restoring the wrong legacy state.
+#
+# Usage:
+#   zapret2-orchestra-blockcheck run <domain|URI>
+#   zapret2-orchestra-blockcheck last
+#
+# Path overrides (used by tests; defaults match the installed package):
+#   ZAPRET2_BASE                     /opt/zapret2
+#   ZAPRET2_BLOCKCHECK_SH            <BASE>/blockcheck2.sh
+#   ZAPRET2_BLOCKCHECK_DIR           <BASE>/blockcheck2.d
+#   ZAPRET2_NFQWS2                   <BASE>/nfq2/nfqws2
+#   ZAPRET2_MDIG                     <BASE>/mdig/mdig
+#   ZAPRET2_ORCH_BLOCKCHECK_LOCK     /var/lock/zapret2-orchestra-blockcheck.lock
+#   ZAPRET2_ORCH_BLOCKCHECK_OUTDIR   /tmp/zapret2-orchestra/blockcheck
+
+set -u
+
+BASE="${ZAPRET2_BASE:-/opt/zapret2}"
+BC_SH="${ZAPRET2_BLOCKCHECK_SH:-${BASE}/blockcheck2.sh}"
+BC_DIR="${ZAPRET2_BLOCKCHECK_DIR:-${BASE}/blockcheck2.d}"
+NFQWS2="${ZAPRET2_NFQWS2:-${BASE}/nfq2/nfqws2}"
+MDIG="${ZAPRET2_MDIG:-${BASE}/mdig/mdig}"
+LOCK="${ZAPRET2_ORCH_BLOCKCHECK_LOCK:-/var/lock/zapret2-orchestra-blockcheck.lock}"
+OUTDIR="${ZAPRET2_ORCH_BLOCKCHECK_OUTDIR:-/tmp/zapret2-orchestra/blockcheck}"
+LOG_TMP="${OUTDIR}/latest.log.tmp"
+LOG="${OUTDIR}/latest.log"
+
+# --- helpers ----------------------------------------------------------------
+
+die() {
+	printf '%s\n' "zapret2-orchestra-blockcheck: $1" >&2
+	exit "${2:-2}"
+}
+
+usage() {
+	cat <<'EOF'
+usage: zapret2-orchestra-blockcheck <command> [args]
+
+  run <domain|URI>   run pinned blockcheck2 for <domain> (batch, IPv4, standard)
+  last               show the last blockcheck log
+EOF
+}
+
+# Validate a domain/URI argument:
+#   * non-empty
+#   * no whitespace (blockcheck2 DOMAINS is space-separated; a space would
+#     inject a second domain and split the argument)
+#   * no shell metacharacters: ; | & ` and $( (command substitution)
+# < and > are allowed (URIs may contain path separators and blockcheck2 itself
+# accepts "host/path"). The value is passed to blockcheck2 via the environment
+# (DOMAINS=...), never through eval, so there is no shell interpolation here.
+domain_ok() {
+	_d="$1"
+	[ -n "$_d" ] || { REJECT_REASON="domain is empty"; return 1; }
+	# no whitespace (blockcheck2 DOMAINS is space-separated; a space would split
+	# the argument into a second domain)
+	case "$_d" in
+		*" "*|*"	"*|*$'\n'*) REJECT_REASON="domain must not contain whitespace"; return 1 ;;
+	esac
+	# no command-substitution / shell separators: ` $( ; | &
+	case "$_d" in
+		*'`'*|*'$('*|*';'*|*'|'*|*'&'*) REJECT_REASON="domain contains shell metacharacters"; return 1 ;;
+	esac
+	REJECT_REASON=""
+	return 0
+}
+
+# Check that a command is available on PATH. $1 = program name.
+have_cmd() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+# --- process detection (no Python; BusyBox /proc scan) ---------------------
+#
+# Return 0 if a process whose /proc/<pid>/comm matches one of the given names
+# is running (excluding our own PID). $@ = comm names to match.
+proc_comm_running() {
+	_self=$$
+	for _pd in /proc/[0-9]*; do
+		[ -d "$_pd" ] || continue
+		_pid=${_pd#/proc/}
+		[ "$_pid" != "$_self" ] || continue
+		# /proc/<pid>/comm holds the executable name (max 15 chars). It is
+		# readable without ps; if unreadable, skip.
+		_comm=$(cat "$_pd/comm" 2>/dev/null) || continue
+		for _want in "$@"; do
+			case "$_comm" in
+				"$_want") return 0 ;;
+			esac
+		done
+	done
+	return 1
+}
+
+# Return 0 if a process whose /proc/<pid>/cmdline contains the given substring
+# is running (excluding our own PID). $1 = substring. Used for shell-launched
+# programs (blockcheck2.sh runs as sh, so comm is "sh", not blockcheck2).
+proc_cmdline_running() {
+	_sub="$1"
+	_self=$$
+	for _pd in /proc/[0-9]*; do
+		[ -d "$_pd" ] || continue
+		_pid=${_pd#/proc/}
+		[ "$_pid" != "$_self" ] || continue
+		# cmdline is NUL-separated argv; translate to spaces for a substring test.
+		_cl=$(tr '\0' ' ' < "$_pd/cmdline" 2>/dev/null) || continue
+		[ -n "$_cl" ] || continue
+		case "$_cl" in
+			*"$_sub"*) return 0 ;;
+		esac
+	done
+	return 1
+}
+
+# --- lock (atomic mkdir) ----------------------------------------------------
+#
+# mkdir is atomic: it either creates the directory (lock acquired) or fails
+# because it already exists (lock held). We do not use a PID file inside the
+# lock for the normal path; the trap removes it on exit.
+lock_acquire() {
+	if ! mkdir "$LOCK" 2>/dev/null; then
+		# Stale lock recovery: if no live process holds it, take it. We treat a
+		# lock with no recognizable holder as stale only when the lock dir exists
+		# but no blockcheck2 / wrapper process is running. For MVP simplicity we
+		# report busy and let the user retry; an admin may rm -rf the lock dir.
+		die "blockcheck lock busy: $LOCK (another run in progress; remove with 'rm -rf $LOCK' only if stale)" 9
+	fi
+}
+
+lock_release() {
+	rmdir "$LOCK" 2>/dev/null || true
+}
+
+# --- run --------------------------------------------------------------------
+
+cmd_run() {
+	[ $# -ge 1 ] || die "usage: zapret2-orchestra-blockcheck run <domain|URI>" 2
+	domain="$1"
+	domain_ok "$domain" || die "invalid domain: $REJECT_REASON" 2
+
+	# 2. Dependency presence (files + PATH commands).
+	[ -x "$BC_SH" ]   || die "blockcheck2 not executable: $BC_SH" 3
+	[ -d "$BC_DIR/standard" ] || die "blockcheck2.d/standard missing: $BC_DIR/standard" 3
+	[ -x "$NFQWS2" ]  || die "nfqws2 not executable: $NFQWS2" 3
+	[ -x "$MDIG" ]    || die "mdig not executable: $MDIG" 3
+	have_cmd nft      || die "nft not found on PATH" 3
+	have_cmd curl     || die "curl not found on PATH" 3
+	have_cmd ip       || die "ip not found on PATH" 3
+	have_cmd nslookup || die "nslookup not found on PATH" 3
+
+	# 3. Acquire the lock (atomic mkdir).
+	lock_acquire
+
+	# 7. Always release the lock on exit/interrupt/terminate. EXIT covers normal
+	# returns and die(); INT/TERM cover signals. We never delete nft tables here.
+	trap lock_release INT TERM
+	trap 'lock_release' EXIT
+
+	# 4. Ensure no DPI-bypass daemons or another blockcheck are already running.
+	#    nfqws/nfqws2/winws running means DPI bypass is active, which would
+	#    pollute the measurement. We do NOT stop them — the user must stop
+	#    zapret/zapret2 first.
+	if proc_comm_running nfqws nfqws2 winws; then
+		die "Stop zapret/zapret2 before blockcheck." 10
+	fi
+	if proc_cmdline_running "blockcheck2"; then
+		die "another blockcheck is already running" 11
+	fi
+
+	# 5. Output directory for logs.
+	mkdir -p "$OUTDIR" || die "cannot create output dir: $OUTDIR" 3
+
+	# 6. Run the official pinned blockcheck2 in batch mode for this domain.
+	#    The domain is passed via the environment (DOMAINS), never via eval or
+	#    shell interpolation. BATCH=1 disables interactive prompts; TEST=standard
+	#    selects the standard strategy set; IPVS=4 limits to IPv4.
+	#    Output goes to a temp log first; on completion we atomically rename to
+	#    latest.log so `last` never sees a half-written file. The real exit code
+	#    is preserved (no pipe-to-tee that would mask it).
+	BATCH=1 \
+	DOMAINS="$domain" \
+	TEST=standard \
+	IPVS=4 \
+		"$BC_SH" >"$LOG_TMP" 2>&1
+	bc_rc=$?
+
+	# Atomic publish of the log. rename(2) is atomic on the same filesystem.
+	if ! mv -f "$LOG_TMP" "$LOG" 2>/dev/null; then
+		# If rename failed (cross-FS / perms), fall back to a best-effort copy so
+		# `last` still works, but report the failure.
+		cp "$LOG_TMP" "$LOG" 2>/dev/null || true
+	fi
+
+	# Show the log to the user.
+	cat "$LOG" 2>/dev/null || true
+
+	# On abnormal termination of upstream blockcheck (non-zero, especially a
+	# signal/crash), its PID-unique nft table may be left behind. Do NOT delete
+	# arbitrary tables; surface the diagnostic command only.
+	if [ "$bc_rc" -ne 0 ]; then
+		printf '%s\n' "" "blockcheck2 exited with code $bc_rc." >&2
+		printf '%s\n' "if a blockcheck nft table was left behind, inspect with:" >&2
+		printf '%s\n' "  nft list tables | grep blockcheck" >&2
+	fi
+
+	exit "$bc_rc"
+}
+
+# --- last -------------------------------------------------------------------
+
+cmd_last() {
+	if [ ! -f "$LOG" ]; then
+		die "no blockcheck log yet: $LOG (run 'zapret2-orchestra-blockcheck run <domain>' first)" 1
+	fi
+	cat "$LOG"
+}
+
+# --- dispatch ---------------------------------------------------------------
+
+_cmd="${1:-}"
+[ $# -gt 0 ] && shift
+
+case "$_cmd" in
+	run)  cmd_run "$@" ;;
+	last) cmd_last "$@" ;;
+	""|-h|--help|help) usage; [ -n "$_cmd" ] && exit 0 || exit 2 ;;
+	*) die "unknown command: $_cmd" 2 ;;
+esac

@@ -79,6 +79,10 @@ define Package/zapret2-orchestra/install
 	# enables/disables profiles by dispatching to the transactional manager
 	# (never evals profile content).
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-profile $(1)/usr/sbin/zapret2-orchestra-profile
+	# working-prototype CLI: batch blockcheck. Runs the pinned blockcheck2 in
+	# batch mode for a single domain; it does NOT stop services or touch
+	# packet-filter rules — upstream blockcheck2 owns its own cleanup.
+	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-blockcheck $(1)/usr/sbin/zapret2-orchestra-blockcheck
 	# boot hook (one-shot backup regeneration, START=20 runs before zapret2 START=21)
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(CURDIR)/files/etc/init.d/zapret2-orchestra $(1)/etc/init.d/zapret2-orchestra
