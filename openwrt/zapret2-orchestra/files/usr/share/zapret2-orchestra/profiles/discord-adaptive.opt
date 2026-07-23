@@ -1,0 +1,17 @@
+NFQWS2_OPT="
+--lua-init=@/opt/zapret2/lua/orchestra-extra/init.lua
+--lua-init=@/opt/zapret2/lua/init_vars.lua
+--lua-init=@/opt/zapret2/lua/custom_funcs.lua
+--blob=stun_pat:@/opt/zapret2/bin/stun.bin
+--filter-tcp=80,443,1080,2053,2083,2087,2096,8443
+--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt
+--payload=tls_client_hello
+--out-range=-d10
+--lua-desync=circular_quality:key=tls:fails=1:failure_detector=combined_failure_detector:success_detector=combined_success_detector:lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:inseq=0x1000:nld=3
+--lua-desync=send:repeats=2:strategy=1
+--lua-desync=syndata:blob=stun_pat:strategy=1
+--lua-desync=tls_multisplit_sni:seqovl=652:seqovl_pattern=stun_pat:strategy=1
+--lua-desync=send:repeats=3:strategy=2
+--lua-desync=syndata:blob=tls_google:strategy=2
+--lua-desync=syndata:strategy=2
+"

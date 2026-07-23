@@ -1,0 +1,30 @@
+{
+  "askey": "tls",
+  "chain_id_for_strategy": {
+    "1": "discord-send-syndata-tls_multisplit_sni-44860d17",
+    "2": "discord-send-syndata-syndata-64820ded"
+  },
+  "chains": [
+    {
+      "chain_id": "44860d1756db5d65f121f269e235c95b5460f8334ad83d9720c552bbcabe9378",
+      "compatibility": "incompatible",
+      "source_id": "Default old",
+      "stable_id": "discord-send-syndata-tls_multisplit_sni-44860d17",
+      "strategy": 1
+    },
+    {
+      "chain_id": "64820dedd6ccc0201be05c8fcf3c064b1d58ffca307ba7da250ad0cff669f204",
+      "compatibility": "compatible",
+      "source_id": "Default v5",
+      "stable_id": "discord-send-syndata-syndata-64820ded",
+      "strategy": 2
+    }
+  ],
+  "default_blocked_pass_domains_applied": true,
+  "profile_id": "discord-adaptive",
+  "schema_version": 1,
+  "strategy_for_chain_id": {
+    "discord-send-syndata-syndata-64820ded": 2,
+    "discord-send-syndata-tls_multisplit_sni-44860d17": 1
+  }
+}

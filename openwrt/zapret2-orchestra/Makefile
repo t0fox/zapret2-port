@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=zapret2-orchestra
 PKG_VERSION:=0.1.0
-PKG_RELEASE:=6
+PKG_RELEASE:=7
 PKGARCH:=all
 
 include $(INCLUDE_DIR)/package.mk
@@ -71,6 +71,8 @@ define Package/zapret2-orchestra/install
 	# the zapret2-orchestra-profile list command — pure shell, no extra deps.
 	$(INSTALL_DIR) $(1)/usr/share/zapret2-orchestra/profiles
 	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/profiles/*.opt $(1)/usr/share/zapret2-orchestra/profiles/
+	# r7 adaptive profile sidecars (chain_id_for_strategy maps, contract §4).
+	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/profiles/*.json $(1)/usr/share/zapret2-orchestra/profiles/
 	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/profiles.tsv $(1)/usr/share/zapret2-orchestra/profiles.tsv
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-preload $(1)/usr/sbin/zapret2-orchestra-preload
@@ -89,9 +91,17 @@ define Package/zapret2-orchestra/install
 	# TLS runtime extension
 	$(INSTALL_DIR) $(1)/opt/zapret2/lua/orchestra-extra
 	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/lua/orchestra-extra/*.lua $(1)/opt/zapret2/lua/orchestra-extra/
+	# init_vars.lua (r7 discord-v5 / discord-adaptive asset): provides tls_google
+	# and other tls_mod blobs via the nfqws2 builtin tls_mod. Verbatim from
+	# youtubediscord/zapret2-youtube-discord @ 4d75c70b (lua/init_vars.lua).
+	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/lua/init_vars.lua $(1)/opt/zapret2/lua/init_vars.lua
 	# persistent JSON state seeds (also listed in conffiles)
 	$(INSTALL_DIR) $(1)/etc/zapret2-orchestra
 	$(INSTALL_DATA) $(CURDIR)/files/etc/zapret2-orchestra/*.json $(1)/etc/zapret2-orchestra/
+	# r7 discord ipset (Discord IP ranges) for the discord-v5 / discord-adaptive
+	# profiles. Verbatim from the pinned repo (lists/ipset-discord.txt).
+	$(INSTALL_DIR) $(1)/etc/zapret2-orchestra/lists
+	$(INSTALL_DATA) $(CURDIR)/files/etc/zapret2-orchestra/lists/ipset-discord.txt $(1)/etc/zapret2-orchestra/lists/ipset-discord.txt
 endef
 
 define Package/zapret2-orchestra/postinst

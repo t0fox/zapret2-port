@@ -1,0 +1,10 @@
+NFQWS2_OPT="
+--lua-init=@/opt/zapret2/lua/init_vars.lua
+--filter-tcp=80,443,1080,2053,2083,2087,2096,8443
+--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt
+--out-range=-d10
+--lua-desync=send:repeats=3
+--lua-desync=syndata:blob=tls_google
+--ipcache-hostname
+--lua-desync=syndata
+"
