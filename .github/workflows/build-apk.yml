@@ -824,8 +824,9 @@ jobs:
             printf '%s\n' "$out" | tee -a "$ARTLOG"
             echo "rc=$rc" | tee -a "$ARTLOG"
             [ "$rc" -eq 0 ] || { echo "FAIL: $desc rc=$rc" | tee -a "$ARTLOG"; fail=1; }
-            printf '%s\n' "$out" | grep -q 'unknown subcommand' \
-              && { echo "FAIL: $desc leaked 'unknown subcommand'" | tee -a "$ARTLOG"; fail=1; }
+            if printf '%s\n' "$out" | grep -q 'unknown subcommand'; then
+              echo "FAIL: $desc leaked 'unknown subcommand'" | tee -a "$ARTLOG"; fail=1
+            fi
           }
           gate "extracted-wrapper status"            sh "$WRAP" status
           gate "extracted-wrapper validate-config"   sh "$WRAP" validate-config
