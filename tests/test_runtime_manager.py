@@ -798,13 +798,20 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         env = self._env()
         if config_text is not None:
             (self.opt / "config").write_text(config_text, encoding="utf-8")
-        return subprocess.run(
+        r = subprocess.run(
             [self.ucode, str(APPLY_UC), *args],
             env=env,
             capture_output=True,
             text=True,
             timeout=10,
         )
+        # Surface apply.uc's die() message on failure so the CI log shows the
+        # real reason instead of a bare JSONDecodeError on empty stdout.
+        if r.returncode != 0 or not r.stdout.strip():
+            sys.stderr.write(
+                f"[_run {args!r} rc={r.returncode}] stdout={r.stdout!r} stderr={r.stderr!r}\n"
+            )
+        return r
 
     def _run_wrapper(self, *args: str, config_text: str | None = None) -> subprocess.CompletedProcess:
         env = self._env()
