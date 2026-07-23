@@ -46,9 +46,14 @@ jobs:
         run: |
           set -eu
           sudo apt-get update
-          sudo apt-get install -y cmake libjson-c-dev
+          sudo apt-get install -y cmake libjson-c-dev busybox
           # Diagnostics dir for the validate artifact (uploaded with if: always()).
           mkdir -p "$GITHUB_WORKSPACE/diagnostics"
+          # Confirm BusyBox ash is available; the shipped shell CLIs must parse
+          # under POSIX/BusyBox ash the same way they parse under bash (the
+          # router runs BusyBox ash, not bash).
+          command -v busybox
+          busybox ash -c 'echo ash_ok'
 
       - name: Build and install host ucode (pinned commit)
         run: |
@@ -103,6 +108,39 @@ jobs:
             exit 1
           }
           echo "OK: host ucode smoke-tested"
+
+      - name: BusyBox ash syntax gate for shipped shell CLIs
+        run: |
+          set -eu
+          # The router runs BusyBox ash, not bash. The two shipped shell CLIs
+          # must parse cleanly under `busybox ash -n` (syntax-only, no exec):
+          # this catches bashisms (e.g. $'...' dollar-quoting) that bash -n
+          # would accept but ash would choke on at runtime. `sh -n` on the
+          # runner is dash, which is closer to ash but not identical; busybox
+          # ash is the exact target shell.
+          ORCH="$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/files"
+          SCRIPTS=(
+            "$ORCH/usr/sbin/zapret2-orchestra-profile"
+            "$ORCH/usr/sbin/zapret2-orchestra-blockcheck"
+          )
+          for s in "${SCRIPTS[@]}"; do
+            name="$(basename "$s")"
+            echo "--- busybox ash -n $name ---"
+            if busybox ash -n "$s"; then
+              echo "OK: $name parses under busybox ash"
+            else
+              rc=$?
+              echo "FAIL: $name does not parse under busybox ash (rc=$rc)"
+              exit "$rc"
+            fi
+            # Guard: no $'\n' / $'...' dollar-quoting bashism in the script.
+            if grep -Eq "\\$'" "$s"; then
+              echo "FAIL: $name contains a \$'...' dollar-quoting bashism (BusyBox ash unsupported)"
+              grep -nE "\\$'" "$s" || true
+              exit 1
+            fi
+          done
+          echo "=== shipped shell CLIs parse under busybox ash ==="
 
       - name: Compile/parse all shipped ucode sources (incl. rpcd backend)
         run: |
@@ -708,6 +746,141 @@ jobs:
             cat "$root/lib/apk/packages/$p.conffiles_static" 2>/dev/null | tee -a "$ART_DIR/package-manifests.txt"
           done
 
+      - name: Stage 3 APK contract audit (modes, profile set, releases)
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          ART_DIR="$GITHUB_WORKSPACE/artifacts"
+          mkdir -p "$ART_DIR"
+          : > "$ART_DIR/stage3-contract-audit.txt"
+          audit() { echo "$@" | tee -a "$ART_DIR/stage3-contract-audit.txt"; }
+          fail() { echo "FAIL: $*" | tee -a "$ART_DIR/stage3-contract-audit.txt"; exit 1; }
+          # mode_of <path> -> octal (e.g. 755); portable across GNU/BSD stat.
+          mode_of() {
+            stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null
+          }
+
+          echo "=== B6: zapret2 APK file-mode contract ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          BC_SH="$(find /tmp/apk-z2 -path '*/opt/zapret2/blockcheck2.sh' -type f -print -quit)"
+          [ -n "$BC_SH" ] || fail "blockcheck2.sh not found in zapret2 APK"
+          M=$(mode_of "$BC_SH"); audit "blockcheck2.sh mode=$M"
+          [ "$M" = "755" ] || fail "blockcheck2.sh mode $M != 755"
+
+          STD_DIR="$(find /tmp/apk-z2 -type d -path '*/blockcheck2.d/standard' -print -quit)"
+          CUST_DIR="$(find /tmp/apk-z2 -type d -path '*/blockcheck2.d/custom' -print -quit)"
+          [ -n "$STD_DIR" ] || fail "blockcheck2.d/standard tree missing"
+          [ -n "$CUST_DIR" ] || fail "blockcheck2.d/custom tree missing"
+          audit "standard/custom tree present"
+
+          for s in "$STD_DIR"/*.sh; do
+            [ -e "$s" ] || fail "no *.sh in blockcheck2.d/standard"
+            M=$(mode_of "$s"); audit "standard/$(basename "$s") mode=$M"
+            [ "$M" = "644" ] || fail "standard/$(basename "$s") mode $M != 644"
+          done
+          for s in "$CUST_DIR"/*.sh; do
+            [ -e "$s" ] || fail "no *.sh in blockcheck2.d/custom"
+            M=$(mode_of "$s"); audit "custom/$(basename "$s") mode=$M"
+            [ "$M" = "644" ] || fail "custom/$(basename "$s") mode $M != 644"
+          done
+          DEF_INC="$STD_DIR/def.inc"
+          [ -f "$DEF_INC" ] || fail "blockcheck2.d/standard/def.inc missing"
+          M=$(mode_of "$DEF_INC"); audit "def.inc mode=$M"
+          [ "$M" = "644" ] || fail "def.inc mode $M != 644"
+          # Custom README/*.txt data files are 0644 (sourced/data, not executed).
+          for t in "$CUST_DIR"/README "$CUST_DIR"/*.txt; do
+            [ -e "$t" ] || continue
+            M=$(mode_of "$t"); audit "$(basename "$t") mode=$M"
+            [ "$M" = "644" ] || fail "$(basename "$t") mode $M != 644"
+          done
+
+          echo "=== B6: zapret2 release = r3 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          Z2_NAME="${{ steps.locate-apk.outputs.z2_apk_name }}"
+          audit "zapret2 apk name: $Z2_NAME"
+          echo "$Z2_NAME" | grep -Eq 'zapret2_[^_]+-3_' || fail "zapret2 APK release != 3 (name: $Z2_NAME)"
+          grep -Eq '^PKG_RELEASE:=3$' "$GITHUB_WORKSPACE/openwrt/zapret2/Makefile" \
+            || fail "zapret2 Makefile PKG_RELEASE != 3"
+          audit "OK: zapret2 release = r3"
+
+          echo "=== B7: orchestra ready profile set + manifest ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          ORCH_PROFILES="$(find /tmp/apk-orch -type d -path '*/usr/share/zapret2-orchestra/profiles' -print -quit)"
+          [ -n "$ORCH_PROFILES" ] || fail "orchestra profiles dir missing from APK"
+          OPT_COUNT=$(find "$ORCH_PROFILES" -maxdepth 1 -name '*.opt' -type f | wc -l | tr -d ' ')
+          audit "orchestra ready .opt count: $OPT_COUNT"
+          [ "$OPT_COUNT" = "6" ] || fail "expected exactly 6 ready .opt, got $OPT_COUNT"
+          # gui-quic-fake must NOT be a ready/install profile.
+          if find "$ORCH_PROFILES" -maxdepth 1 -name 'gui-quic-fake.opt' -type f | grep -q .; then
+            fail "gui-quic-fake.opt is present as a ready profile"
+          fi
+          audit "OK: gui-quic-fake not ready"
+          # profiles.tsv present and its IDs match the .opt set exactly.
+          MANIFEST="$(find /tmp/apk-orch -path '*/usr/share/zapret2-orchestra/profiles.tsv' -type f -print -quit)"
+          [ -f "$MANIFEST" ] || fail "profiles.tsv missing from orchestra APK"
+          mapfile -t MAN_IDS < <(awk -F'\t' 'NF>=3 && $1!="id"{print $1}' "$MANIFEST" | sort)
+          mapfile -t OPT_IDS < <(find "$ORCH_PROFILES" -maxdepth 1 -name '*.opt' -type f -printf '%f\n' \
+            | sed 's/\.opt$//' | sort)
+          if [ "${MAN_IDS[*]}" != "${OPT_IDS[*]}" ]; then
+            audit "manifest IDs: ${MAN_IDS[*]}"
+            audit "opt IDs:      ${OPT_IDS[*]}"
+            fail "manifest IDs do not match .opt set"
+          fi
+          audit "OK: manifest IDs match .opt set"
+
+          echo "=== B7: orchestra CLI script modes 0755 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          for s in zapret2-orchestra-profile zapret2-orchestra-blockcheck; do
+            p="$(find /tmp/apk-orch -path "*/usr/sbin/$s" -type f -print -quit)"
+            [ -n "$p" ] || fail "$s not found in orchestra APK"
+            M=$(mode_of "$p"); audit "$s mode=$M"
+            [ "$M" = "755" ] || fail "$s mode $M != 755"
+          done
+
+          echo "=== B7: orchestra required ucode + lua assets ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          for f in \
+            /usr/share/zapret2-orchestra/apply.uc \
+            /usr/share/zapret2-orchestra/generate-preload.uc \
+            /usr/share/rpcd/ucode/zapret2.orchestra \
+            /opt/zapret2/lua/orchestra-extra/init.lua
+          do
+            grep -F -q "$f" "$ART_DIR/orchestra-files.txt" \
+              || fail "$f not found in orchestra APK"
+            audit "OK: $f"
+          done
+          ORCH_LUA_DIR_EXT="$(find /tmp/apk-orch -type d -path '*/opt/zapret2/lua/orchestra-extra' -print -quit)"
+          [ -n "$ORCH_LUA_DIR_EXT" ] || fail "orchestra-extra lua dir missing from APK"
+          LUA_COUNT=$(find "$ORCH_LUA_DIR_EXT" -maxdepth 1 -name '*.lua' -type f | wc -l | tr -d ' ')
+          audit "orchestra-extra/*.lua count: $LUA_COUNT"
+          [ "$LUA_COUNT" -ge 6 ] || fail "expected >=6 orchestra-extra lua files, got $LUA_COUNT"
+          [ -f "$ORCH_LUA_DIR_EXT/init.lua" ] || fail "orchestra-extra/init.lua missing from APK"
+
+          echo "=== B7: each packaged ready profile has the Orchestra --lua-init ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          LUA_INIT='--lua-init=@/opt/zapret2/lua/orchestra-extra/init.lua'
+          for o in "$ORCH_PROFILES"/*.opt; do
+            n=$(grep -F -c -- "$LUA_INIT" "$o" || true)
+            audit "$(basename "$o"): --lua-init count=$n"
+            [ "$n" = "1" ] || fail "$(basename "$o"): expected exactly one --lua-init line, got $n"
+            # --lua-init must appear before the first circular_quality selector.
+            init_ln=$(grep -nF -- "$LUA_INIT" "$o" | head -1 | cut -d: -f1)
+            cq_ln=$(grep -nF -- '--lua-desync=circular_quality' "$o" | head -1 | cut -d: -f1)
+            [ -n "$init_ln" ] && [ -n "$cq_ln" ] && [ "$init_ln" -lt "$cq_ln" ] \
+              || fail "$(basename "$o"): --lua-init must precede first circular_quality"
+          done
+          # Packaged MVP must contain strategy=1.
+          MVP_OPT="$ORCH_PROFILES/orchestra-tls-mvp.opt"
+          [ -f "$MVP_OPT" ] || fail "orchestra-tls-mvp.opt missing from APK"
+          grep -F -q -- 'strategy=1' "$MVP_OPT" \
+            || fail "packaged orchestra-tls-mvp.opt has no strategy=1"
+          audit "OK: packaged MVP contains strategy=1"
+
+          echo "=== B7: orchestra release = r5 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          ORCH_NAME="${{ steps.locate-apk.outputs.orch_apk_name }}"
+          audit "orchestra apk name: $ORCH_NAME"
+          echo "$ORCH_NAME" | grep -Eq 'zapret2-orchestra_[^_]+-5_' \
+            || fail "orchestra APK release != 5 (name: $ORCH_NAME)"
+          grep -Eq '^PKG_RELEASE:=5$' "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile" \
+            || fail "orchestra Makefile PKG_RELEASE != 5"
+          audit "OK: orchestra release = r5"
+
+          echo "=== Stage 3 contract audit PASS ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+
       - name: Verify create_ipset.sh executable mode in APK
         working-directory: ${{ env.SDK_DIR }}
         run: |
@@ -795,6 +968,7 @@ jobs:
             artifacts/zapret2-elf-checks.txt
             artifacts/orchestra-elf-inventory.txt
             artifacts/package-manifests.txt
+            artifacts/stage3-contract-audit.txt
             artifacts/packageinfo.txt
             artifacts/bin-packages-listing.txt
           if-no-files-found: warn

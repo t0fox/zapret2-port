@@ -39,7 +39,7 @@ class PackageContractTest(unittest.TestCase):
         expected = {
             "PKG_NAME": "zapret2-orchestra",
             "PKG_VERSION": "0.1.0",
-            "PKG_RELEASE": "4",
+            "PKG_RELEASE": "5",
             "PKGARCH": "all",
         }
         for key, value in expected.items():
@@ -238,7 +238,7 @@ class Zapret2PackageContractTest(unittest.TestCase):
         for key, value in {
             "PKG_NAME": "zapret2",
             "PKG_VERSION": "0.9.20260307",
-            "PKG_RELEASE": "2",
+            "PKG_RELEASE": "3",
         }.items():
             self.assertRegex(self.makefile, rf"(?m)^{key}:={re.escape(value)}$")
 

@@ -162,6 +162,26 @@ def _manifest_ids() -> list[str]:
     return ids
 
 
+def _argv_preserves_newline() -> bool:
+    """Probe whether an embedded newline survives argv as a single argument.
+
+    On Windows/Git-Bash the command-line layer splits a newline-containing
+    argument into separate argv entries, so a ``run "foo\\nbar"`` invocation
+    never delivers a newline to the script. On Linux (the CI runner) argv
+    preserves it. Runtime newline-rejection tests that depend on delivering a
+    newline through argv use this to skip on platforms that mangle it; the
+    static no-$'\\n' contract test runs everywhere regardless.
+    """
+    if not shutil.which("sh"):
+        return False
+    probe = "foo\nbar"
+    r = subprocess.run(
+        ["sh", "-c", 'printf "%s" "$1"', "_", probe],
+        capture_output=True, text=True, timeout=5,
+    )
+    return r.returncode == 0 and r.stdout == probe
+
+
 # ===========================================================================
 # Profile content + manifest + contract tests
 # ===========================================================================
@@ -369,9 +389,10 @@ class MakefileInstallTest(unittest.TestCase):
             self.body,
         )
 
-    def test_release_number_unchanged(self) -> None:
-        # The spec says the release number is not bumped here.
-        self.assertRegex(self.body, r"(?m)^PKG_RELEASE:=4$")
+    def test_release_number_is_five(self) -> None:
+        # zapret2-orchestra PKG_RELEASE is bumped to 5 for the executable
+        # orchestra profile set + blockcheck batch CLI release.
+        self.assertRegex(self.body, r"(?m)^PKG_RELEASE:=5$")
 
     def test_new_opt_picked_up_by_existing_wildcard(self) -> None:
         self.assertIn(
@@ -467,6 +488,44 @@ class ProfileCliSmokeTest(unittest.TestCase):
     def test_show_nonexistent_profile(self) -> None:
         r = self._run("show", "does-not-exist")
         self.assertNotEqual(r.returncode, 0, r.stderr)
+
+    # --- B4: leading-dash IDs are rejected as profile IDs -------------------
+
+    def test_show_rejects_leading_dash_ids(self) -> None:
+        # IDs starting with '-' (option-like: -e, --help, -foo) must be rejected
+        # at the id-validation layer, never reaching profile resolution.
+        for bad in ("-e", "--help", "-foo"):
+            r = self._run("show", bad)
+            self.assertNotEqual(r.returncode, 0, f"show {bad!r} should fail")
+            self.assertIn("invalid id", r.stderr,
+                          f"show {bad!r} should report invalid id: {r.stderr!r}")
+            self.assertNotIn("APPLY", r.stderr, f"show {bad!r} leaked to apply")
+
+    def test_validate_rejects_leading_dash_ids_without_invoking_apply(self) -> None:
+        # A rejected ID must NOT dispatch to the apply manager.
+        for bad in ("-e", "--help", "-foo"):
+            r = self._run("validate", bad)
+            self.assertNotEqual(r.returncode, 0, f"validate {bad!r} should fail")
+            self.assertIn("invalid id", r.stderr,
+                          f"validate {bad!r} should report invalid id: {r.stderr!r}")
+            self.assertNotIn("APPLY", r.stderr,
+                             f"validate {bad!r} must not invoke apply: {r.stderr!r}")
+
+    def test_enable_rejects_leading_dash_ids_without_invoking_apply(self) -> None:
+        for bad in ("-e", "--help", "-foo"):
+            r = self._run("enable", bad)
+            self.assertNotEqual(r.returncode, 0, f"enable {bad!r} should fail")
+            self.assertIn("invalid id", r.stderr,
+                          f"enable {bad!r} should report invalid id: {r.stderr!r}")
+            # Neither validate-profile nor enable may be invoked.
+            self.assertNotIn("APPLY", r.stderr,
+                             f"enable {bad!r} must not invoke apply: {r.stderr!r}")
+
+    def test_valid_id_still_works_after_leading_dash_rejection(self) -> None:
+        # A valid ID must still resolve and dispatch after the rejection path.
+        r = self._run("validate", "gui-circular")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("APPLY validate-profile gui-circular", r.stderr)
 
     def test_validate_dispatches_to_apply(self) -> None:
         r = self._run("validate", "gui-circular")
@@ -566,6 +625,19 @@ class BlockcheckStaticTest(unittest.TestCase):
             # each forbidden token is referenced in the rejection case
             self.assertIn(tok, self.text, f"domain_ok does not reject {tok!r}")
 
+    def test_no_bashism_dollar_quote_newline(self) -> None:
+        # BusyBox ash does not support the $'...' quoting extension. The
+        # shipped scripts must not contain $'\n' (or any $'...') so they parse
+        # under POSIX/BusyBox ash the same way they parse under bash. Newline
+        # matching must use a literal newline or a case glob, not $'\n'.
+        self.assertNotIn("$'\\n'", self.text,
+                         "blockcheck CLI must not use $'\\n' (BusyBox ash bashism)")
+        self.assertNotIn("$'\\t'", self.text,
+                         "blockcheck CLI must not use $'\\t' (BusyBox ash bashism)")
+        # Broader: no $'...' dollar-quoted strings at all.
+        self.assertNotRegex(self.text, r"\$'",
+                            "blockcheck CLI must not use $'...' dollar-quoting")
+
     def test_atomic_mkdir_lock_and_trap(self) -> None:
         self.assertIn('mkdir "$LOCK"', self.text)
         self.assertRegex(self.text, r"trap\s+lock_release\s+INT\s+TERM")
@@ -657,10 +729,38 @@ class BlockcheckCliSmokeTest(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0, r.stderr)
         self.assertIn("whitespace", r.stderr)
 
+    def test_run_rejects_tab_in_domain(self) -> None:
+        # A tab is whitespace; blockcheck2 DOMAINS is space-separated so any
+        # whitespace would split the argument into a second domain.
+        r = self._run("run", "foo\tbar")
+        self.assertNotEqual(r.returncode, 0, r.stderr)
+        self.assertIn("whitespace", r.stderr)
+
+    def test_run_rejects_newline_in_domain(self) -> None:
+        # A newline is whitespace and must be rejected compatibly with
+        # POSIX/BusyBox ash (no $'\n' bashism in the shipped script). Skip on
+        # platforms whose argv layer splits an embedded newline into separate
+        # arguments (Windows/Git-Bash): the newline never reaches the script
+        # there, so the rejection is not observable through argv. The static
+        # no-$'\n' contract test covers the bashism on every platform.
+        if not _argv_preserves_newline():
+            self.skipTest("platform argv does not preserve embedded newline")
+        r = self._run("run", "foo\nbar")
+        self.assertNotEqual(r.returncode, 0, r.stderr)
+        self.assertIn("whitespace", r.stderr)
+
     def test_run_rejects_command_substitution(self) -> None:
         for bad in ("foo$(id)", "foo`id`", "foo;id", "foo|id", "foo&id"):
             r = self._run("run", bad)
             self.assertNotEqual(r.returncode, 0, f"run {bad!r} should fail: {r.stdout}{r.stderr}")
+            self.assertIn("metacharacters", r.stderr)
+
+    def test_run_rejects_shell_metacharacter_domain(self) -> None:
+        # Combined guard: a domain with a shell metacharacter is rejected with
+        # the metacharacters message, never reaching blockcheck2.
+        for bad in ("foo|bar", "foo&bar", "foo;bar"):
+            r = self._run("run", bad)
+            self.assertNotEqual(r.returncode, 0, f"run {bad!r} should fail")
             self.assertIn("metacharacters", r.stderr)
 
     def test_run_publishes_log_and_last_reads_it(self) -> None:
