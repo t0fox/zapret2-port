@@ -512,5 +512,145 @@ class TestManifest(unittest.TestCase):
         self.assertEqual(paths, sorted(paths))
 
 
+@unittest.skipUnless(_has_pinned_repo(), "pinned repo absent")
+class TestCircularCompatibility(unittest.TestCase):
+    """Step 2: the circular_compatibility axis (separate from
+    compatibility.status).  Classifies each catalog chain as
+    circular_compatible / static_only / incompatible for the circular pool."""
+
+    def test_every_entry_has_a_valid_circular_compatibility(self):
+        c = IMP.build_catalog(REPO_ROOT)
+        for e in c["entries"]:
+            self.assertIn(e["circular_compatibility"], IMP.CIRCULAR_COMPAT_ALL,
+                          f"{e['stable_id']} has bad circular_compatibility")
+
+    def test_catalog_has_circular_compatibility_summary(self):
+        c = IMP.build_catalog(REPO_ROOT)
+        summ = c["circular_compatibility_summary"]
+        self.assertEqual(summ["total"], len(c["entries"]))
+        total = (summ["circular_compatible"] + summ["static_only"]
+                 + summ["incompatible"])
+        self.assertEqual(total, summ["total"])
+        for key in ("static_only_entries", "incompatible_entries"):
+            self.assertIsInstance(summ[key], list)
+
+    def test_default_v5_is_static_only_with_cutoff_warning(self):
+        """Default v5 (send+syndata+syndata): send is NOT the last step, so it
+        is static_only and carries the VOLUNTARY_CUTOFF warning (send sets a
+        voluntary cutoff -> syndata unreachable inside circular)."""
+        c = IMP.build_catalog(REPO_ROOT)
+        v5 = next(e for e in c["entries"] if IMP._is_default_v5(e["lua_steps"]))
+        self.assertEqual(v5["circular_compatibility"], "static_only")
+        self.assertTrue(
+            any("VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE" in w
+                for w in v5["warnings"]),
+            f"v5 missing VOLUNTARY_CUTOFF warning: {v5['warnings']}",
+        )
+
+    def test_default_old_is_static_only(self):
+        """Default old (send+syndata+tls_multisplit_sni): send not last ->
+        static_only (and tls_multisplit_sni is a shipped custom_funcs func, so
+        not incompatible)."""
+        c = IMP.build_catalog(REPO_ROOT)
+        old = next(e for e in c["entries"] if IMP._is_default_old(e["lua_steps"]))
+        self.assertEqual(old["circular_compatibility"], "static_only")
+        self.assertTrue(
+            any("VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE" in w
+                for w in old["warnings"]),
+            f"old missing VOLUNTARY_CUTOFF warning: {old['warnings']}",
+        )
+
+    def test_pure_multisplit_chain_is_circular_compatible(self):
+        """A chain with no `send` (e.g. bare multisplit) is circular_compatible.
+        Find one in the catalog and assert."""
+        c = IMP.build_catalog(REPO_ROOT)
+        pure = [e for e in c["entries"]
+                if e["circular_compatibility"] == "circular_compatible"
+                and [s["func"] for s in e["lua_steps"]] == ["multisplit"]]
+        self.assertGreater(len(pure), 0,
+                           "no pure-multisplit circular_compatible chain found")
+        # No VOLUNTARY_CUTOFF warning (no send).
+        for e in pure:
+            self.assertFalse(
+                any("VOLUNTARY_CUTOFF" in w for w in e["warnings"]),
+                f"{e['stable_id']} unexpectedly has VOLUNTARY_CUTOFF warning",
+            )
+
+    def test_send_as_last_step_is_circular_compatible(self):
+        """A chain where `send` IS the last/only step is circular_compatible
+        (no later step to cutoff).  Construct one and classify directly."""
+        steps = [
+            {"func": "multisplit", "args": {"pos": "host"}},
+            {"func": "send", "args": {"repeats": "2"}},
+        ]
+        self.assertEqual(
+            IMP._classify_circular_compatibility(steps, set()), "circular_compatible",
+        )
+        # send-only chain is also circular_compatible.
+        self.assertEqual(
+            IMP._classify_circular_compatibility(
+                [{"func": "send", "args": {}}], set()), "circular_compatible",
+        )
+
+    def test_send_not_last_is_static_only(self):
+        """send followed by a later step -> static_only (direct classification)."""
+        steps = [
+            {"func": "send", "args": {"repeats": "2"}},
+            {"func": "syndata", "args": {"blob": "tls_google"}},
+        ]
+        self.assertEqual(
+            IMP._classify_circular_compatibility(steps, set()), "static_only",
+        )
+
+    def test_unavailable_func_is_incompatible(self):
+        """A chain using a func not in core + shipped custom_funcs is
+        incompatible (takes precedence over static_only)."""
+        steps = [
+            {"func": "send", "args": {}},
+            {"func": "hostfakesplit_multi", "args": {}},  # in zapret-multishake, NOT shipped
+        ]
+        self.assertEqual(
+            IMP._classify_circular_compatibility(steps, set()), "incompatible",
+        )
+
+    def test_seqovl_short_sni_warning_for_large_seqovl(self):
+        """Chains with seqovl >= 122 get the SEQOVL_MAY_CANCEL_ON_SHORT_SNI
+        warning (Default old seqovl=652 is the canonical case)."""
+        c = IMP.build_catalog(REPO_ROOT)
+        old = next(e for e in c["entries"] if IMP._is_default_old(e["lua_steps"]))
+        self.assertTrue(
+            any("SEQOVL_MAY_CANCEL_ON_SHORT_SNI" in w for w in old["warnings"]),
+            f"old missing SEQOVL_MAY_CANCEL warning: {old['warnings']}",
+        )
+
+    def test_adaptive_sidecar_chains_carry_circular_compatibility(self):
+        """The adaptive_profile.chains[] metadata (and the .json sidecar)
+        carry circular_compatibility for each chain."""
+        c = IMP.build_catalog(REPO_ROOT)
+        for ch in c["adaptive_profile"]["chains"]:
+            self.assertIn(ch["circular_compatibility"], IMP.CIRCULAR_COMPAT_ALL)
+        s = json.loads(ADAPTIVE_JSON.read_text(encoding="utf-8"))
+        for ch in s["chains"]:
+            self.assertIn(ch["circular_compatibility"], IMP.CIRCULAR_COMPAT_ALL)
+        # Default v5 in the sidecar is static_only.
+        v5_chain = next(ch for ch in s["chains"] if ch["strategy"] == 2)
+        self.assertEqual(v5_chain["circular_compatibility"], "static_only")
+
+    def test_compatibility_status_axis_unchanged(self):
+        """The existing compatibility.status (static-compatible axis) is NOT
+        renamed or removed -- it coexists with circular_compatibility.  Default
+        v5 is compatibility=compatible (send/syndata are core) but
+        circular_compatibility=static_only (send cutoffs syndata).  Default old
+        is compatibility=incompatible (tls_multisplit_sni is a custom func, not
+        in KNOWN_CORE_FUNCS) but circular_compatibility=static_only."""
+        c = IMP.build_catalog(REPO_ROOT)
+        v5 = next(e for e in c["entries"] if IMP._is_default_v5(e["lua_steps"]))
+        self.assertEqual(v5["compatibility"]["status"], "compatible")
+        self.assertEqual(v5["circular_compatibility"], "static_only")
+        old = next(e for e in c["entries"] if IMP._is_default_old(e["lua_steps"]))
+        self.assertEqual(old["compatibility"]["status"], "incompatible")
+        self.assertEqual(old["circular_compatibility"], "static_only")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

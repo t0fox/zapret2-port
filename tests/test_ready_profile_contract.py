@@ -1,9 +1,10 @@
 """Ready TLS profile set + per-profile contract + release versions (TDD).
 
 Encodes the runtime contract that the runtime branch (A) implements:
-  * Exactly 8 ready TLS profiles with fixed IDs; the manifest (profiles.tsv)
+  * Exactly 9 ready TLS profiles with fixed IDs; the manifest (profiles.tsv)
     and the installed .opt set must match; gui-quic-fake is NOT ready/install.
-    The 8 = the 6 r6 circular profiles + ``discord-adaptive`` (circular, r7) +
+    The 9 = the 6 r6 circular profiles + ``discord-adaptive`` (circular, r7) +
+    ``discord-adaptive-original-pool`` (circular, r7 original-parity pool) +
     ``discord-v5`` (NATIVE, r7 — static nfqws2, no circular_quality).
   * Each CIRCULAR ready profile contains EXACTLY ONE
     ``--lua-init=@.../init.lua`` line, located BEFORE the first
@@ -53,7 +54,7 @@ INIT_LUA = ORCH_LUA_DIR / "init.lua"
 Z2_MAKEFILE = ROOT / "openwrt" / "zapret2" / "Makefile"
 ORCH_MAKEFILE = PACKAGE / "Makefile"
 
-# The exact ready TLS profile set (r7 = 8). gui-quic-fake is deliberately
+# The exact ready TLS profile set (r7 = 9). gui-quic-fake is deliberately
 # excluded: it is a UDP/QUIC profile, not a ready TLS install profile.
 READY_IDS = (
     "orchestra-tls-mvp",
@@ -63,6 +64,7 @@ READY_IDS = (
     "gui-tls-syndata",
     "gui-circular",
     "discord-adaptive",
+    "discord-adaptive-original-pool",
     "discord-v5",
 )
 
@@ -78,6 +80,7 @@ CIRCULAR_READY_IDS = (
     "gui-tls-syndata",
     "gui-circular",
     "discord-adaptive",
+    "discord-adaptive-original-pool",
 )
 NATIVE_READY_IDS = ("discord-v5",)
 
@@ -103,15 +106,15 @@ def _opt_files() -> list[Path]:
 
 
 class ReadyProfileSetTest(unittest.TestCase):
-    """The ready TLS profile set is exactly the 8 fixed IDs (r7), and the
+    """The ready TLS profile set is exactly the 9 fixed IDs (r7), and the
     manifest matches the shipped .opt files. gui-quic-fake is not a ready
     profile."""
 
-    def test_exactly_eight_opt_files(self) -> None:
+    def test_exactly_nine_opt_files(self) -> None:
         opts = _opt_files()
         self.assertEqual(
-            len(opts), 8,
-            f"expected exactly 8 ready .opt profiles (r7), got {len(opts)}: "
+            len(opts), 9,
+            f"expected exactly 9 ready .opt profiles (r7), got {len(opts)}: "
             f"{[p.name for p in opts]}",
         )
 
@@ -157,7 +160,8 @@ class ReadyProfileSetTest(unittest.TestCase):
 class ReadyProfileContentTest(unittest.TestCase):
     """Per-profile content contract, split by profile kind:
 
-    * CIRCULAR profiles (the 6 r6 profiles + discord-adaptive): exactly one
+    * CIRCULAR profiles (the 6 r6 profiles + discord-adaptive +
+      discord-adaptive-original-pool): exactly one
       orchestra-extra --lua-init before the first circular_quality selector,
       at least one strategy=N, contiguous numbering from 1, selector before
       strategies, and circular_quality referenced.
@@ -176,8 +180,8 @@ class ReadyProfileContentTest(unittest.TestCase):
     # --- universal (all SHIPPED ready profiles) -------------------------
     # These run over the profiles actually present on disk (via _opt_files()),
     # so the r6 content-safety guards stay green on the 6 r6 profiles now and
-    # automatically cover the 8 r7 profiles once A ships them. The cardinality
-    # contract (exactly 8) is enforced separately by ReadyProfileSetTest.
+    # automatically cover the 9 r7 profiles once A ships them. The cardinality
+    # contract (exactly 9) is enforced separately by ReadyProfileSetTest.
 
     def test_profiles_parse_as_valid_shell_assignment(self) -> None:
         if not shutil.which("sh"):
@@ -202,7 +206,8 @@ class ReadyProfileContentTest(unittest.TestCase):
             self.assertEqual(val.count('"') % 2, 0, f"{pid}: unclosed double quote")
             self.assertEqual(val.count("'") % 2, 0, f"{pid}: unclosed single quote")
 
-    # --- circular-only (the 6 r6 profiles + discord-adaptive) -----------
+    # --- circular-only (the 6 r6 profiles + discord-adaptive +
+    #     discord-adaptive-original-pool) -------------------------------
 
     def test_each_circular_profile_has_exactly_one_orchestra_lua_init(self) -> None:
         for pid in CIRCULAR_READY_IDS:

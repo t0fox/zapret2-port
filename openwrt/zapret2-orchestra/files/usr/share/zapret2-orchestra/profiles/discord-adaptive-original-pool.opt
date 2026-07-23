@@ -1,0 +1,48 @@
+# discord-adaptive-original-pool: original-parity adaptive TLS pool generated from
+# zapret2gui/src/presets/builtin/winws2/Default (circular).txt @ 9d57e55 (the zapret2gui submodule).
+# 24 circular_compatible strategies of the original 29 (static-only send-cutoff and incompatible chains excluded); renumbered contiguously from 1.
+# Provenance + the original->generated strategy map: see the .json sidecar.  Blobs tls1/tls5/tls7 ship separately as
+# /opt/zapret2/bin/tls_clienthello_{1,5,7}.bin; stun_pat as /opt/zapret2/bin/stun.bin.
+# Packet selection: --out-range=-d10 (port convention).  The original used --out-range=-s9656 --in-range=-s3508 (seq-range packet filters);
+# the desync strategies do not depend on those values (they select which packets to desync, not the desync logic), so the port
+# convention -d10 is used here for consistency with discord-adaptive.opt.  --payload=all is kept from the original so
+# HTTP-fake strategies (e.g. fake_default_http) work.
+NFQWS2_OPT="
+--lua-init=@/opt/zapret2/lua/orchestra-extra/init.lua
+--lua-init=@/opt/zapret2/lua/init_vars.lua
+--lua-init=@/opt/zapret2/lua/custom_funcs.lua
+--blob=stun_pat:@/opt/zapret2/bin/stun.bin
+--blob=tls1:@/opt/zapret2/bin/tls_clienthello_1.bin
+--blob=tls5:@/opt/zapret2/bin/tls_clienthello_5.bin
+--blob=tls7:@/opt/zapret2/bin/tls_clienthello_7.bin
+--filter-tcp=80,443,1080,2053,2083,2087,2096,8443
+--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt
+--payload=all
+--out-range=-d10
+--lua-desync=circular_quality:key=tls:fails=3:failure_detector=combined_failure_detector:success_detector=combined_success_detector:lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:inseq=0x1000:nld=3
+--lua-desync=tls_multisplit_sni:seqovl=652:seqovl_pattern=tls_google:strategy=1
+--lua-desync=multisplit:pos=1:seqovl=740:seqovl_pattern=stun_pat:strategy=2
+--lua-desync=fake:blob=fake_default_tls:tls_mod=rnd,dupsid,sni=www.google.com:repeats=8:tcp_seq=1000:strategy=3
+--lua-desync=multisplit:pos=2:seqovl=681:seqovl_pattern=tls_google:repeats=8:strategy=4
+--lua-desync=fake:blob=fake_default_tls:tls_mod=rnd,dupsid,sni=www.google.com:repeats=8:tcp_seq=1000:strategy=5
+--lua-desync=multisplit:pos=2:seqovl=681:seqovl_pattern=tls_google:repeats=8:strategy=5
+--lua-desync=multisplit:pos=host:strategy=6
+--lua-desync=multidisorder:pos=1,host+2,sld+2,sld+5,sniext+1,sniext+2,endhost-2:seqovl=1:strategy=7
+--lua-desync=multisplit:pos=2,midsld-2:seqovl=1:seqovl_pattern=tls7:strategy=8
+--lua-desync=fake:blob=fake_default_http:repeats=4:ip_autottl=2,3-20:ip6_autottl=2,3-20:tcp_md5:strategy=9
+--lua-desync=multidisorder:pos=host+1:strategy=10
+--lua-desync=multisplit:pos=2:seqovl=211:seqovl_pattern=tls5:strategy=11
+--lua-desync=multisplit:pos=2:seqovl=652:seqovl_pattern=tls_google:strategy=12
+--lua-desync=multisplit:pos=10:seqovl=625:seqovl_pattern=tls5:strategy=13
+--lua-desync=multisplit:pos=10:seqovl=700:seqovl_pattern=tls_google:strategy=14
+--lua-desync=multisplit:pos=234:seqovl=700:seqovl_pattern=tls5:strategy=15
+--lua-desync=multisplit:pos=234:seqovl=700:seqovl_pattern=tls1:strategy=16
+--lua-desync=multisplit:pos=234:seqovl=1000:seqovl_pattern=tls_google:strategy=17
+--lua-desync=multisplit:seqovl=500:seqovl_pattern=tls_google:strategy=18
+--lua-desync=multisplit:seqovl=650:seqovl_pattern=tls_google:strategy=19
+--lua-desync=multisplit:seqovl=800:seqovl_pattern=tls_google:strategy=20
+--lua-desync=multisplit:seqovl=211:seqovl_pattern=tls5:strategy=21
+--lua-desync=multisplit:seqovl=625:seqovl_pattern=tls5:strategy=22
+--lua-desync=multisplit:seqovl=625:seqovl_pattern=tls_google:strategy=23
+--lua-desync=multisplit:seqovl=700:seqovl_pattern=tls_google:strategy=24
+"

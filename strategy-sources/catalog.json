@@ -8,6 +8,7 @@
     "chains": [
       {
         "chain_id": "44860d1756db5d65f121f269e235c95b5460f8334ad83d9720c552bbcabe9378",
+        "circular_compatibility": "static_only",
         "compatibility": "incompatible",
         "source_id": "Default old",
         "stable_id": "discord-send-syndata-tls_multisplit_sni-44860d17",
@@ -15,6 +16,7 @@
       },
       {
         "chain_id": "64820dedd6ccc0201be05c8fcf3c064b1d58ffca307ba7da250ad0cff669f204",
+        "circular_compatibility": "static_only",
         "compatibility": "compatible",
         "source_id": "Default v5",
         "stable_id": "discord-send-syndata-syndata-64820ded",
@@ -29,6 +31,52 @@
     }
   },
   "catalog_version": 1,
+  "circular_compatibility_summary": {
+    "circular_compatible": 65,
+    "incompatible": 5,
+    "incompatible_entries": [
+      "chain-send-syndata-hostfakesplit_multi-a991b0ae",
+      "cloudflare-send-syndata-fake-hostfakesplit_multi-de0e6468",
+      "discord-hostfakesplit_multi-e3804838",
+      "obsidian-send-syndata-hostfakesplit_multi-d78a38b7",
+      "telegram-send-syndata-hostfakesplit_multi-9076ab3e"
+    ],
+    "static_only": 31,
+    "static_only_entries": [
+      "amazon-send-syndata-fake-multidisorder_legacy-6a452212",
+      "chain-send-multidisorder-48c82c95",
+      "chain-send-syndata-00903e6e",
+      "chain-send-syndata-fake-multidisorder_legacy-b7821308",
+      "chain-send-syndata-multisplit-0d6f7e9d",
+      "chain-send-syndata-pktmod-4e7dbb03",
+      "chain-send-syndata-tls_multisplit_sni-08eb65a3",
+      "chain-send-syndata-tls_multisplit_sni-db922116",
+      "cloudflare-send-syndata-fake-multidisorder_legacy-tls_fake_flood-b0f02489",
+      "cloudflare-send-syndata-fakedsplit-28e8ffa3",
+      "cloudflare-send-syndata-multidisorder_legacy-d02da8f6",
+      "cloudflare-send-syndata-pktmod-7b23b44b",
+      "discord-send-syndata-fake-multisplit-6cbb1a62",
+      "discord-send-syndata-multidisorder-51960083",
+      "discord-send-syndata-multisplit-3357ce50",
+      "discord-send-syndata-multisplit-c56f3b10",
+      "discord-send-syndata-syndata-64820ded",
+      "discord-send-syndata-tls_multisplit_sni-0b508bf5",
+      "discord-send-syndata-tls_multisplit_sni-44860d17",
+      "google-send-syndata-fake-multidisorder-multidisorder_legacy-d0a385c8",
+      "obsidian-send-syndata-5b2b8f72",
+      "porn-send-syndata-multisplit-c687fb8e",
+      "rutracker-send-syndata-multisplit-58526a29",
+      "telegram-send-multisplit-72e02c56",
+      "telegram-send-syndata-pass-3be08b7b",
+      "twitter-send-syndata-multisplit-d2f5cb16",
+      "youtube-send-multidisorder-628735e8",
+      "youtube-send-syndata-fake-multidisorder_legacy-c5db0294",
+      "youtube-send-syndata-multisplit-229cd941",
+      "youtube-send-syndata-multisplit-e555566b",
+      "youtube-send-syndata-tls_multisplit_sni-3dc60cd0"
+    ],
+    "total": 101
+  },
   "compatibility_reference": {
     "builtin_blobs": [
       "fake_default_http",
@@ -178,6 +226,7 @@
     {
       "askey": "tls",
       "chain_id": "44860d1756db5d65f121f269e235c95b5460f8334ad83d9720c552bbcabe9378",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -363,12 +412,15 @@
       "strategy_number": 1,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "64820dedd6ccc0201be05c8fcf3c064b1d58ffca307ba7da250ad0cff669f204",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -487,11 +539,14 @@
       "stable_id": "discord-send-syndata-syndata-64820ded",
       "strategy_number": 2,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "quic",
       "chain_id": "11e6cb63645b95f7ee383a24359b6cb0f26a7a72c56a85f88033e49600806eb5",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -595,6 +650,7 @@
     {
       "askey": "tls",
       "chain_id": "6a45221225b924fcc0d9c62d371e1461f92075ad2f2bc35a849448cf386d672c",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -719,11 +775,14 @@
       "stable_id": "amazon-send-syndata-fake-multidisorder_legacy-6a452212",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "quic",
       "chain_id": "0ecc22d4160753fb9e5a51be66d9b50b9c8395ce7582b308ea5d06dbb8416b8b",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -1230,6 +1289,7 @@
     {
       "askey": "quic",
       "chain_id": "1085e1eb03dad2a1cb4a24265128929ebb850adcf5a80b9d813295ddfa386d55",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -1474,6 +1534,7 @@
     {
       "askey": "tls",
       "chain_id": "4f9e43a63afc9614c7ef893b2e7a9815ebad488d8b58afbdda93accd30149c92",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -1570,6 +1631,7 @@
     {
       "askey": "discord",
       "chain_id": "530d1556dfe0363d5972d666811911b1deee474c5b1e7e374ce3e1f666e04523",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -1674,6 +1736,7 @@
     {
       "askey": "discord",
       "chain_id": "89301f4367ecf3357d8960c6d32aec3a3c0a4e7b041f22be4aa7abf30060c561",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -2051,6 +2114,7 @@
     {
       "askey": "discord",
       "chain_id": "ae720781064e5cf66398bda7cc9517e2c42238e174c7b1731c70d576b99db6da",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -2135,6 +2199,7 @@
     {
       "askey": "discord",
       "chain_id": "b7c2e41f47aa48d7497f2928227a5ec0182c4386f6d3da719feedd1cf33eaec2",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -2269,6 +2334,7 @@
     {
       "askey": "discord",
       "chain_id": "da201c989611e432891eacc1f784c0e071ea8dbfaaf96d942e1b43f29a34aae1",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -2640,6 +2706,7 @@
     {
       "askey": "discord",
       "chain_id": "e2c8be8bb16d56f7721e8bb1c7abd5ae7c6a2325593e5c53f6b8b7d5b5849efa",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -2782,6 +2849,7 @@
     {
       "askey": "quic",
       "chain_id": "f9c3b0799036c4d70e6b08914b5f44fa9ebad32ac98be3dc5f56dabf6ab0ad6a",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -2894,6 +2962,7 @@
     {
       "askey": "tls",
       "chain_id": "118823422ca1ff7b8d3d0d0bba2de83d6150112fe4f68a77f4e7c249a2526473",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -3034,6 +3103,7 @@
     {
       "askey": "tls",
       "chain_id": "244cf5c2838793c96ffd2d76cfec3cd2f176c64dd79dcf8e1c8699e273235789",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -3143,6 +3213,7 @@
     {
       "askey": "tls",
       "chain_id": "c52a46ff37aebd6f5dc1f99a5c60e225f9eea56b0333d6a821585d47452fa41f",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -3254,6 +3325,7 @@
     {
       "askey": "tls",
       "chain_id": "278d10706dc36da866f25979c08c24610d40b1bb48ba24883e3e5dec04754f0d",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -3391,6 +3463,7 @@
     {
       "askey": "tls",
       "chain_id": "32b0ed5684e339088b84a33a2a6e2c0605c6c9057a56f9e5f69cd8bea9720cdf",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -3538,12 +3611,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=664: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=664: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=664 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "quic",
       "chain_id": "91415a997c55c83e4af72ac4fd5e954b8618f27de99fe83815d49e9db4502304",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -3642,6 +3717,7 @@
     {
       "askey": "tls",
       "chain_id": "df984f8c28c06b8d76d9bc3fe8b0716a8512fcaf8fed806993460635948e4b4d",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -3739,6 +3815,7 @@
     {
       "askey": "tls",
       "chain_id": "48c82c95e8c226af55705586ee97a642e0021b44c8ffa2aa9c6b1408b15b731c",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -3884,11 +3961,14 @@
       "stable_id": "chain-send-multidisorder-48c82c95",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "00903e6e74d73053eda214d732185afea18ef156bf5c20d5fdbbb96ed781c2a3",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-tcp-out=80,443-65535",
@@ -4173,11 +4253,14 @@
       "stable_id": "chain-send-syndata-00903e6e",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "b7821308bbf3d0777ae8acd37c1afabe5d64f8f44b50d321d09f2c287922093c",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -4287,11 +4370,14 @@
       "stable_id": "chain-send-syndata-fake-multidisorder_legacy-b7821308",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "a991b0ae1e487c5524169d9c9bafb0820c2b040ff7fa3a48fb4b2921104b41dc",
+      "circular_compatibility": "incompatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -4436,6 +4522,7 @@
     {
       "askey": "tls",
       "chain_id": "0d6f7e9dc161568c4502afe887d4905948e16557370fd943bb115794b66e6fa8",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -4531,12 +4618,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=740: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=740: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=740 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "4e7dbb03f245ce271b3f20f4a44fed17fb3b5db75ed748b4e8cd27f2a24f351e",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -4636,11 +4726,14 @@
       "stable_id": "chain-send-syndata-pktmod-4e7dbb03",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "08eb65a32305ccd1f36a9fd05ef1fc2f9a3269409b1e92e3e9695e90e9531885",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -4753,12 +4846,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "db9221162d23d37ad7984f009b1b0bc1c2fa36a31d547bc7dd1617f41e8118ef",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -4866,12 +4962,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "5a3b0ab1aa7b878d8659ad8c346f0c247a4c9a57e9a219a58527fad5746d783a",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -4993,6 +5092,7 @@
     {
       "askey": "tls",
       "chain_id": "4259bc37709c57a6636e411e14a0eed9d54ad520c11c4162156bbc634940b9b7",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-tcp-out=80,443-65535",
@@ -5072,6 +5172,7 @@
     {
       "askey": "tls",
       "chain_id": "de0e6468a3306f9460caf0a66da64f002ea57f174db39eef19b3748cffedbbb2",
+      "circular_compatibility": "incompatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -5225,6 +5326,7 @@
     {
       "askey": "tls",
       "chain_id": "b0f0248920abbc4298dbc534e47d987c304372acea6cbdb488a785c5af57f43e",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -5363,11 +5465,14 @@
       "stable_id": "cloudflare-send-syndata-fake-multidisorder_legacy-tls_fake_flood-b0f02489",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "28e8ffa3d51b4a62420fc40b05214562c4a6ee14b9068e08514a39207d3de2e0",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -5472,11 +5577,14 @@
       "stable_id": "cloudflare-send-syndata-fakedsplit-28e8ffa3",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "d02da8f66873a17b6bf7d50022183086608d7e42cc601ac0fb9497fd99efa4bb",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -5579,12 +5687,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "7b23b44b19a4a8d86fcdf121ec6514ccd00abedcb682bcc7e368ec59b6244517",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -5699,11 +5810,14 @@
       "stable_id": "cloudflare-send-syndata-pktmod-7b23b44b",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "c062ccab5b0b7f7c00b2a0ceaf9a63333c49dd1ef799095eec2362f0a45b0e3e",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -5792,6 +5906,7 @@
     {
       "askey": "quic",
       "chain_id": "2286e96c49382d2fff9bd1647d2ac454c87d52bed386814062014f4f7fdc9966",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -6000,6 +6115,7 @@
     {
       "askey": "tls",
       "chain_id": "455a92da8b8e53f92dc194e1c80b39364356d814a7ed763f16408ec5be8ba6c7",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -6146,6 +6262,7 @@
     {
       "askey": "quic",
       "chain_id": "62ea0b0369dd9de9c1e9c50f22d26c50c38d5177af838dd2d8962654b87dfe2a",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -6294,6 +6411,7 @@
     {
       "askey": "quic",
       "chain_id": "975f42b14c6ddeb849940a3e9fa174180a5789f72bffe09af75a383645339ac1",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -6503,6 +6621,7 @@
     {
       "askey": "tls",
       "chain_id": "1905355b4baa04d9095122db820d4dd5e20ea8d35898e1c81a3f19574a358030",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -6689,6 +6808,7 @@
     {
       "askey": "tls",
       "chain_id": "37797bb5e404a8774fba9438e122f732413a90629c8f0f2ed10557dd0a5d23b1",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -6807,6 +6927,7 @@
     {
       "askey": "tls",
       "chain_id": "c9c3565a6209c764d884776fdca76d0286db6c03d71cdde57ad0ad16ccfb6032",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -7039,6 +7160,7 @@
     {
       "askey": "tls",
       "chain_id": "02c465cbfd1b866c809d027005076b06854e2398ba85d90087c7ba2d6ceb00e3",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -7257,6 +7379,7 @@
     {
       "askey": "tls",
       "chain_id": "27aa67408a26c3f0378a8051f641dbbdb240ada2d93853ceea76b56ce0c49e56",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -7511,6 +7634,7 @@
     {
       "askey": "tls",
       "chain_id": "ee8a393e8ef49edc2038bce2af9732fe4703d37ad936d08dc422411c8c613876",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -7663,6 +7787,7 @@
     {
       "askey": "tls",
       "chain_id": "1a4633e42e5432c3fbef809e28fc3eaa6c381da0febc5c584cdc752b96a15a8b",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -7797,6 +7922,7 @@
     {
       "askey": "tls",
       "chain_id": "833e3853694c4bcf6c4483245540fe98786d33c81f0434e6fbf362fc1609dcef",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -8015,6 +8141,7 @@
     {
       "askey": "tls",
       "chain_id": "35878a2469d22dca1b5bdcb2dc51302c0dbe5c0d54ab628401e7b20c4fd570c7",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -8183,12 +8310,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=681 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "82f470b71da2fdd66b3478dc5df4dc69641fd4736c75824c9c2e3dba455c1d4b",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -8356,6 +8485,7 @@
     {
       "askey": "tls",
       "chain_id": "e3cdc1fe7e3dec428b7d4a27855e35399e7e6fea0a6b3937bef8968e0a122fdf",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -8572,12 +8702,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=681 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "e69654d99f589fa42fdbe1d7c39d243f400d86bc14f3020a4634dddba49ca66a",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -8793,12 +8925,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=681 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "f0dba2b1c9c4a39948a0093e1a82f278d7d29306ad66486d9f1b7a9ecdcafcd6",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -9022,6 +9156,7 @@
     {
       "askey": "quic",
       "chain_id": "c3dcca3c5ab0ca6e6bd6652a17a2e063712fb4ae5d555bf06d54b778b99e3f45",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -9155,6 +9290,7 @@
     {
       "askey": "tls",
       "chain_id": "6569586ceb607546eb0c3b15065abd0142a6ab3944803aeaf50c099d4e5df63a",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -9305,6 +9441,7 @@
     {
       "askey": "tls",
       "chain_id": "69ca2d7a4fc587db311883391d53eb20d265e87bdd9d2f8cacbe2c1db5625d2d",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -9454,6 +9591,7 @@
     {
       "askey": "tls",
       "chain_id": "f41730ad16d917aa4f01e9166049dd750660a6aee301e56ccc46ad091147f353",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -9610,6 +9748,7 @@
     {
       "askey": "tls",
       "chain_id": "e38048381f1af4f60666c6c5be881fc3fce2149730d1fcd85bb8ef567b488479",
+      "circular_compatibility": "incompatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -9961,6 +10100,7 @@
     {
       "askey": "tls",
       "chain_id": "147443ac6f2debfea3da29faec836d2540e15336a5203066e337b084b95259d2",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -10113,12 +10253,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=679: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=679: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=679 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "2e4531fc5ee66b3af05997c6e671a72c6c07e728cea990f8f3d7acf4d2ad3375",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -10318,12 +10460,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=681 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "370c9508ed593e6297b9e139345c8ca6dc4c5399918af4ed68c88a829d053d86",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -10509,12 +10653,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=740: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=740: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=740 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "51161edc18228f1d6baa1c4d59204c6be9c8c3790c9abb22ff51d2541b43f48e",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -10716,12 +10862,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "fa4f6f0051c0047a47f76151121213bd0d95fa84b2748ecc63c2e8723beb6470",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -10839,6 +10987,7 @@
     {
       "askey": "tls",
       "chain_id": "6cbb1a6245da0db1d080055056171274967e8de698791a0c595fb3dafa05e41b",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -10997,12 +11146,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=681 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "5196008381db28e905acd08628650bd503ccfdaa51200211536b72e49af0c04a",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -11207,12 +11359,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=1: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=1: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "3357ce50c0e032d8ee195ddc027179d0ae594dbfa943b50508f6fdb1e59743e0",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -11384,12 +11538,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=700: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=700: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=700 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "c56f3b109b83e7cb7f84e35a589fbecd8b96c73ab24e5d4b1b80555c5e2caeec",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -11545,12 +11702,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=740: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=740: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=740 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "0b508bf5c45d7e3be1a8a79c65e766e7211dbe097830dd944060b7524777c98b",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -11718,12 +11878,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "8a62e9beb70692bf90cae71129021cf62f0364e1eff0224676fa969cd40c9e48",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -11869,6 +12032,7 @@
     {
       "askey": "tls",
       "chain_id": "179b7de0706a8781303ab4dc6d10ab408d593171b27c194ff89f9dcf72f32de7",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -12028,6 +12192,7 @@
     {
       "askey": "tls",
       "chain_id": "6d15da3572d1c1aa48127067f0d1afc39a9926a7b126a11762e1d28f67704bc1",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -12182,12 +12347,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "70576793584fcf79a9ef221cdb976b2616b4a90b601e323ecb5d4fde6d285bf6",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -12355,12 +12522,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "d0a385c81e3132050653670bb0319803fe9b2c0b91c7f23b95efc2953ba4fdc8",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -12494,12 +12663,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=1: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=1: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "5b2b8f72ae168d0623ccc71eec4d1dab9365167e46e7e31feebba00f6d735ab4",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -12602,11 +12773,14 @@
       "stable_id": "obsidian-send-syndata-5b2b8f72",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "d78a38b7257a903e7093c7f7c22ce2bed83844a5a711171111dcc5b08cd3e55d",
+      "circular_compatibility": "incompatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -12827,6 +13001,7 @@
     {
       "askey": "tls",
       "chain_id": "c687fb8e8aa75939c0fe8a376cb3776e6808f56759ca4b7fcc815b8523d88c48",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -12927,11 +13102,14 @@
       "stable_id": "porn-send-syndata-multisplit-c687fb8e",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "58526a29b5cdc5420e2908a480d815907fe4f62623bd4f4abb4edc6c86d88ac1",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -13070,12 +13248,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=211: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=211: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=211 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "mtproto",
       "chain_id": "72e02c56556bd4c59525ca3fa5a6257fe3e9b660a6a8ddedf9fb328bb1845018",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -13159,12 +13340,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=211: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=211: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=211 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "mtproto",
       "chain_id": "9076ab3e069e05760e85234d53da8b7c302537855c8dfaaf4b4a1f9622923187",
+      "circular_compatibility": "incompatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -13339,6 +13523,7 @@
     {
       "askey": "tls",
       "chain_id": "3be08b7bb3d2b0455ac23e738a86053e815c55df7a82d631063018e40f92be29",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -13468,11 +13653,14 @@
       "stable_id": "telegram-send-syndata-pass-3be08b7b",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "d2f5cb16086dce224bc75c6d550d477dd68d0385f979384126dc2c39c9cd9081",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -13579,11 +13767,14 @@
       "stable_id": "twitter-send-syndata-multisplit-d2f5cb16",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "be0e3d40b218db2023bc7924a8ad11076c7c6e90e8453b3c930c01b322dc1014",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -13744,6 +13935,7 @@
     {
       "askey": "quic",
       "chain_id": "395513c4f00cc1887b0f9e48549b396ad86530e9e0d3019157978f063e444a7f",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-tcp-out=80,443-65535",
@@ -13921,6 +14113,7 @@
     {
       "askey": "discord",
       "chain_id": "a20b4a724c64aa6032d4287cdea6fe58230115c173eb0ef5f86ae35c6b66343b",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -14065,6 +14258,7 @@
     {
       "askey": "tls",
       "chain_id": "c8522504417a65c51ae49d98085396ae0954b365efe28d02ddee916f999c99e3",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -14350,6 +14544,7 @@
     {
       "askey": "tls",
       "chain_id": "df736303cf823ce4943aeed51a20e4959169d0039b86481185d74246e9e758c8",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -14621,6 +14816,7 @@
     {
       "askey": "tls",
       "chain_id": "3587c08b979827f34b58771e30399d98f53942fcdb37d70dbba301a4e24a3783",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -14721,6 +14917,7 @@
     {
       "askey": "tls",
       "chain_id": "a5c569b58e205663cadd154904d8dfa431a4177ed71f15e2f613c3c65be3517e",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -14868,6 +15065,7 @@
     {
       "askey": "tls",
       "chain_id": "a6cb5f69fec91c2d233f1b0acb2cf47f19243182072cfc03eb4adf8cc1861ced",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -14968,12 +15166,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=681: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=681 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "aa50cc8215e5fe5e65f35a8dc8b5863bd9b2401e18d5fd7d2508b996db01c2ea",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-tcp-out=80,443-65535",
@@ -15349,6 +15549,7 @@
     {
       "askey": "tls",
       "chain_id": "0678e5a8133b0edf8f2e49bf3cb1ac3d1c640b6e46f7bf8d0f6f08f0e97f4b87",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -15421,12 +15622,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "15f5c3bd261a132e8de68a112354f7ad31eda71806c4773c5ddf9e4cb98278f4",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-tcp-out=80,443-65535",
@@ -15507,6 +15710,7 @@
     {
       "askey": "tls",
       "chain_id": "2282706d8e0d1147e9cd12aa08259d7045f28d438139f864d10494a198fdd6da",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -15630,6 +15834,7 @@
     {
       "askey": "tls",
       "chain_id": "23b710a05f34876965a23c2f4f0cf069ee403948c821dcc56296e7b775f4fd35",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -15713,6 +15918,7 @@
     {
       "askey": "tls",
       "chain_id": "628735e8756eeaba4cc6c78f2fc89094b10ae4c510712006af83a1a6e9d79ff0",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -15792,12 +15998,14 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=1: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=1: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "c5db0294823575705d5d13a3df39f81cb7b265bb3e51fe7967fdd6de94038fbe",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -15938,11 +16146,14 @@
       "stable_id": "youtube-send-syndata-fake-multidisorder_legacy-c5db0294",
       "strategy_number": null,
       "transport": "tcp",
-      "warnings": []
+      "warnings": [
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only"
+      ]
     },
     {
       "askey": "tls",
       "chain_id": "229cd941a91a41663152e96a026c9a7632112240cd2fcb21d9700e2852838bf8",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -16069,12 +16280,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=700: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=700: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=700 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "e555566bff5ab4fc736386ad4ae7138c4e0dd64990adf1db8028f906d3856ac8",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -16194,12 +16408,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=740: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=740: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=740 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "3dc60cd074fcbc87592634e8386c49426e7a9c99f5b034da5af2886945cd146f",
+      "circular_compatibility": "static_only",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",
@@ -16331,12 +16548,15 @@
       "strategy_number": null,
       "transport": "tcp",
       "warnings": [
-        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains"
+        "seqovl=652: may cancel on a short SNI when seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 or no-ops for small-SNI domains",
+        "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains `send` not as the last step; `send` calls direction_cutoff_opposite (zapret-antidpi.lua:91) so later steps are cutoff (unreachable) inside circular plan_instance_execute; works as STATIC only",
+        "SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl=652 >= 122 (discord.com SNI ~122 bytes); seqovl >= pos-1 cancels (proven: Default old seqovl=652 failed with 'seqovl cancelled, too large')"
       ]
     },
     {
       "askey": "tls",
       "chain_id": "0d5b1578a8405b29f7b3fb530eec17d880f78de1dae6c214369fe57f452225f5",
+      "circular_compatibility": "circular_compatible",
       "compatibility": {
         "dropped_options": [
           "--wf-raw-part=@windivert.filter/windivert_part.discord_media.txt",

@@ -529,6 +529,99 @@ def _seqovl_steps(steps: list[dict[str, Any]]) -> list[int]:
     return vals
 
 
+# ---------------------------------------------------------------------------
+# Circular-pool compatibility classification (Step 2).
+#
+# A separate axis from ``compatibility.status`` (the static-compatible axis,
+# which stays as-is).  ``circular_compatibility`` says whether a chain can be a
+# candidate for the circular pool, given that inside ``plan_instance_execute``
+# a voluntary cutoff (set by ``send`` -- zapret-antidpi.lua:91) makes later
+# steps unreachable.
+# ---------------------------------------------------------------------------
+
+# discord.com's SNI sits at ~byte 122; seqovl cancels when seqovl >= pos-1, so
+# any seqovl >= 122 may cancel on a short-SNI domain (proven: Default old
+# seqovl=652 failed with "seqovl cancelled, too large").
+SEQOVL_SHORT_SNI_THRESHOLD = 122
+
+CIRCULAR_COMPAT_INCOMPATIBLE = "incompatible"
+CIRCULAR_COMPAT_STATIC_ONLY = "static_only"
+CIRCULAR_COMPAT_CIRCULAR_COMPATIBLE = "circular_compatible"
+CIRCULAR_COMPAT_ALL = (
+    CIRCULAR_COMPAT_CIRCULAR_COMPATIBLE,
+    CIRCULAR_COMPAT_STATIC_ONLY,
+    CIRCULAR_COMPAT_INCOMPATIBLE,
+)
+
+
+def _send_not_last(steps: list[dict[str, Any]]) -> bool:
+    """True if any ``send`` step is followed by a later step.  ``send`` calls
+    ``direction_cutoff_opposite`` (zapret-antidpi.lua:91) which sets a
+    voluntary cutoff; any step after such a ``send`` is unreachable inside
+    ``plan_instance_execute`` (the circular execution loop)."""
+    last = len(steps) - 1
+    for i, s in enumerate(steps):
+        if s["func"] == "send" and i < last:
+            return True
+    return False
+
+
+def _classify_circular_compatibility(
+    steps: list[dict[str, Any]],
+    shipped_custom_funcs: set[str] | None = None,
+) -> str:
+    """Classify a chain for the circular pool (Step 2).
+
+    * ``incompatible``        -- uses a function not in core + shipped
+                                 ``custom_funcs.lua`` (cannot run on the port
+                                 at all, so it is not a circular candidate).
+    * ``static_only``         -- contains ``send`` NOT as the last step;
+                                 ``send`` sets a voluntary cutoff so later
+                                 steps are unreachable inside circular.  Works
+                                 as STATIC (direct, no circular) but NOT as a
+                                 circular pool candidate.
+    * ``circular_compatible`` -- no ``send``, or ``send`` IS the last/only
+                                 step; all steps reachable inside circular.
+
+    Precedence: incompatible > static_only > circular_compatible.
+    """
+    shipped = (shipped_custom_funcs if shipped_custom_funcs is not None
+               else _PINNED_CUSTOM_FUNCS)
+    funcs = [s["func"] for s in steps]
+    unavailable = [f for f in funcs
+                   if f not in KNOWN_CORE_FUNCS and f not in shipped]
+    if unavailable:
+        return CIRCULAR_COMPAT_INCOMPATIBLE
+    if _send_not_last(steps):
+        return CIRCULAR_COMPAT_STATIC_ONLY
+    return CIRCULAR_COMPAT_CIRCULAR_COMPATIBLE
+
+
+def _circular_compatibility_warnings(
+    steps: list[dict[str, Any]],
+    circ_compat: str,
+) -> list[str]:
+    """Step 2 warning tokens for the circular axis (added alongside the
+    existing seqovl warning the importer already emits)."""
+    out: list[str] = []
+    if circ_compat == CIRCULAR_COMPAT_STATIC_ONLY:
+        out.append(
+            "VOLUNTARY_CUTOFF_MAKES_LATER_STEPS_UNREACHABLE: chain contains "
+            "`send` not as the last step; `send` calls direction_cutoff_opposite "
+            "(zapret-antidpi.lua:91) so later steps are cutoff (unreachable) "
+            "inside circular plan_instance_execute; works as STATIC only"
+        )
+    for sv in _seqovl_steps(steps):
+        if sv >= SEQOVL_SHORT_SNI_THRESHOLD:
+            out.append(
+                f"SEQOVL_MAY_CANCEL_ON_SHORT_SNI: seqovl={sv} >= "
+                f"{SEQOVL_SHORT_SNI_THRESHOLD} (discord.com SNI ~122 bytes); "
+                f"seqovl >= pos-1 cancels (proven: Default old seqovl=652 "
+                f"failed with 'seqovl cancelled, too large')"
+            )
+    return out
+
+
 def build_dependencies(
     steps: list[dict[str, Any]],
     block: Block,
@@ -749,6 +842,12 @@ def build_catalog(repo_root: Path) -> dict[str, Any]:
             unknown_funcs = deps["unknown_funcs"]
             status = "incompatible" if unknown_funcs else "compatible"
 
+            # circular_compatibility (Step 2): a separate axis from
+            # compatibility.status.  Derived purely from the chain content
+            # (steps), so it is stable per chain_id -- the same chain always
+            # gets the same class regardless of which preset block sourced it.
+            circ_compat = _classify_circular_compatibility(steps, _PINNED_CUSTOM_FUNCS)
+
             warnings: list[str] = []
             for sv in _seqovl_steps(steps):
                 warnings.append(
@@ -756,6 +855,11 @@ def build_catalog(repo_root: Path) -> dict[str, Any]:
                     f"seqovl >= pos[1]-1 (spec §5.2); degrades to seqovl=0 "
                     f"or no-ops for small-SNI domains"
                 )
+            # Step 2 circular-axis warnings (added alongside the existing
+            # seqovl warning above).
+            for w in _circular_compatibility_warnings(steps, circ_compat):
+                if w not in warnings:
+                    warnings.append(w)
 
             source_block = {
                 "source_path": preset.rel_path,
@@ -784,6 +888,7 @@ def build_catalog(repo_root: Path) -> dict[str, Any]:
                         "unknown_funcs": sorted(set(unknown_funcs)),
                         "notes": "",
                     },
+                    "circular_compatibility": circ_compat,
                     "warnings": warnings,
                     "dependencies": deps,
                     "required_assets": required_assets_for(
@@ -834,6 +939,7 @@ def build_catalog(repo_root: Path) -> dict[str, Any]:
     entry_list = _assign_adaptive_and_finalize(entries)
     _finalize_compat_notes(entry_list)
     compat_summary = _compatibility_summary(entry_list)
+    circ_summary = _circular_compatibility_summary(entry_list)
 
     # Compose provenance for the static fallback (shipped verbatim).
     static_fallback = _static_fallback_provenance(repo_root)
@@ -855,6 +961,7 @@ def build_catalog(repo_root: Path) -> dict[str, Any]:
             "init_vars_blobs": sorted(INIT_VARS_BLOBS),
         },
         "compatibility_summary": compat_summary,
+        "circular_compatibility_summary": circ_summary,
         "static_fallback_profile": static_fallback,
         "adaptive_profile": _adaptive_profile_meta(entry_list),
         "entries": entry_list,
@@ -912,6 +1019,32 @@ def _compatibility_summary(entry_list: list[dict[str, Any]]) -> dict[str, Any]:
         "incompatible_entries": sorted(
             e["stable_id"] for e in entry_list
             if e["compatibility"]["status"] == "incompatible"
+        ),
+    }
+
+
+def _circular_compatibility_summary(entry_list: list[dict[str, Any]]) -> dict[str, Any]:
+    """Step 2: counts of each circular_compatibility class across the catalog,
+    plus the stable_ids of the static-only / incompatible chains (audit anchors
+    for the original-pool generator's exclusion set)."""
+    total = len(entry_list)
+    counts = {c: 0 for c in CIRCULAR_COMPAT_ALL}
+    for e in entry_list:
+        cc = e.get("circular_compatibility")
+        if cc in counts:
+            counts[cc] += 1
+    return {
+        "total": total,
+        "circular_compatible": counts[CIRCULAR_COMPAT_CIRCULAR_COMPATIBLE],
+        "static_only": counts[CIRCULAR_COMPAT_STATIC_ONLY],
+        "incompatible": counts[CIRCULAR_COMPAT_INCOMPATIBLE],
+        "static_only_entries": sorted(
+            e["stable_id"] for e in entry_list
+            if e.get("circular_compatibility") == CIRCULAR_COMPAT_STATIC_ONLY
+        ),
+        "incompatible_entries": sorted(
+            e["stable_id"] for e in entry_list
+            if e.get("circular_compatibility") == CIRCULAR_COMPAT_INCOMPATIBLE
         ),
     }
 
@@ -1020,6 +1153,8 @@ def _adaptive_profile_meta(entry_list: list[dict[str, Any]]) -> dict[str, Any]:
             "stable_id": e["stable_id"],
             "source_id": e["source_blocks"][0]["source_id"] if e["source_blocks"] else "",
             "compatibility": e["compatibility"]["status"],
+            "circular_compatibility": e.get("circular_compatibility",
+                                            CIRCULAR_COMPAT_CIRCULAR_COMPATIBLE),
         })
     chains.sort(key=lambda c: c["strategy"])
     chain_id_for_strategy = {str(c["strategy"]): c["stable_id"] for c in chains}
@@ -1164,6 +1299,330 @@ def build_adaptive_sidecar(catalog: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Step 3: original-parity adaptive pool generated from the GUI Default
+# (circular).txt TLS circular pool (the SECOND --new block, strategies 1-29).
+#
+# Provenance: youtubediscord/zapret @ 9d57e55 (the zapret2gui submodule),
+# zapret2gui/src/presets/builtin/winws2/Default (circular).txt.  This is a
+# DIFFERENT source from the native-preset catalog above (which comes from
+# youtubediscord/zapret2-youtube-discord @ 4d75c70b).  The pool composition is
+# the source of truth per docs/ORCHESTRA_ORIGINAL_TLS_POOL.md.
+# ---------------------------------------------------------------------------
+
+ORIGINAL_POOL_PROFILE_ID = "discord-adaptive-original-pool"
+ORIGINAL_POOL_SOURCE_REPO = GUI_REPO  # youtubediscord/zapret
+ORIGINAL_POOL_SOURCE_COMMIT = GUI_COMMIT  # 9d57e55...
+ORIGINAL_POOL_SOURCE_PATH = (
+    "zapret2gui/src/presets/builtin/winws2/Default (circular).txt"
+)
+ORIGINAL_POOL_SOURCE_LABEL = "Default (circular).txt @ 9d57e55"
+
+DEFAULT_ORIGINAL_POOL_PRESET = Path(
+    "zapret2gui/src/presets/builtin/winws2/Default (circular).txt"
+)
+
+# The port circular_quality selector, with fails=3 to keep the original
+# pool's rotation spirit (3 consecutive failures -> rotate to the next
+# strategy).  The rest of the args are the port's circular_quality knobs
+# (detectors, lock/unlock thresholds, inseq, nld) -- the port engine is
+# circular_quality, not the original `circular`.
+ORIGINAL_POOL_SELECTOR = (
+    "circular_quality:key=tls:fails=3:"
+    "failure_detector=combined_failure_detector:"
+    "success_detector=combined_success_detector:"
+    "lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:"
+    "inseq=0x1000:nld=3"
+)
+
+# OpenWrt path mapping for bin blobs referenced by the original pool (the .bin
+# files are shipped separately; declared here so the profile is complete).
+# tls_google is provided by init_vars.lua (no --blob needed); the
+# fake_default_* blobs are nfqws2 builtins (no --blob needed).
+
+
+def _original_bin_blob_port_path(blob_name: str) -> str | None:
+    """Map an original-pool bin blob name to its OpenWrt --blob= path, or None
+    if the blob is not a bin-shipped blob (builtin / init_vars / unknown)."""
+    if blob_name == "stun_pat":
+        return "@/opt/zapret2/bin/stun.bin"
+    m = re.fullmatch(r"tls(\d+)", blob_name)
+    if m:
+        return f"@/opt/zapret2/bin/tls_clienthello_{m.group(1)}.bin"
+    return None
+
+
+_POOL_SELECTOR_RE = re.compile(r"^--lua-desync=(?:circular|circular_quality)(?::|$)")
+_DESYNC_TOKEN_RE = re.compile(r"--lua-desync=(\S+)")
+_STRATEGY_TAG_RE_POOL = re.compile(r":strategy=(\d+)$")
+
+
+def parse_original_pool(text: str) -> list[dict[str, Any]]:
+    """Parse the TLS circular pool block of ``Default (circular).txt`` and
+    return the strategies in original order.
+
+    Each entry is ``{"original_strategy": <int>, "source_line": <int 1-based>,
+    "steps": [{"func":..., "args":{...}}, ...]}``.  The selector line is NOT a
+    strategy; only the ``:strategy=N`` desync lines are.  Multiple
+    ``--lua-desync=`` on the same logical line share the same N (per
+    ``circular_strategy_numbering.py``); they are grouped by N here.
+    """
+    # Split into --new-separated segments (line-anchored).
+    segments = re.split(r"(?m)^[ \t]*--new[ \t]*$", text)
+    pool_seg: str | None = None
+    for seg in segments:
+        # The TLS circular pool: has --filter-tcp= AND a `circular` selector.
+        # The first block (--lua-desync=pass) and the UDP pool (--filter-udp=)
+        # are excluded by this conjunction.
+        if "--filter-tcp=" in seg and re.search(
+                r"--lua-desync=circular(?!_quality)(?::|$)", seg):
+            pool_seg = seg
+            break
+    if pool_seg is None:
+        raise ValueError(
+            "original TLS circular pool block not found in preset "
+            "(expected a --filter-tcp= block with --lua-desync=circular:)")
+
+    # Collect steps grouped by original strategy number, preserving order.
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    source_line: dict[int, int] = {}
+    line_no = 0
+    # Reconstruct the line numbers within the FULL text so source_line is
+    # auditable to the original preset.  Find the pool segment's start offset.
+    seg_start = text.find(pool_seg)
+    base_line = text.count("\n", 0, seg_start) + 1
+    for raw in pool_seg.splitlines():
+        line_no += 1
+        s = raw.strip()
+        if not s or s.startswith("#"):
+            continue
+        for body in _DESYNC_TOKEN_RE.findall(raw):
+            if _POOL_SELECTOR_RE.match(f"--lua-desync={body}"):
+                continue  # the selector is unnumbered
+            m = _STRATEGY_TAG_RE_POOL.search(body)
+            if not m:
+                continue  # not a numbered strategy step
+            orig_n = int(m.group(1))
+            func_body = _STRATEGY_TAG_RE_POOL.sub("", body)
+            func, args = _parse_kv(func_body)
+            args.pop("strategy", None)  # safety; already stripped by the sub
+            grouped.setdefault(orig_n, []).append({"func": func, "args": args})
+            source_line.setdefault(orig_n, base_line + line_no - 1)
+
+    strategies: list[dict[str, Any]] = []
+    for orig_n in sorted(grouped.keys()):
+        strategies.append({
+            "original_strategy": orig_n,
+            "source_line": source_line[orig_n],
+            "steps": grouped[orig_n],
+        })
+    return strategies
+
+
+def _compatibility_status_for(steps: list[dict[str, Any]]) -> str:
+    """The existing static-compatible axis (compatibility.status), computed
+    standalone for an original-pool chain: incompatible if any func is not in
+    KNOWN_CORE_FUNCS, else compatible.  Mirrors build_catalog's logic."""
+    funcs = [s["func"] for s in steps]
+    unknown = [f for f in funcs if f not in KNOWN_CORE_FUNCS]
+    return "incompatible" if unknown else "compatible"
+
+
+def build_original_pool(
+    preset_path: Path,
+    shipped_custom_funcs: set[str] | None = None,
+) -> dict[str, Any]:
+    """Generate the original-parity adaptive pool (Step 3).
+
+    Returns ``{"opt": <str>, "sidecar": <dict>}``.  Parses the original TLS
+    circular pool, classifies each strategy by circular_compatibility, EXCLUDES
+    static_only and incompatible chains, renumbers the included
+    circular_compatible chains contiguously from 1 (circular_quality requires
+    contiguous-from-1, orchestrator.lua:23), and records the
+    original_strategy -> generated_strategy map for provenance.
+    """
+    text = preset_path.read_text(encoding="utf-8", errors="replace")
+    strategies = parse_original_pool(text)
+    shipped = (shipped_custom_funcs if shipped_custom_funcs is not None
+               else _PINNED_CUSTOM_FUNCS)
+
+    included: list[dict[str, Any]] = []
+    excluded: list[dict[str, Any]] = []
+    for s in strategies:
+        steps = s["steps"]
+        cc = _classify_circular_compatibility(steps, shipped)
+        rec = {
+            "original_strategy": s["original_strategy"],
+            "source_line": s["source_line"],
+            "steps": steps,
+            "chain_id": _chain_id(steps),
+            "stable_id": _stable_id([], steps, _chain_id(steps)),
+            "circular_compatibility": cc,
+            "compatibility": _compatibility_status_for(steps),
+        }
+        if cc == CIRCULAR_COMPAT_CIRCULAR_COMPATIBLE:
+            included.append(rec)
+        else:
+            excluded.append(rec)
+
+    # Renumber the included chains contiguously from 1.
+    orig_to_gen: dict[int, int] = {}
+    chains: list[dict[str, Any]] = []
+    for gen_n, rec in enumerate(included, start=1):
+        orig_to_gen[rec["original_strategy"]] = gen_n
+        chains.append({**rec, "generated_strategy": gen_n})
+
+    opt = _build_original_pool_opt(chains)
+    sidecar = _build_original_pool_sidecar(
+        chains, excluded, orig_to_gen, preset_path)
+    return {"opt": opt, "sidecar": sidecar}
+
+
+def _build_original_pool_opt(chains: list[dict[str, Any]]) -> str:
+    # Blobs referenced by the included chains that need a --blob= declaration
+    # (i.e. neither a builtin nor an init_vars var).  Declared sorted so the
+    # output is deterministic.
+    referenced: set[str] = set()
+    for ch in chains:
+        for s in ch["steps"]:
+            b = s["args"].get("blob")
+            if b:
+                referenced.add(b)
+            p = s["args"].get("seqovl_pattern")
+            if p:
+                referenced.add(p)
+    bin_blobs = sorted(
+        b for b in referenced
+        if b not in BUILTIN_BLOBS and b not in INIT_VARS_BLOBS
+        and _original_bin_blob_port_path(b) is not None
+    )
+
+    lines: list[str] = []
+    # Document the packet-selection choice in comments BEFORE the assignment
+    # (the NFQWS2_OPT parser skips `#` comment lines; apply.uc mirrors this).
+    lines.append(
+        f"# {ORIGINAL_POOL_PROFILE_ID}: original-parity adaptive TLS pool "
+        "generated from")
+    lines.append(
+        f"# {ORIGINAL_POOL_SOURCE_PATH} @ {ORIGINAL_POOL_SOURCE_COMMIT[:7]} "
+        "(the zapret2gui submodule).")
+    lines.append(
+        f"# {len(chains)} circular_compatible strategies of the original 29 "
+        "(static-only send-cutoff and incompatible chains excluded); "
+        "renumbered contiguously from 1.")
+    lines.append(
+        "# Provenance + the original->generated strategy map: see the .json "
+        "sidecar.  Blobs tls1/tls5/tls7 ship separately as")
+    lines.append(
+        "# /opt/zapret2/bin/tls_clienthello_{1,5,7}.bin; stun_pat as "
+        "/opt/zapret2/bin/stun.bin.")
+    lines.append(
+        "# Packet selection: --out-range=-d10 (port convention).  The original "
+        "used --out-range=-s9656 --in-range=-s3508 (seq-range packet filters);")
+    lines.append(
+        "# the desync strategies do not depend on those values (they select "
+        "which packets to desync, not the desync logic), so the port")
+    lines.append(
+        "# convention -d10 is used here for consistency with "
+        "discord-adaptive.opt.  --payload=all is kept from the original so")
+    lines.append(
+        "# HTTP-fake strategies (e.g. fake_default_http) work.")
+    lines.append('NFQWS2_OPT="')
+    # Lua init: orchestra runtime (circular_quality/slm) + init_vars (tls_google)
+    # + custom_funcs (tls_multisplit_sni).  NOT custom_diag / zapret-multishake /
+    # fakemultisplit / fakemultidisorder (not needed by strategies 1-29, not
+    # shipped by the port -- see docs/ORCHESTRA_ORIGINAL_TLS_POOL.md §3).
+    lines.append("--lua-init=@/opt/zapret2/lua/orchestra-extra/init.lua")
+    lines.append("--lua-init=@/opt/zapret2/lua/init_vars.lua")
+    lines.append("--lua-init=@/opt/zapret2/lua/custom_funcs.lua")
+    for b in bin_blobs:
+        lines.append(f"--blob={b}:{_original_bin_blob_port_path(b)}")
+    lines.append("--filter-tcp=80,443,1080,2053,2083,2087,2096,8443")
+    lines.append("--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt")
+    lines.append("--payload=all")
+    lines.append("--out-range=-d10")
+    # Selector first (contract §1.3: selector is unnumbered).
+    lines.append(f"--lua-desync={ORIGINAL_POOL_SELECTOR}")
+    # Each included chain, in generated-strategy order (contiguous from 1).
+    for ch in chains:
+        for st in ch["steps"]:
+            lines.append(_step_to_opt_line(st, ch["generated_strategy"]))
+    lines.append('"')
+    return "\n".join(lines) + "\n"
+
+
+def _build_original_pool_sidecar(
+    chains: list[dict[str, Any]],
+    excluded: list[dict[str, Any]],
+    orig_to_gen: dict[int, int],
+    preset_path: Path,
+) -> dict[str, Any]:
+    chain_id_for_strategy = {
+        str(ch["generated_strategy"]): ch["stable_id"] for ch in chains
+    }
+    strategy_for_chain_id = {
+        ch["stable_id"]: ch["generated_strategy"] for ch in chains
+    }
+    chain_records = []
+    for ch in chains:
+        chain_records.append({
+            "generated_strategy": ch["generated_strategy"],
+            "original_strategy_number": ch["original_strategy"],
+            "chain_id": ch["chain_id"],
+            "stable_id": ch["stable_id"],
+            "source": ORIGINAL_POOL_SOURCE_LABEL,
+            "circular_compatibility": ch["circular_compatibility"],
+            "compatibility": ch["compatibility"],
+        })
+    chain_records.sort(key=lambda r: r["generated_strategy"])
+
+    excluded_detail = sorted(
+        ({
+            "original_strategy": e["original_strategy"],
+            "circular_compatibility": e["circular_compatibility"],
+            "compatibility": e["compatibility"],
+            "reason": (
+                "send sets a voluntary cutoff; later steps unreachable inside "
+                "circular"
+                if e["circular_compatibility"] == CIRCULAR_COMPAT_STATIC_ONLY
+                else "uses a function not in core + shipped custom_funcs.lua"
+            ),
+        } for e in excluded),
+        key=lambda r: r["original_strategy"],
+    )
+
+    return {
+        "schema_version": 1,
+        "profile_id": ORIGINAL_POOL_PROFILE_ID,
+        "askey": "tls",
+        "chain_id_for_strategy": chain_id_for_strategy,
+        "strategy_for_chain_id": strategy_for_chain_id,
+        "default_blocked_pass_domains_applied": True,
+        "chains": chain_records,
+        "provenance": {
+            "source_repo": ORIGINAL_POOL_SOURCE_REPO,
+            "source_commit": ORIGINAL_POOL_SOURCE_COMMIT,
+            "source_path": ORIGINAL_POOL_SOURCE_PATH,
+            "source_label": ORIGINAL_POOL_SOURCE_LABEL,
+            "selector": ORIGINAL_POOL_SELECTOR,
+            "original_strategy_numbers": {
+                "included": sorted(orig_to_gen.keys()),
+                "excluded": sorted(e["original_strategy"] for e in excluded),
+                "excluded_detail": excluded_detail,
+            },
+            "original_to_generated_strategy_map": {
+                str(k): orig_to_gen[k] for k in sorted(orig_to_gen)
+            },
+            "note": (
+                "Strategy numbers are renumbered contiguously from 1 for the "
+                "port circular_quality engine (orchestrator.lua:23 requires "
+                "contiguous-from-1).  The original_strategy_number -> "
+                "generated_strategy map above preserves provenance."
+            ),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # Static fallback provenance (discord-v5.opt + init_vars.lua + ipset-discord.txt)
 # ---------------------------------------------------------------------------
 
@@ -1251,7 +1710,8 @@ def _dump_json(obj: Any) -> str:
 
 
 def write_outputs(repo_root: Path, out_dir: Path, profile_dir: Path,
-                  static_dir: Path, static_src: Path) -> dict[str, Path]:
+                  static_dir: Path, static_src: Path,
+                  original_pool_preset: Path | None = None) -> dict[str, Path]:
     catalog = build_catalog(repo_root)
     manifest = build_manifest(repo_root)
     domains = _default_blocked_pass_domains_block()
@@ -1300,6 +1760,22 @@ def write_outputs(repo_root: Path, out_dir: Path, profile_dir: Path,
     _write(p, build_adaptive_sidecar(catalog))
     paths["discord_adaptive_json"] = p
 
+    # Step 3: original-parity adaptive pool (discord-adaptive-original-pool),
+    # generated from the GUI Default (circular).txt TLS circular pool.  This
+    # is ADDITIONAL to discord-adaptive.opt above (which stays unchanged for
+    # regression comparison).  The original-pool profile uses the port
+    # circular_quality engine with the original pool's circular-compatible
+    # strategies (static-only send-cutoff and incompatible chains excluded).
+    if original_pool_preset is not None and original_pool_preset.is_file():
+        orig = build_original_pool(original_pool_preset, _PINNED_CUSTOM_FUNCS)
+        p = profile_dir / f"{ORIGINAL_POOL_PROFILE_ID}.opt"
+        _write(p, orig["opt"])
+        paths["discord_adaptive_original_pool_opt"] = p
+
+        p = profile_dir / f"{ORIGINAL_POOL_PROFILE_ID}.json"
+        _write(p, _dump_json(orig["sidecar"]))
+        paths["discord_adaptive_original_pool_json"] = p
+
     # Static fallback: copy from the r7 prepared artifacts, normalized to the
     # LF-canonical form (the pinned repo's .gitattributes forces eol=crlf in the
     # working tree, but the canonical Git blob is LF).  discord-v5.opt is
@@ -1345,6 +1821,10 @@ def main(argv: list[str] | None = None) -> int:
                     help="profiles output directory")
     ap.add_argument("--static-src", type=Path, default=DEFAULT_STATIC_SRC,
                     help="r7 static-fallback artifacts source directory")
+    ap.add_argument("--original-pool-preset", type=Path,
+                    default=DEFAULT_ORIGINAL_POOL_PRESET,
+                    help="path to the GUI Default (circular).txt preset the "
+                         "original-parity adaptive pool is generated from")
     args = ap.parse_args(argv)
 
     if not args.repo_root.is_dir():
@@ -1358,13 +1838,15 @@ def main(argv: list[str] | None = None) -> int:
     out_dir = args.out_dir
     profile_dir = args.profile_dir
     static_src = args.static_src.resolve()
+    original_pool_preset = args.original_pool_preset
 
     # The static fallback ships into the package profiles/lua/lists tree which
     # is anchored at the profile_dir's grandparent (the share dir).
     share_dir = profile_dir.parent
     static_dir = profile_dir  # discord-v5.opt lives in profiles/
 
-    paths = write_outputs(repo_root, out_dir, profile_dir, static_dir, static_src)
+    paths = write_outputs(repo_root, out_dir, profile_dir, static_dir,
+                          static_src, original_pool_preset)
 
     # Summary for humans.
     catalog = json.loads((out_dir / "catalog.json").read_text(encoding="utf-8"))
@@ -1377,12 +1859,19 @@ def main(argv: list[str] | None = None) -> int:
     print(f"chains generated:   {n_chains}")
     print(f"compatible:         {n_compat}")
     print(f"incompatible:       {n_incompat}")
+    circ = catalog.get("circular_compatibility_summary", {})
+    if circ:
+        print(f"circular_compatible: {circ.get('circular_compatible')}")
+        print(f"static_only:         {circ.get('static_only')}")
+        print(f"circular_incompat:   {circ.get('incompatible')}")
     for e in entries:
         if e["strategy_number"] is not None:
             print(f"  strategy={e['strategy_number']}  {e['stable_id']}  "
                   f"({e['compatibility']['status']})  chain_id={e['chain_id'][:12]}")
     for key in ("manifest", "catalog", "default_blocked_pass_domains",
-                "discord_adaptive_opt", "discord_adaptive_json"):
+                "discord_adaptive_opt", "discord_adaptive_json",
+                "discord_adaptive_original_pool_opt",
+                "discord_adaptive_original_pool_json"):
         if key in paths:
             print(f"wrote: {paths[key]}")
     return 0

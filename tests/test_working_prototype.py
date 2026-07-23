@@ -118,8 +118,12 @@ def _collect_strategy_args() -> set[str]:
         if not g.is_file():
             continue
         txt = g.read_text("utf-8")
-        keys.update(re.findall(r"desync\.arg\.([a-z_]+)", txt))
-        keys.update(re.findall(r"fooling_options\.([a-z_]+)", txt))
+        # arg names may contain digits (e.g. ip6_autottl, ip6_ttl), so the
+        # char class includes 0-9 -- the source reads these via
+        # `fooling_options.ip6_autottl` (zapret-lib.lua) and they are real
+        # nfqws2 args the original-parity pool uses.
+        keys.update(re.findall(r"desync\.arg\.([a-z0-9_]+)", txt))
+        keys.update(re.findall(r"fooling_options\.([a-z0-9_]+)", txt))
     # standard rawsend/fooling/direction keys read via other paths, plus the
     # circular / circular_quality selector keys (read as desync.arg.<key> in
     # orchestrator.lua, so already collected, but listed explicitly for clarity).

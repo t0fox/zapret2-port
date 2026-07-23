@@ -1,0 +1,377 @@
+{
+  "askey": "tls",
+  "chain_id_for_strategy": {
+    "1": "chain-tls_multisplit_sni-70576793",
+    "10": "chain-multidisorder-055cf0d4",
+    "11": "chain-multisplit-fd814558",
+    "12": "chain-multisplit-51161edc",
+    "13": "chain-multisplit-4a9ec919",
+    "14": "chain-multisplit-3cce4c90",
+    "15": "chain-multisplit-ef879a1b",
+    "16": "chain-multisplit-fb7b6f0b",
+    "17": "chain-multisplit-812d0e1f",
+    "18": "chain-multisplit-bcbd166b",
+    "19": "chain-multisplit-2ee0cb76",
+    "2": "chain-multisplit-370c9508",
+    "20": "chain-multisplit-b8424f03",
+    "21": "chain-multisplit-53f095d6",
+    "22": "chain-multisplit-2218a8c0",
+    "23": "chain-multisplit-96a13e61",
+    "24": "chain-multisplit-16656e09",
+    "3": "chain-fake-67252439",
+    "4": "chain-multisplit-979c3cc6",
+    "5": "chain-fake-multisplit-e69654d9",
+    "6": "chain-multisplit-934b24bf",
+    "7": "chain-multidisorder-aa50cc82",
+    "8": "chain-multisplit-2282706d",
+    "9": "chain-fake-f8f83271"
+  },
+  "chains": [
+    {
+      "chain_id": "70576793584fcf79a9ef221cdb976b2616b4a90b601e323ecb5d4fde6d285bf6",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "incompatible",
+      "generated_strategy": 1,
+      "original_strategy_number": 3,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-tls_multisplit_sni-70576793"
+    },
+    {
+      "chain_id": "370c9508ed593e6297b9e139345c8ca6dc4c5399918af4ed68c88a829d053d86",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 2,
+      "original_strategy_number": 5,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-370c9508"
+    },
+    {
+      "chain_id": "672524398c691d4d425a347e66b9d1131dda20438e9ec1ea51968683647ba215",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 3,
+      "original_strategy_number": 8,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-fake-67252439"
+    },
+    {
+      "chain_id": "979c3cc6d0a07a21971ba17b521ab58c6962c85036653002caa9a5bdf694dbdc",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 4,
+      "original_strategy_number": 9,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-979c3cc6"
+    },
+    {
+      "chain_id": "e69654d99f589fa42fdbe1d7c39d243f400d86bc14f3020a4634dddba49ca66a",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 5,
+      "original_strategy_number": 10,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-fake-multisplit-e69654d9"
+    },
+    {
+      "chain_id": "934b24bf97bc0d3a1ffdebf6d6fd7eaa6371f8e1f073ec5a11f754e825a39ec1",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 6,
+      "original_strategy_number": 11,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-934b24bf"
+    },
+    {
+      "chain_id": "aa50cc8215e5fe5e65f35a8dc8b5863bd9b2401e18d5fd7d2508b996db01c2ea",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 7,
+      "original_strategy_number": 12,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multidisorder-aa50cc82"
+    },
+    {
+      "chain_id": "2282706d8e0d1147e9cd12aa08259d7045f28d438139f864d10494a198fdd6da",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 8,
+      "original_strategy_number": 13,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-2282706d"
+    },
+    {
+      "chain_id": "f8f832713de932aa2126f483d6356e1947f67e91e3c1cbd0c0aafd9fac6dec02",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 9,
+      "original_strategy_number": 14,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-fake-f8f83271"
+    },
+    {
+      "chain_id": "055cf0d4d31f4fa6cda191836d81940707eaf8d24c19704afc894c2651a2d4cf",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 10,
+      "original_strategy_number": 15,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multidisorder-055cf0d4"
+    },
+    {
+      "chain_id": "fd814558a6d3073938ff14929751a5a1df2a6ee880484f352a3a0c2b74bd7bd0",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 11,
+      "original_strategy_number": 16,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-fd814558"
+    },
+    {
+      "chain_id": "51161edc18228f1d6baa1c4d59204c6be9c8c3790c9abb22ff51d2541b43f48e",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 12,
+      "original_strategy_number": 17,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-51161edc"
+    },
+    {
+      "chain_id": "4a9ec9199b34dfd03b7ec4bc3e65e8a3fb2140d3a7f4a86aef4884b433cf7f11",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 13,
+      "original_strategy_number": 18,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-4a9ec919"
+    },
+    {
+      "chain_id": "3cce4c90c429a0a6cca16bdc4206b41bf2ae350b91233380bb51748979ac074e",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 14,
+      "original_strategy_number": 19,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-3cce4c90"
+    },
+    {
+      "chain_id": "ef879a1b593742e03c2839a6bc32700f3d307ff1e7dbe8f9d85ac9626ca9e0d6",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 15,
+      "original_strategy_number": 20,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-ef879a1b"
+    },
+    {
+      "chain_id": "fb7b6f0bd2e3fb1499e17ae4ccaf377192d95b316bab219dafaa5372b5a80458",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 16,
+      "original_strategy_number": 21,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-fb7b6f0b"
+    },
+    {
+      "chain_id": "812d0e1ff6d499b94993928a6d1291392538a312996f97bf90ec20d77f2413e4",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 17,
+      "original_strategy_number": 22,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-812d0e1f"
+    },
+    {
+      "chain_id": "bcbd166b0daaff027f42eb99c463cb788440066b6f488d9882fc7a997af86734",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 18,
+      "original_strategy_number": 23,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-bcbd166b"
+    },
+    {
+      "chain_id": "2ee0cb764a25d6d3a281b84e976e3012ab5fa9b3614ab5f0942a0f6ca748883d",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 19,
+      "original_strategy_number": 24,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-2ee0cb76"
+    },
+    {
+      "chain_id": "b8424f03725c54a385fc08eb89e667d60a6337de3b356f8e29435b071775cfc8",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 20,
+      "original_strategy_number": 25,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-b8424f03"
+    },
+    {
+      "chain_id": "53f095d666edd2780e580ec1cfc36ebd239b67f5eedb3ea2ad09f2040cd87932",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 21,
+      "original_strategy_number": 26,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-53f095d6"
+    },
+    {
+      "chain_id": "2218a8c045bc5c06e24139d0192763750fe3e1b897e7de7e16d585b5961a37dd",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 22,
+      "original_strategy_number": 27,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-2218a8c0"
+    },
+    {
+      "chain_id": "96a13e619bca62f7bdc35af99340c6265a346b30e21ffbc8e6a2fdbdff783d23",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 23,
+      "original_strategy_number": 28,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-96a13e61"
+    },
+    {
+      "chain_id": "16656e0965aefbf12bd329b488ba33e09566e9011d6a25f534a84edb4a15ea62",
+      "circular_compatibility": "circular_compatible",
+      "compatibility": "compatible",
+      "generated_strategy": 24,
+      "original_strategy_number": 29,
+      "source": "Default (circular).txt @ 9d57e55",
+      "stable_id": "chain-multisplit-16656e09"
+    }
+  ],
+  "default_blocked_pass_domains_applied": true,
+  "profile_id": "discord-adaptive-original-pool",
+  "provenance": {
+    "note": "Strategy numbers are renumbered contiguously from 1 for the port circular_quality engine (orchestrator.lua:23 requires contiguous-from-1).  The original_strategy_number -> generated_strategy map above preserves provenance.",
+    "original_strategy_numbers": {
+      "excluded": [
+        1,
+        2,
+        4,
+        6,
+        7
+      ],
+      "excluded_detail": [
+        {
+          "circular_compatibility": "incompatible",
+          "compatibility": "incompatible",
+          "original_strategy": 1,
+          "reason": "uses a function not in core + shipped custom_funcs.lua"
+        },
+        {
+          "circular_compatibility": "incompatible",
+          "compatibility": "incompatible",
+          "original_strategy": 2,
+          "reason": "uses a function not in core + shipped custom_funcs.lua"
+        },
+        {
+          "circular_compatibility": "static_only",
+          "compatibility": "incompatible",
+          "original_strategy": 4,
+          "reason": "send sets a voluntary cutoff; later steps unreachable inside circular"
+        },
+        {
+          "circular_compatibility": "static_only",
+          "compatibility": "compatible",
+          "original_strategy": 6,
+          "reason": "send sets a voluntary cutoff; later steps unreachable inside circular"
+        },
+        {
+          "circular_compatibility": "static_only",
+          "compatibility": "compatible",
+          "original_strategy": 7,
+          "reason": "send sets a voluntary cutoff; later steps unreachable inside circular"
+        }
+      ],
+      "included": [
+        3,
+        5,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ]
+    },
+    "original_to_generated_strategy_map": {
+      "10": 5,
+      "11": 6,
+      "12": 7,
+      "13": 8,
+      "14": 9,
+      "15": 10,
+      "16": 11,
+      "17": 12,
+      "18": 13,
+      "19": 14,
+      "20": 15,
+      "21": 16,
+      "22": 17,
+      "23": 18,
+      "24": 19,
+      "25": 20,
+      "26": 21,
+      "27": 22,
+      "28": 23,
+      "29": 24,
+      "3": 1,
+      "5": 2,
+      "8": 3,
+      "9": 4
+    },
+    "selector": "circular_quality:key=tls:fails=3:failure_detector=combined_failure_detector:success_detector=combined_success_detector:lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:inseq=0x1000:nld=3",
+    "source_commit": "9d57e55d6751587d9d52b52147a05a0a8fcc9fd8",
+    "source_label": "Default (circular).txt @ 9d57e55",
+    "source_path": "zapret2gui/src/presets/builtin/winws2/Default (circular).txt",
+    "source_repo": "youtubediscord/zapret"
+  },
+  "schema_version": 1,
+  "strategy_for_chain_id": {
+    "chain-fake-67252439": 3,
+    "chain-fake-f8f83271": 9,
+    "chain-fake-multisplit-e69654d9": 5,
+    "chain-multidisorder-055cf0d4": 10,
+    "chain-multidisorder-aa50cc82": 7,
+    "chain-multisplit-16656e09": 24,
+    "chain-multisplit-2218a8c0": 22,
+    "chain-multisplit-2282706d": 8,
+    "chain-multisplit-2ee0cb76": 19,
+    "chain-multisplit-370c9508": 2,
+    "chain-multisplit-3cce4c90": 14,
+    "chain-multisplit-4a9ec919": 13,
+    "chain-multisplit-51161edc": 12,
+    "chain-multisplit-53f095d6": 21,
+    "chain-multisplit-812d0e1f": 17,
+    "chain-multisplit-934b24bf": 6,
+    "chain-multisplit-96a13e61": 23,
+    "chain-multisplit-979c3cc6": 4,
+    "chain-multisplit-b8424f03": 20,
+    "chain-multisplit-bcbd166b": 18,
+    "chain-multisplit-ef879a1b": 15,
+    "chain-multisplit-fb7b6f0b": 16,
+    "chain-multisplit-fd814558": 11,
+    "chain-tls_multisplit_sni-70576793": 1
+  }
+}

@@ -199,9 +199,9 @@ REGRESSION_RULE = {
     ),
     "r6_ready_profile_contract_must_stay_green": (
         "test_ready_profile_contract.py: the ready-set + per-profile content "
-        "contract stays green after r7 (ready set grows 6→8 with discord-adaptive "
-        "+ discord-v5; circular_quality required for the 7 circular profiles, "
-        "NOT required for the native discord-v5)."
+        "contract stays green after r7 (ready set grows 6→9 with discord-adaptive "
+        "+ discord-adaptive-original-pool + discord-v5; circular_quality required "
+        "for the 8 circular profiles, NOT required for the native discord-v5)."
     ),
     "r6_package_contract_must_stay_green": (
         "test_package_contract.py: orchestra PKG_RELEASE 6→7; zapret2 stays r3; "
