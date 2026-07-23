@@ -1,0 +1,378 @@
+{
+  "commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+  "files": [
+    {
+      "path": "lists/ipset-discord.txt",
+      "sha256": "0679397c4e2547ada4f522b814811e46e6b5f412923937d1be8d6f4bfd70672f",
+      "size": 1013
+    },
+    {
+      "path": "lua/custom_funcs.lua",
+      "sha256": "6d40714475cec9f6bd21594bb8f0907a810553520cfd8bea1fd26d6a2f8fff32",
+      "size": 147671
+    },
+    {
+      "path": "lua/init_vars.lua",
+      "sha256": "57724c2b2f81cac6050ea4e4561b63322692bfa534d6617287505c28374049c6",
+      "size": 2009
+    },
+    {
+      "path": "lua/zapret-multishake.lua",
+      "sha256": "67565e2202c0d184096937f54d563aeae684f0f767f09423b95f2507347cb142",
+      "size": 30811
+    },
+    {
+      "path": "presets/ALL TCP & UDP multisplit_sni.txt",
+      "sha256": "b77c01b77e857f833684e0915ca0c13249849fe3b78424df77dc11a95212952b",
+      "size": 3580
+    },
+    {
+      "path": "presets/ALL TCP & UDP multisplit_stun.txt",
+      "sha256": "4f95f70b6d9b5b8d77f467b47ee4726546c416e2f794323337aa036d1b6e4194",
+      "size": 3579
+    },
+    {
+      "path": "presets/ALL TCP & UDP v1.txt",
+      "sha256": "0f34fd13705c5f6222194a380dc936d8d5a45881179f8a7be2dc7a694b4ba65a",
+      "size": 1652
+    },
+    {
+      "path": "presets/ALL TCP & UDP v2.txt",
+      "sha256": "73b4d382078c3ec75e19977cde0ce0e7fcfc129f783d87c045c23c7cf6c0f1b5",
+      "size": 2202
+    },
+    {
+      "path": "presets/ALL TCP & UDP v3_1.txt",
+      "sha256": "91ba9ed8b892bc74d2321733248f399c99817e8cac8a39bf5a9efe7a85c2f417",
+      "size": 3462
+    },
+    {
+      "path": "presets/ALL TCP & UDP v3_2.txt",
+      "sha256": "eff0ce9cfebddcf0d660599d6dbb8119e687e15c2fa4aa62baf3fdfd3bff0a8f",
+      "size": 3531
+    },
+    {
+      "path": "presets/Dead by Daylight (game filter).txt",
+      "sha256": "f967486384eedf6730414f64e139f6179b7100fce26c647053e7796d2895d49c",
+      "size": 6935
+    },
+    {
+      "path": "presets/Dead by Daylight v2 (game filter).txt",
+      "sha256": "d06ecfbbefc68246571c4688e0349bec442ef95a19ad2278a92a4d81de7cb817",
+      "size": 8588
+    },
+    {
+      "path": "presets/Default (game filter).txt",
+      "sha256": "f7af9b2d9266dccdc96a42699bf7ec913656ef9cfeaf55a58f7215846c9c5155",
+      "size": 6686
+    },
+    {
+      "path": "presets/Default multisplit_sni (game filter).txt",
+      "sha256": "2937fbfa1d88e2bc61a90fd5515a653a0b386542504ab23b398a7a92423a1672",
+      "size": 6964
+    },
+    {
+      "path": "presets/Default multisplit_sni.txt",
+      "sha256": "56c0ee4d78354aa0d9895dbb83dcd9d181d1bc7a4d63001827602c2137f3835e",
+      "size": 5563
+    },
+    {
+      "path": "presets/Default multisplit_stun (game filter).txt",
+      "sha256": "36ac49724882e94f9e2ad11d366d31f016d2357d56fb7abd67b864f170dc5ee9",
+      "size": 6930
+    },
+    {
+      "path": "presets/Default multisplit_stun.txt",
+      "sha256": "71527e77e3dec622f06db9bb6fcdd5d9fe12010417314dda39d1ef0241a6aed8",
+      "size": 5474
+    },
+    {
+      "path": "presets/Default old.txt",
+      "sha256": "536152eb7db6e774a49fa78cd93c9d1c2a4f08b59bf6ee23dbffab3d18e1760a",
+      "size": 7205
+    },
+    {
+      "path": "presets/Default v2 (game filter).txt",
+      "sha256": "0256bbdbb19f31f8a0b76fbf70c3c6dd3af10df5e2d0d112cf4bfdebd88725d2",
+      "size": 6658
+    },
+    {
+      "path": "presets/Default v3 (game filter).txt",
+      "sha256": "5cdec205475e37127f75b536a351feb5ec36d442fc373f51e35eb7cf263b0425",
+      "size": 7615
+    },
+    {
+      "path": "presets/Default v4 (game filter).txt",
+      "sha256": "068b5333d8300a38763d19ad8e3cc6cf7067ea55e456432ee9743fee135d494e",
+      "size": 7476
+    },
+    {
+      "path": "presets/Default v5.txt",
+      "sha256": "2edb0aed5f4c88a2e06a7ce094d06cbe359568f63e5c0fd7c1b59545b3c0274e",
+      "size": 6216
+    },
+    {
+      "path": "presets/Default.txt",
+      "sha256": "37ee68d4c5b9160115fda09c8f9d40b3af7afd604e62a87a2647cbe02e7bbfac",
+      "size": 3623
+    },
+    {
+      "path": "presets/Gaming (game filter).txt",
+      "sha256": "813f620c53e27814dbb8efe0c11b9831914a9df34c201d6a2ea975d0f99089db",
+      "size": 7470
+    },
+    {
+      "path": "presets/Preset X (game filter).txt",
+      "sha256": "2c4d5b00eab2b365b431e99c715ab5f37938610158dfdc1a4e2fafe29927b58d",
+      "size": 7111
+    },
+    {
+      "path": "presets/Preset X v2 (game filter).txt",
+      "sha256": "bd95719c4e49e21740b3dca28c43fb00544cabc2c36c471cb01d1e6ebd5cf977",
+      "size": 6143
+    },
+    {
+      "path": "presets/Preset XY (game filter).txt",
+      "sha256": "fafe19ee991a598a18df2273fb6d1e6c4f93d0e85ef4bb93abd3ee17ad92ce47",
+      "size": 5633
+    },
+    {
+      "path": "presets/Send + Syndata (game filter).txt",
+      "sha256": "32f53764ecec6aa59f918ebee3545e8e5db7971ec5af8622b3b6a82ffd758977",
+      "size": 6447
+    },
+    {
+      "path": "presets/Syndata + MultiDisorder legacy (game filter).txt",
+      "sha256": "963f3387c7c7894ba72050bae617d2f47c350568621de8e47e751c331f273e57",
+      "size": 6569
+    },
+    {
+      "path": "presets/Syndata + MultiDisorder legacy WoW (game filter).txt",
+      "sha256": "1996b8a751ae5fc5e08e33e1bfbebeb9672cf4d0e526b10742ea558dbc3aef99",
+      "size": 8722
+    },
+    {
+      "path": "presets/Ultimate Main Riot + Valorant (game filter).txt",
+      "sha256": "23a24fa4d02a912380f026c976fbf788a7f1f09cfb63e89f9af530c52326d4cb",
+      "size": 5311
+    },
+    {
+      "path": "presets/complex multidisorder (game filter).txt",
+      "sha256": "4bffd42e91263ac7079120ff5ea521d3661ae4db80039a9413ebabe33add0d20",
+      "size": 5902
+    },
+    {
+      "path": "presets/general ALT (game filter).txt",
+      "sha256": "ecb33a2193b2d6af566220b2ab111239618cc2863015c81f7ab0cee6afd650e8",
+      "size": 6178
+    },
+    {
+      "path": "presets/general ALT.txt",
+      "sha256": "6ae1f956e5c2af22ea427602e955f0335f1ae892bc157a5c38efe9cc4737b793",
+      "size": 5265
+    },
+    {
+      "path": "presets/general ALT10 (game filter).txt",
+      "sha256": "8830ac2d06afa8ea3a7c4c45533e0da7e841a783d9fb4fcfb9526082b459090a",
+      "size": 5850
+    },
+    {
+      "path": "presets/general ALT10.txt",
+      "sha256": "c7d71e1bc7bc8f657d4ec8226c49891b00d0c5a3b4eac936ec5237639d7989d0",
+      "size": 4582
+    },
+    {
+      "path": "presets/general ALT11 (game filter).txt",
+      "sha256": "17a7f52305948e34053f01d1fbf5d0f2f85630878c6296603606bcb7e3de46ef",
+      "size": 6293
+    },
+    {
+      "path": "presets/general ALT11.txt",
+      "sha256": "e3f3c10a92a5261773a83a65e79e09e1fa2c976924195fe346f879e28e5b2d70",
+      "size": 5458
+    },
+    {
+      "path": "presets/general ALT2 (game filter).txt",
+      "sha256": "e43dd03cb7e3dda5b48f11c7de949922e3c3f1144cf03377b65faf45272ee923",
+      "size": 5802
+    },
+    {
+      "path": "presets/general ALT2 + syndata.txt",
+      "sha256": "85fc516489ff4e3f6ee968f00b9985f340334726a6777db27980e60f3b4f3c67",
+      "size": 5239
+    },
+    {
+      "path": "presets/general ALT2.txt",
+      "sha256": "0352351e8ddc3ab01adaff4525d2faa4bb9560836454001090091392af129949",
+      "size": 4785
+    },
+    {
+      "path": "presets/general ALT3 (game filter).txt",
+      "sha256": "598bbded9ca0f9a89776fded2713c737eda4ca93d4efaacd069cc687ca2ea514",
+      "size": 6602
+    },
+    {
+      "path": "presets/general ALT3.txt",
+      "sha256": "de03af3a8c8ae30833de7494171d3f05057f814132ea31627db698dcbd11706a",
+      "size": 6163
+    },
+    {
+      "path": "presets/general ALT4 (game filter).txt",
+      "sha256": "287e0ad5afa1c69452120b696147690f0b1f177d336311ddd3db3183544f78b3",
+      "size": 6071
+    },
+    {
+      "path": "presets/general ALT4.txt",
+      "sha256": "d72e39114d42c2ae43ad4071ba75187b6ec0e50c8b0a6887ddbf43f097e9c1e0",
+      "size": 5160
+    },
+    {
+      "path": "presets/general ALT5 (game filter).txt",
+      "sha256": "0a431863e76daf947f23b5ec4309b70688f0ff7344fb8b221ddcea539e7d274d",
+      "size": 4488
+    },
+    {
+      "path": "presets/general ALT5.txt",
+      "sha256": "127ea5bb4133724b65f34c55bc2bb7b23877b351d55e0f09576e63e152d8dfa5",
+      "size": 3813
+    },
+    {
+      "path": "presets/general ALT6 (game filter).txt",
+      "sha256": "0f271d25e6b7dfcd5921222469bd84244a60b0d051108df7c447cbc42d1b85f7",
+      "size": 5775
+    },
+    {
+      "path": "presets/general ALT6.txt",
+      "sha256": "c60ad122f8ac60316fe2d86c9fedadf3a25f1d13d2a6594c6bdec938abdaedba",
+      "size": 4812
+    },
+    {
+      "path": "presets/general ALT7 (game filter).txt",
+      "sha256": "a47b21032723a802f1fb4e52a4a3adcc1ca49006503c783cbe0d8a06e873c6ac",
+      "size": 5612
+    },
+    {
+      "path": "presets/general ALT7.txt",
+      "sha256": "94d6e5539619b8c77ab640335ac1f7aa8433f00a9b3c24e9951dae8f0f53fc3e",
+      "size": 4808
+    },
+    {
+      "path": "presets/general ALT8 (game filter).txt",
+      "sha256": "fe78751117dc090ef6c67db9f987ecb0a90baba5e65ae27b1c41b9d267a4aad0",
+      "size": 5731
+    },
+    {
+      "path": "presets/general ALT8.txt",
+      "sha256": "2619530f803c35cca4c880b5c582ce23cbfdc36270c80c61a77b0f98278e2f72",
+      "size": 4766
+    },
+    {
+      "path": "presets/general ALT9 1.9.4 (game filter).txt",
+      "sha256": "7581fc2aa4852ecbe2644014567108688f3e29f2fc8c5fbd6405e54761c3c544",
+      "size": 5794
+    },
+    {
+      "path": "presets/general ALT9 1.9.4.txt",
+      "sha256": "5a73eebf8bfce7893ebefef2b3311a32b558a01f08479f31bbf0e3f8b56a3d95",
+      "size": 4826
+    },
+    {
+      "path": "presets/general ALT9 1.9.5 (game filter).txt",
+      "sha256": "f77a0af4be99f0c974284b8505601a3df1411724a772073c4753b06a65c56135",
+      "size": 5798
+    },
+    {
+      "path": "presets/general ALT9 1.9.5.txt",
+      "sha256": "4182a45c8a552bda8e6edfd51b04e5614bf10a02f0020643d2697aefc5d193bd",
+      "size": 4830
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO (game filter).txt",
+      "sha256": "66ef3bce1d0a155a07caefc83518c032b08a271e6fb0e2c2b053c2fdb59cdcc7",
+      "size": 6785
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO ALT (game filter).txt",
+      "sha256": "f77a11d656e3c3f5198767fb24c014974c40a97e57dd11f7867ab5c048fdbaf5",
+      "size": 6223
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO ALT.txt",
+      "sha256": "bea57302883881e0ddb6eaa28eeb2ba75278e3ef612c09cfe11d94f2d402c49a",
+      "size": 5212
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO ALT2 (game filter).txt",
+      "sha256": "6baaf8e11e605e07d3cdf0a71f1fd6877597ea1fe44a11c0221f4394b866930a",
+      "size": 6405
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO ALT2.txt",
+      "sha256": "71aa0cff3f87b03b4392f1107d725c47ed0d00fb91af1bd1ad0cb87b716a9d2b",
+      "size": 5394
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO ALT3 (game filter).txt",
+      "sha256": "0f5395366d21c538f5d2cca22f51ad520b216f518bbfbfee48a503d4f27f82b4",
+      "size": 6363
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO ALT3.txt",
+      "sha256": "26617d0f83519e519a6596d41bf119433a1e12b89f7e4a3cfbf3c3feba4806ca",
+      "size": 5498
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO v2 (game filter).txt",
+      "sha256": "797359fcfeb53417e0835da92c1595ce7c476485276cbd23fde0e12e6928e8a7",
+      "size": 6347
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO v2.txt",
+      "sha256": "a119aa600324ab932baff84399013169d252e435d7120a54ad938fd856d550b3",
+      "size": 5388
+    },
+    {
+      "path": "presets/general FAKE TLS AUTO.txt",
+      "sha256": "e9a516346196100ad7465baa11703fbc04beb7189dbf91a0f28b778a4d480275",
+      "size": 5826
+    },
+    {
+      "path": "presets/general SIMPLE FAKE (game filter).txt",
+      "sha256": "48844ef9e3fbcec68949c0d180637e63642f2c7b29ba8965b9815d45e42e05b1",
+      "size": 5919
+    },
+    {
+      "path": "presets/general SIMPLE FAKE ALT (game filter).txt",
+      "sha256": "5751c8827a3bed936e53822f867e44dd1a474608087c34e1e5d2a3cdd28a3306",
+      "size": 5647
+    },
+    {
+      "path": "presets/general SIMPLE FAKE ALT.txt",
+      "sha256": "9ac24626a8a59fa948fefecfbf13777130cd5ec15082755a8272b8c452961c0b",
+      "size": 4636
+    },
+    {
+      "path": "presets/general SIMPLE FAKE ALT2 (game filter).txt",
+      "sha256": "21018665cdaaf79e8a21c306916d6a2edf47282549e8a52391ce926c07d60cd8",
+      "size": 6219
+    },
+    {
+      "path": "presets/general SIMPLE FAKE ALT2.txt",
+      "sha256": "a1c67a38fb43e9f898b2272873e58317fe10742dfe581ff6c1a4f62017dd4ff8",
+      "size": 5078
+    },
+    {
+      "path": "presets/general SIMPLE FAKE.txt",
+      "sha256": "e491ad5dd776192d83e65bac389bbb0b0cdc7d49d6846b9a05eb72b851504c68",
+      "size": 4682
+    },
+    {
+      "path": "presets/Ростелеком.txt",
+      "sha256": "dbb1fef95590dccd4e469305018c2ba9421fb73f73f6a50e5e8b57b07e9d79a6",
+      "size": 5267
+    }
+  ],
+  "presets_path": "presets/",
+  "repo": "youtubediscord/zapret2-youtube-discord",
+  "schema_version": 1
+}
