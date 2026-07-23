@@ -117,8 +117,13 @@ define Package/zapret2-orchestra/install
 	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/lua/custom_funcs.lua $(1)/opt/zapret2/lua/custom_funcs.lua
 	# bin/stun.bin (r7 discord-adaptive strategy=1 stun_pat blob). Verbatim from
 	# youtubediscord/zapret2-youtube-discord @ 4d75c70b (bin/stun.bin).
+	# bin/tls_clienthello_{1,5,7}.bin (r7 original-parity pool blobs tls1/tls5/tls7,
+	# used by 7 of the 24 circular-compatible strategies). Verbatim from the same pinned repo.
 	$(INSTALL_DIR) $(1)/opt/zapret2/bin
 	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/bin/stun.bin $(1)/opt/zapret2/bin/stun.bin
+	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/bin/tls_clienthello_1.bin $(1)/opt/zapret2/bin/tls_clienthello_1.bin
+	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/bin/tls_clienthello_5.bin $(1)/opt/zapret2/bin/tls_clienthello_5.bin
+	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/bin/tls_clienthello_7.bin $(1)/opt/zapret2/bin/tls_clienthello_7.bin
 	# persistent JSON state seeds (also listed in conffiles)
 	$(INSTALL_DIR) $(1)/etc/zapret2-orchestra
 	$(INSTALL_DATA) $(CURDIR)/files/etc/zapret2-orchestra/*.json $(1)/etc/zapret2-orchestra/
