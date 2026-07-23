@@ -1062,20 +1062,24 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         self.assertEqual(before, after, "config was changed by injection attempt")
 
     def test_rollback_restores_backup(self) -> None:
-        # First apply to create a backup
+        # apply.uc backs up the config BEFORE the candidate→config rename (for
+        # atomic failure rollback), so the backup is the PRE-apply config.
+        # rollback = undo the last apply (restore the pre-apply backup).
+        pre_apply_cfg = (self.opt / "config").read_text(encoding="utf-8")
         r1 = self._run("apply", "orchestra-tls-mvp")
         self.assertEqual(r1.returncode, 0, r1.stderr)
-        applied_cfg = (self.opt / "config").read_bytes()
-        # Now manually change the config (simulating a second apply or edit)
+        # Now manually change the config (simulating an external edit)
         self._write_default_config("--lua-desync=something_else")
-        # Rollback should restore the backup
+        # Rollback --force restores the backup (pre-apply config), undoing the
+        # manual edit.
         r2 = self._run("rollback", "--force")
         self.assertEqual(r2.returncode, 0, r2.stderr)
         doc = json.loads(r2.stdout)
         self.assertTrue(doc["ok"])
         self.assertTrue(doc["forced"])
         restored_cfg = (self.opt / "config").read_text(encoding="utf-8")
-        self.assertIn("circular_quality", restored_cfg)
+        self.assertEqual(restored_cfg, pre_apply_cfg)
+        self.assertNotIn("something_else", restored_cfg)
 
     def test_rollback_conflict_without_force(self) -> None:
         # Apply to create state
