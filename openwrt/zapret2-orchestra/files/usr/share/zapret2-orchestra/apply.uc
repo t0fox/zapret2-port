@@ -52,7 +52,12 @@
 import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname, opendir, popen } from 'fs';
 
 const ORCH_DIR      = getenv('ZAPRET2_ORCHESTRA_DIR')  ?? '/etc/zapret2-orchestra';
-const RUNTIME_DIR   = getenv('ZAPRET2_RUNTIME_DIR')   ?? '/tmp/zapret2-orchestra';
+// Production runtime dir literal. Used to gate ownership hardening so test
+// sandboxes (which override ZAPRET2_RUNTIME_DIR to a temp path) are left
+// untouched: a non-root test caller cannot chown, and the daemon user is not
+// guaranteed to exist off-target.
+const PROD_RUNTIME_DIR = '/tmp/zapret2-orchestra';
+const RUNTIME_DIR   = getenv('ZAPRET2_RUNTIME_DIR')   ?? PROD_RUNTIME_DIR;
 const SHARE_DIR     = getenv('ZAPRET2_SHARE_DIR')     ?? '/usr/share/zapret2-orchestra';
 const CONFIG_FILE   = getenv('ZAPRET2_CONFIG')        ?? '/opt/zapret2/config';
 const STATE_FILE    = getenv('ZAPRET2_STATE_FILE')    ?? (ORCH_DIR + '/manager-state.json');
@@ -351,7 +356,39 @@ function run_preload(mode) {
 
 const STATE_SCHEMA_VERSION = 1;
 
+// Ensure the volatile Orchestra runtime dir exists AND is securely owned so
+// the unprivileged nfqws2 user (daemon) can append events.ndjson, while the
+// root-owned preload/manifest/whitelist files stay read-only to it; /tmp is
+// cleared on reboot, so this recreates the dir at every call.
+//
+// Security contract:
+//   * Reject a symlinked RUNTIME_DIR.  stat() follows symlinks, so without an
+//     explicit check a symlink to another directory would be accepted and
+//     could redirect writes (preload over a root file, events over an
+//     attacker-controlled file).  `test -L` is true only for a symlink; it is
+//     run via system([..]) (execvp, no shell) like run_sh_n's `sh -n`.
+//   * Never make the dir world-writable.  The production dir is set to
+//     daemon:daemon mode 0770 (owner+group rwx, others none).
+//   * Never touch the persistent state dir /etc/zapret2-orchestra here — that
+//     stays root-owned (package install); daemon only ever writes events under
+//     /tmp.
+//
+// Ownership hardening (chown/chmod) is gated to the production runtime dir:
+// test sandboxes override ZAPRET2_RUNTIME_DIR to a temp path owned by the
+// (usually non-root) test caller, so chown would fail there and the daemon
+// user is not guaranteed to exist off-target.  In production (no override) the
+// manager runs as root and daemon exists (nfqws2 runs as --user=daemon), so
+// chown succeeds; a failure there is a loud die() rather than a silent
+// insecure fallback.
 function ensure_runtime_dir() {
+	// Symlink rejection.  system() returns the exit status (0 == symlink) or
+	// null on exec failure; both the symlink case and the cannot-verify case
+	// are refused (fail-safe).
+	let sl = system(['test', '-L', RUNTIME_DIR]);
+	if (sl == 0)
+		fail(RUNTIME_DIR + ' is a symlink; refusing to use');
+	if (sl == null)
+		fail('cannot verify runtime dir is not a symlink (test -L unavailable)');
 	let info = stat(RUNTIME_DIR);
 	if (info == null) {
 		if (!mkdir(RUNTIME_DIR))
@@ -360,6 +397,13 @@ function ensure_runtime_dir() {
 	}
 	if (info?.type != 'directory')
 		fail(RUNTIME_DIR + ' is not a directory');
+	// Harden the production runtime dir only (see gate rationale above).
+	if (RUNTIME_DIR == PROD_RUNTIME_DIR) {
+		if (system(['chown', 'daemon:daemon', RUNTIME_DIR]) != 0)
+			fail('cannot set daemon:daemon ownership on ' + RUNTIME_DIR);
+		if (system(['chmod', '0770', RUNTIME_DIR]) != 0)
+			fail('cannot set mode 0770 on ' + RUNTIME_DIR);
+	}
 }
 
 function default_state() {
@@ -1048,6 +1092,13 @@ function do_apply_transaction(new_value, profile_name, enable_value) {
 		return { ok: false, error: 'preload check failed', rollback: rb };
 	}
 
+	// 9b. Secure the runtime dir (daemon:daemon 0770 in production) now that
+	// the preload generator has created/ensured it.  This runs BEFORE the
+	// caller (the CLI wrapper) starts nfqws2 as --user=daemon, so daemon can
+	// append events.ndjson from the first packet.  Idempotent and gated to the
+	// production path (see ensure_runtime_dir).
+	ensure_runtime_dir();
+
 	// 10. Commit: state=idle, generation++, update hashes, enabled/profile
 	state.states = ['idle'];
 	state.generation = gen + 1;
@@ -1347,6 +1398,15 @@ function cmd_boot_check() {
 	let state = read_state();
 	if (state == null) state = default_state();
 	let warnings = [];
+
+	// 0. Secure the runtime dir before any preload generation; /tmp is clear
+	// at boot, so this (re)creates /tmp/zapret2-orchestra as daemon:daemon
+	// 0770 in production; the preload generator (root) then writes the
+	// root-owned preload/manifest/whitelist into it, and the later nfqws2
+	// (START=21, --user=daemon) can append events.ndjson.  Also covers a
+	// standalone `zapret2-orchestra-apply boot-check` not driven by the init.d
+	// boot hook.  Idempotent; preserves any existing events.ndjson.
+	ensure_runtime_dir();
 
 	// 1. Detect persistent state=applying (interrupted apply / power loss)
 	let was_applying = false;

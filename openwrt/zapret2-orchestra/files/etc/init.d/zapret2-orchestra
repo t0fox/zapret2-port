@@ -20,7 +20,33 @@
 
 START=20
 
+ORCHESTRA_RUNTIME_DIR=/tmp/zapret2-orchestra
+
+# Ensure the volatile Orchestra runtime dir exists with secure ownership so the
+# unprivileged nfqws2 user (daemon) can append events.ndjson, while root-owned
+# preload/manifest/whitelist files stay read-only to it.  /tmp is cleared on
+# reboot, so this recreates the dir at every boot.  Rejects a symlinked path
+# (a symlink could redirect writes), never makes the dir world-writable, and
+# never touches the persistent /etc/zapret2-orchestra state dir.  Idempotent:
+# mkdir/chown/chmod are safe to repeat and events.ndjson is NEVER truncated
+# here, so unread events survive a service restart.
+ensure_runtime_dir() {
+	[ -L "$ORCHESTRA_RUNTIME_DIR" ] && {
+		logger -t zapret2-orchestra "runtime dir $ORCHESTRA_RUNTIME_DIR is a symlink; refusing" 2>/dev/null
+		return 1
+	}
+	mkdir -p "$ORCHESTRA_RUNTIME_DIR" || return 1
+	chown daemon:daemon "$ORCHESTRA_RUNTIME_DIR" 2>/dev/null || \
+		logger -t zapret2-orchestra "warning: cannot chown $ORCHESTRA_RUNTIME_DIR daemon:daemon" 2>/dev/null
+	chmod 0770 "$ORCHESTRA_RUNTIME_DIR"
+}
+
 start() {
+	# Secure the runtime dir BEFORE preload generation and before the zapret2
+	# service starts at START=21 (nfqws2 runs as --user=daemon and must be able
+	# to append events.ndjson from the first packet).  Best-effort: a failure
+	# is logged but does not abort the boot hook (preload is still generated).
+	ensure_runtime_dir || true
 	# Phase 1B: run the boot-time integrity check first. This detects an
 	# interrupted apply (persistent state=applying), recovers from backup if
 	# needed, and regenerates the preload if missing. It does NOT start or
