@@ -54,13 +54,22 @@ class RuntimeManagerStaticContractTest(unittest.TestCase):
         self.assertIn("import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname, opendir, popen } from 'fs';", self.uc)
         # readlink must NOT be imported — it is unused.
         self.assertNotIn("readlink", self.uc)
-        # Array-form popen (execvp, no shell) is allowed for sh -n and the
-        # preload wrapper. String-form popen (which invokes /bin/sh -c) is
-        # forbidden — it would interpret arguments as shell syntax.
+        # ucode's fs.popen is shell-based — there is no array-form execvp
+        # (lib/fs.c calls popen(ucv_string_get(comm), ..) through the shell).
+        # The no-shell path is system([..]) (lib.c UC_ARRAY → execvp). So:
+        #   sh -n runs via system([..]) — no shell.
+        #   the preload wrapper runs via popen(shell_quote(..), 'r') to capture
+        #   its stdout; its command string is only shell-quoted controlled
+        #   paths and a literal mode — no user NFQWS2_OPT input is on the
+        #   command line (the value lives in the candidate FILE that sh -n
+        #   validates as file content). String-literal popen/system (which
+        #   would pass unquoted args to the shell) are forbidden.
         self.assertNotRegex(self.uc, r"popen\s*\(\s*['\"]")
-        self.assertRegex(self.uc, r"popen\s*\(\s*\[")
+        self.assertRegex(self.uc, r"popen\s*\(\s*shell_quote")
+        self.assertNotRegex(self.uc, r"system\s*\(\s*['\"]")
+        self.assertRegex(self.uc, r"system\s*\(\s*\[")
         # No other shell execution primitives inside the ucode manager.
-        for forbidden in (r"\bsystem\s*\(", r"\bexec\s*\(", r"fs\.open\s*\("):
+        for forbidden in (r"\bexec\s*\(", r"fs\.open\s*\("):
             self.assertIsNone(re.search(forbidden, self.uc), forbidden)
 
     def test_apply_uc_has_all_components(self) -> None:

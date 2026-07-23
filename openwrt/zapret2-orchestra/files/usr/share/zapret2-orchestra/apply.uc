@@ -3,7 +3,7 @@
 // zapret2-orchestra runtime manager (Phase 1B: transactional commands).
 //
 // This is a SINGLE self-contained ucode program (never reads config as
-// shell, no eval, no string-form popen). It implements:--   * a text-only parser/transformer for the multiline NFQWS2_OPT assignment
+// shell, no eval, no user NFQWS2_OPT value on any command line). It implements:--   * a text-only parser/transformer for the multiline NFQWS2_OPT assignment
 //     in /opt/zapret2/config;
 //   * an atomic JSON state helper for manager-state.json;
 //   * a mkdir-based interprocess lock;
@@ -18,17 +18,17 @@
 // is never placed on a command line — it lives only inside the candidate
 // FILE, which `sh -n` validates as file content (parse-only, no execution).
 //
-// ucode has no array-form popen: fs.popen() always invokes /bin/sh -c (see
-// lib/fs.c — it calls popen(ucv_string_get(comm), ..)). So the two subprocess
-// calls use the mechanism that fits each case:
+// ucode has no array-form popen: fs.popen() always runs the command through
+// the system shell (see lib/fs.c — it calls popen(ucv_string_get(comm), ..)).
+// So the two subprocess calls use the mechanism that fits each case:
 //   sh -n <candidate>          via system([..]) — execvp directly, NO shell.
-//   zapret2-orchestra-preload  via popen(.., 'r') — shell, but the command
-//                              string is only shell-quoted controlled paths
-//                              and a literal mode; no user input is on the
-//                              command line, so there is no injection vector.
-//                              popen('r') is used here (not system()) so the
-//                              wrapper's stdout is captured rather than
-//                              polluting this program's JSON emit() output.
+//   zapret2-orchestra-preload  via popen(shell_quote(..), read-mode) — shell,
+//                              but the command string is only shell-quoted
+//                              controlled paths and a literal mode; no user
+//                              input is on the command line, so there is no
+//                              injection vector. popen in read-mode is used
+//                              here (not system()) so the wrapper's stdout is
+//                              captured rather than polluting our JSON emit().
 //
 // Phase 1B scope
 // --------------
@@ -80,8 +80,10 @@ function emit(obj) {
 	printf('%J\n', obj);
 }
 
-// Single-quote a string for a /bin/sh -c context. Embedded single quotes are
-// closed, escaped, and reopened (the standard '..'\''..' trick). Used only on
+// Single-quote a string for a shell command-line context. Embedded single
+// quotes are closed, escaped, and reopened (the standard '..'\''..' trick).
+// Used only on controlled paths/literals (never user NFQWS2_OPT input, which
+// lives in the candidate FILE, not on any command line).
 // controlled paths/literals (never user NFQWS2_OPT input, which lives in the
 // candidate FILE, not on any command line).
 function shell_quote(s) {
@@ -230,11 +232,11 @@ function run_sh_n(path) {
 }
 
 // Run the preload wrapper with the given mode ('generate' or 'check').
-// ucode's fs.popen is shell-based (/bin/sh -c); the command string is only
-// shell-quoted controlled paths + a literal mode (no user input on the
-// command line). popen('r') captures the wrapper's stdout so its
-// "orchestra preload generated: ..." line does not pollute our JSON emit().
-// Returns { ok: bool, rc: int, stdout: string, stderr: string }.
+// ucode's fs.popen is shell-based (runs the command via the shell); the
+// command string is only shell-quoted controlled paths + a literal mode (no
+// user input on the command line). popen in read-mode captures the wrapper's
+// stdout so its "orchestra preload generated: ..." line does not pollute our
+// JSON emit(). Returns { ok: bool, rc: int, stdout: string, stderr: string }.
 function run_preload(mode) {
 	let proc = popen(shell_quote(PRELOAD_WRAPPER) + ' ' + shell_quote(mode), 'r');
 	if (proc == null)
@@ -559,9 +561,13 @@ function prune_backups(keep_gen) {
 	let entries = [];
 	let dh = opendir(BACKUP_DIR);
 	if (dh == null) return;
+	// ucode match() requires a compiled regexp (UC_REGEXP), not a string
+	// pattern; and it compiles with POSIX REG_EXTENDED which has no \d, so
+	// use [0-9]. Compile once outside the loop.
+	let re = regexp('^config\\.gen-([0-9]+)\\.bak$');
 	for (let name = dh.read(); name != null; name = dh.read()) {
 		if (name == '.' || name == '..') continue;
-		let m = match(name, '^config\\.gen-(\\d+)\\.bak$');
+		let m = match(name, re);
 		if (m) push(entries, { name: name, gen: int(m[1]) });
 	}
 	dh.close();
@@ -577,9 +583,10 @@ function latest_backup() {
 	let best = null;
 	let dh = opendir(BACKUP_DIR);
 	if (dh == null) return null;
+	let re = regexp('^config\\.gen-([0-9]+)\\.bak$');
 	for (let name = dh.read(); name != null; name = dh.read()) {
 		if (name == '.' || name == '..') continue;
-		let m = match(name, '^config\\.gen-(\\d+)\\.bak$');
+		let m = match(name, re);
 		if (m) {
 			let g = int(m[1]);
 			if (best == null || g > best.gen)
