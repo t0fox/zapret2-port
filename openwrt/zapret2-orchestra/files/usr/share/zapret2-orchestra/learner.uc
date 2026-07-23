@@ -42,7 +42,7 @@
 //
 // Exit status: 0 on success, non-zero on any unrecoverable error.
 
-import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname } from 'fs';
+import { readfile, writefile, mkdir, rename, unlink, stat, rmdir, dirname, popen } from 'fs';
 
 const STATE_DIR    = getenv('ORCHESTRA_STATE_DIR')   ?? '/etc/zapret2-orchestra';
 const RUNTIME_DIR  = getenv('ORCHESTRA_RUNTIME_DIR') ?? '/tmp/zapret2-orchestra';
@@ -53,7 +53,7 @@ const LEARNER_LOG   = getenv('LEARNER_LOG_FILE')     ?? '/var/log/zapret2-orches
 const PRELOAD_WRAPPER = getenv('ORCHESTRA_PRELOAD_WRAPPER') ?? '/usr/sbin/zapret2-orchestra-preload';
 // The reload command is owned by the init.d/procd layer, NOT invoked here from
 // the packet path.  In daemon mode the learner writes a "reload requested"
-// marker and the procd wrapper performs /etc/init.d/zapret2 restart.  For
+// marker and the procd wrapper performs the zapret2 service restart.  For
 // test-mode this is never used.  ORCHESTRA_RELOAD_CMD lets a deployment point
 // at a wrapper script; default empty (the procd service supplies it).
 const RELOAD_CMD   = getenv('ORCHESTRA_RELOAD_CMD')  ?? '';
@@ -72,12 +72,20 @@ function fail(msg) { die('zapret2-orchestra-learner: ' + msg); }
 
 function log_line(msg) {
 	// Structured learner log: one JSON object per line.  Best-effort: never
-	// let a log failure kill the daemon.
-	let line = sprintf('%J\n', { ts: time(), msg: msg });
-	let f = fopen(LEARNER_LOG, 'a');
-	if (f == null) return;
-	f.write(line);
-	f.close();
+	// let a log failure kill the daemon.  Uses readfile+writefile (ucode-mod-fs
+	// only, no fopen stream API) with a soft size cap so the log does not grow
+	// unbounded.  The log is NOT the primary state interface — learner-state.json
+	// is the durable, recoverable state; this log is for diagnostics.
+	try {
+		let line = sprintf('%J\n', { ts: time(), msg: msg });
+		let existing = readfile(LEARNER_LOG) ?? '';
+		// soft cap: keep the last ~256 KiB to avoid unbounded growth
+		let max_log = 262144;
+		if (length(existing) > max_log)
+			existing = substr(existing, length(existing) - max_log);
+		writefile(LEARNER_LOG, existing + line);
+	}
+	catch (e) { /* best-effort: swallow log errors */ }
 }
 
 function is_int(v) {
@@ -480,6 +488,7 @@ function read_events_from_cursor(cursor, handler) {
 		pos = 0;
 	}
 	let count = 0;
+	let last_line = '';
 	while (pos < total) {
 		let nl = index(substr(raw, pos), '\n');
 		if (nl < 0) break;  // trailing partial line: stop, do not advance
@@ -491,6 +500,7 @@ function read_events_from_cursor(cursor, handler) {
 		if (obj != null && type(obj) == 'object') {
 			handler(obj);
 			count++;
+			last_line = line;
 		}
 		// Even an unparseable-but-terminated line is advanced past (it's a
 		// complete line; only the UNTerminated tail is held back).  This
@@ -498,17 +508,11 @@ function read_events_from_cursor(cursor, handler) {
 		pos = next_pos;
 	}
 	let last_hash = '';
-	if (count > 0) {
+	if (count > 0 && length(last_line) > 0) {
 		// Fingerprint the last fully-consumed line so a restart can detect
 		// truncation/rotation (the bytes offset alone is insufficient if the
 		// file was rotated to a smaller size).
-		let last_nl = -1;
-		if (pos > 0) {
-			let back = substr(raw, 0, pos);
-			last_nl = rindex(back, '\n');
-			let last_line = (last_nl >= 0) ? substr(back, last_nl + 1) : back;
-			last_hash = sprintf('%08x', hash31(last_line));
-		}
+		last_hash = sprintf('%08x', hash31(last_line));
 	}
 	return {
 		cursor: { bytes: pos, lines: (cursor.lines ?? 0) + count, last_line_sha256: last_hash },
@@ -538,7 +542,7 @@ function save_state(st, only_learner_state) {
 // Reload: debounced preload regen + service restart.
 //
 // The daemon coalesces lock/unlock/blocked changes within RELOAD_DEBOUNCE
-// seconds into one reload.  The actual /etc/init.d/zapret2 restart is owned by
+// seconds into one reload.  The actual zapret2 service restart is owned by
 // the procd wrapper (ORCHESTRA_RELOAD_CMD); the learner never reloads from the
 // Lua packet path.  In test mode this is a no-op.
 // ---------------------------------------------------------------------------
@@ -630,14 +634,13 @@ function note_run_id(st, ev) {
 // ---------------------------------------------------------------------------
 
 function mode_test_process() {
-	// TEST MODE: ARGV[1] = events file path (overrides EVENTS_FILE), no reload,
-	// no preload regen.  Emits a JSON result describing the pass.  The state
-	// dir is taken from ORCHESTRA_STATE_DIR (tests set it to a temp dir).
-	if (length(ARGV) > 0 && ARGV[0] != null)
-		setenv('ORCHESTRA_EVENTS_FILE', ARGV[0], 1);
-	// Re-read the now-overridden EVENTS_FILE by re-evaluating the constant.
-	// (ucode const binds once; for test mode we re-read via getenv.)
-	let events = getenv('ORCHESTRA_EVENTS_FILE') ?? EVENTS_FILE;
+	// TEST MODE: ARGV[0] = "test-process" (the mode), ARGV[1] = events file
+	// path (overrides EVENTS_FILE).  No reload, no preload regen.  Emits a JSON
+	// result describing the pass.  The state dir is taken from
+	// ORCHESTRA_STATE_DIR (tests set it to a temp dir).
+	let events = EVENTS_FILE;
+	if (length(ARGV) > 1 && ARGV[1] != null)
+		events = ARGV[1];
 	let st = load_state();
 	let seen = {};
 	let summary = { processed: 0, changed_lock: false, lock_changes: [], cursor_before: st.lstate.event_cursor.bytes, cursor_after: 0, last_run_id: st.lstate.last_run_id };
