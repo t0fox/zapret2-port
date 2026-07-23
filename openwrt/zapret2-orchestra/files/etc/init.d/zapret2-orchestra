@@ -47,6 +47,12 @@ start() {
 	# to append events.ndjson from the first packet).  Best-effort: a failure
 	# is logged but does not abort the boot hook (preload is still generated).
 	ensure_runtime_dir || true
+	# Ensure the persistent state dir /etc/zapret2-orchestra/ is root-owned
+	# (a tar overlay deploy can leave Windows UIDs; the learner daemon runs
+	# as root and needs write access to blocked.json/learned.json).
+	chown root:root /etc/zapret2-orchestra/ /etc/zapret2-orchestra/*.json 2>/dev/null || true
+	chmod 0755 /etc/zapret2-orchestra/ 2>/dev/null || true
+	chmod 0644 /etc/zapret2-orchestra/*.json 2>/dev/null || true
 	# Phase 1B: run the boot-time integrity check first. This detects an
 	# interrupted apply (persistent state=applying), recovers from backup if
 	# needed, and regenerates the preload if missing. It does NOT start or
