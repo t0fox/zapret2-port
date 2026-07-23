@@ -9,3 +9,5 @@ slm_preload_history("tls", "host10.example", 2, 0, 1)
 slm_preload_history("tls", "video.example", 2, 3, 1)
 slm_preload_locked("tls", "video.example", 2, false)
 slm_preload_locked("tls", "manual.example", 2, true)
+ORCHESTRA_CHAIN_ID_FOR_STRATEGY = {}
+ORCHESTRA_PRELOAD_GENERATION = 0

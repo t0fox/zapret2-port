@@ -34,6 +34,15 @@ const RUNTIME_DIR    = getenv('ORCHESTRA_RUNTIME_DIR')      ?? '/tmp/zapret2-orc
 const PRELOAD_FILE   = getenv('ORCHESTRA_PRELOAD_FILE')     ?? (RUNTIME_DIR + '/preload.lua');
 const WHITELIST_FILE = getenv('ORCHESTRA_WHITELIST_FILE')   ?? (RUNTIME_DIR + '/whitelist.txt');
 const MANIFEST_FILE  = getenv('ORCHESTRA_MANIFEST_FILE')    ?? (RUNTIME_DIR + '/manifest.json');
+// manager-state.json lives under STATE_DIR; the profile sidecar
+// profiles/<profile>.json (contract §4 chain_id_for_strategy map) lives under
+// STATE_DIR/profiles (user override) or SHARE_DIR/profiles (builtin). Tests
+// override SHARE_DIR / the sidecar search root via ORCHESTRA_SHARE_DIR /
+// ORCHESTRA_PROFILES_DIR.
+const MANAGER_STATE  = getenv('ORCHESTRA_MANAGER_STATE_FILE') ?? (STATE_DIR + '/manager-state.json');
+const SHARE_DIR      = getenv('ORCHESTRA_SHARE_DIR')          ?? '/usr/share/zapret2-orchestra';
+const PROFILES_DIR   = getenv('ORCHESTRA_PROFILES_DIR')       ?? (STATE_DIR + '/profiles');
+const BUILTIN_PROFILES_DIR = getenv('ORCHESTRA_BUILTIN_PROFILES_DIR') ?? (SHARE_DIR + '/profiles');
 
 function fail(msg) {
 	die('zapret2-orchestra preload: ' + msg);
@@ -228,7 +237,126 @@ function render_manual_locks(lines, seeds) {
 	}
 }
 
-function render_preload(seeds) {
+// ---------------------------------------------------------------------------
+// Adaptive profile sidecar: chain_id_for_strategy (contract §4).
+//
+// The selected adaptive profile is read from manager-state.json (`profile`).
+// Its sidecar profiles/<profile>.json carries the strategy<->chain map the
+// importer (Subagent A) generated.  We bake it into preload.lua as
+// ORCHESTRA_CHAIN_ID_FOR_STRATEGY so the runtime can:
+//   (a) emit chain_id on every state-transition event, and
+//   (b) resolve a persisted locked strategy NUMBER to a stable chain id on
+//       restart (so a renumber would never silently misapply a learned lock).
+// The sidecar is OPTIONAL: a native (non-circular) profile has no sidecar and
+// no chain map, in which case we emit an empty table and the runtime omits
+// chain_id from events.  manager-state.json is also optional (absent on a
+// fresh install before any enable); we default generation to 0 and profile to
+// null.
+// ---------------------------------------------------------------------------
+
+// Read manager-state.json; return { profile, generation } or defaults.  Never
+// fails the generation if manager-state is absent/corrupt — the preload must
+// still be producible from the four seeds alone (the preload is the PRIMARY
+// nfqws2 init artifact, and manager-state is rebuilt by apply.uc).
+function read_manager_state() {
+	let raw = readfile(MANAGER_STATE);
+	if (raw == null)
+		return { profile: null, generation: 0 };
+	let doc;
+	try { doc = json(raw); }
+	catch (e) { return { profile: null, generation: 0 }; }
+	let gen = 0;
+	if (type(doc.generation) == 'int' || (type(doc.generation) == 'double' && doc.generation == int(doc.generation)))
+		gen = int(doc.generation);
+	let prof = (type(doc.profile) == 'string') ? doc.profile : null;
+	return { profile: prof, generation: gen };
+}
+
+// Resolve the sidecar JSON path for a profile name.  User override under
+// STATE_DIR/profiles takes priority over the builtin under SHARE_DIR/profiles,
+// mirroring apply.uc's validate_profile priority.  Returns null if no sidecar
+// exists (native profile, or adaptive profile without a sidecar yet).
+function sidecar_path(profile) {
+	if (profile == null || length(profile) == 0)
+		return null;
+	if (index(profile, '/') >= 0 || index(profile, '..') >= 0 || index(profile, '\x00') >= 0)
+		return null;
+	let user = PROFILES_DIR + '/' + profile + '.json';
+	if (stat(user)?.type == 'file')
+		return user;
+	let builtin = BUILTIN_PROFILES_DIR + '/' + profile + '.json';
+	if (stat(builtin)?.type == 'file')
+		return builtin;
+	return null;
+}
+
+// Read and validate the chain_id_for_strategy map from the sidecar.  Returns
+// { askey, chain_id_for_strategy } or null if no sidecar / no map.  The map is
+// keyed by strategy NUMBER (string in JSON) -> chain_id (string).  We group by
+// askey so the runtime lookup is ORCHESTRA_CHAIN_ID_FOR_STRATEGY[askey][n].
+function read_chain_map(profile) {
+	let path = sidecar_path(profile);
+	if (path == null)
+		return null;
+	let raw = readfile(path);
+	if (raw == null)
+		return null;
+	let doc;
+	try { doc = json(raw); }
+	catch (e) { fail('invalid JSON in sidecar ' + path + ': ' + e); }
+	if (type(doc) != 'object')
+		fail(path + ' is not a JSON object');
+	if (doc.schema_version != 1)
+		fail(path + ': schema_version must be 1');
+	let askey = (type(doc.askey) == 'string') ? doc.askey : null;
+	let map = doc.chain_id_for_strategy;
+	if (type(map) != 'object')
+		return null;
+	// Validate: keys are strategy numbers (as strings in JSON), values are
+	// non-empty strings.  Return a normalized { askey, by_strategy } where
+	// by_strategy is { "<n>": "<chain_id>" }.
+	let by_strategy = {};
+	for (let k, v in map) {
+		let n = int(k);
+		if (n < 1 || n != int(n))
+			fail(path + ': chain_id_for_strategy key ' + k + ' must be a positive integer');
+		if (type(v) != 'string' || length(v) == 0)
+			fail(path + ': chain_id_for_strategy[' + k + '] must be a non-empty string');
+		by_strategy[n] = v;
+	}
+	return { askey: askey, by_strategy: by_strategy };
+}
+
+// Render the ORCHESTRA_CHAIN_ID_FOR_STRATEGY Lua table and the
+// ORCHESTRA_PRELOAD_GENERATION assignment.  The chain map is grouped by askey;
+// when the sidecar carries an askey we key under it, otherwise under the
+// profile's implicit askey (default "tls").  An empty map is emitted as {} so
+// the runtime always sees a table (events.lua checks type == 'table').
+function render_chain_map_and_generation(seeds, mgr) {
+	let lines = [];
+	let cm = read_chain_map(mgr.profile);
+	let askey = cm?.askey ?? 'tls';
+	let by_strategy = cm?.by_strategy ?? {};
+	// Build ORCHESTRA_CHAIN_ID_FOR_STRATEGY[askey] = { [n] = "chain_id", ... }
+	// with numeric keys sorted ascending for deterministic output.
+	let nums = sort(keys(by_strategy));
+	if (length(nums) == 0) {
+		push(lines, 'ORCHESTRA_CHAIN_ID_FOR_STRATEGY = {}');
+	} else {
+		let entries = [];
+		for (let i = 0; i < length(nums); i++) {
+			let n = nums[i];
+			push(entries, '[' + n + ']=' + lua_quote(by_strategy[n]));
+		}
+		push(lines, 'ORCHESTRA_CHAIN_ID_FOR_STRATEGY = { [' + lua_quote(askey) + '] = { ' + join(', ', entries) + ' } }');
+	}
+	// ORCHESTRA_PRELOAD_GENERATION lets the runtime stamp every event with the
+	// generation active when it was emitted (contract §2 `generation`).
+	push(lines, 'ORCHESTRA_PRELOAD_GENERATION = ' + mgr.generation);
+	return join('\n', lines);
+}
+
+function render_preload(seeds, mgr) {
 	let lines = [
 		'-- Auto-generated by zapret2-orchestra preload generator. Do not edit.',
 		'-- Source: ' + STATE_DIR + '/*.json',
@@ -237,6 +365,8 @@ function render_preload(seeds) {
 	render_blocked(lines, seeds);
 	render_learned(lines, seeds);
 	render_manual_locks(lines, seeds);
+	// chain_id_for_strategy map + preload generation (contract §4 / §2).
+	push(lines, render_chain_map_and_generation(seeds, mgr));
 	return join('\n', lines) + '\n';
 }
 
@@ -278,7 +408,8 @@ function write_manifest(preload, whitelist) {
 
 function generate() {
 	let seeds = load_seeds();
-	let preload = render_preload(seeds);
+	let mgr = read_manager_state();
+	let preload = render_preload(seeds, mgr);
 	let whitelist = render_whitelist_txt(seeds);
 
 	ensure_dir(RUNTIME_DIR);
