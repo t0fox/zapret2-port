@@ -4,7 +4,7 @@ Root cause of the router blocker ("145 APPLIED, 4 FAIL, 0 SUCCESS"):
 
   The ``circular_quality`` orchestrator detects TCP SUCCESS via
   ``standard_success_detector``, which fires when an INCOMING (reply) relative
-  sequence exceeds ``inseq`` (0x1000 = 4096).  Reply packets are queued to
+  sequence exceeds ``inseq`` (1 = 1).  Reply packets are queued to
   nfqws2 by the prerouting ``ct reply`` NFQUEUE rule (NFQWS2_TCP_PKT_IN=10),
   BUT nfqws2's in-profile filter defaults to ``--in-range=x`` ("never") — see
   zapret2-core/docs/manual.en.md §"In-profile filters": "The default is
@@ -223,7 +223,7 @@ class InRangeSuccessEnablerTest(unittest.TestCase):
     def test_in_range_value_matches_reference_tls_profile(self) -> None:
         # The reference TLS profile uses --in-range=-d1000 (circular-config.txt
         # line 85).  Pin the same value so the port does not drift to a value
-        # too small to reach inseq=0x1000 (4096) on incoming data.
+        # too small to reach inseq=1 (1) on incoming data.
         ref = REFERENCE_CIRCULAR_CFG.read_text("utf-8")
         ref_m = re.search(r"^--in-range=(\S+)", ref, re.MULTILINE)
         self.assertIsNotNone(ref_m, "reference circular-config has no --in-range")
@@ -298,7 +298,7 @@ class DetectorSourceContractTest(unittest.TestCase):
 
     def test_standard_success_detector_requires_incoming_seq_beyond_inseq(self) -> None:
         # zapret-auto.lua: standard_success_detector fires TCP success on an
-        # INCOMING packet when seq > inseq (default 4096).  This is why reply
+        # INCOMING packet when seq > inseq (default 1).  This is why reply
         # packets MUST reach the detector (--in-range).
         auto = (ROOT / "zapret2-core/lua/zapret-auto.lua").read_text("utf-8")
         m = re.search(r"function standard_success_detector\(desync, crec\)(?P<body>.*?)\nend\n",
@@ -338,7 +338,7 @@ class DetectorSourceContractTest(unittest.TestCase):
 # interpreter.  The DetectorSourceContractTest.* tests tie this model to the
 # real Lua by asserting the Lua delegates to standard_success_detector and
 # guards TLS alerts the same way.
-_DEFAULT_INSEQ = 0x1000      # 4096 — from discord-adaptive.opt :inseq=0x1000
+_DEFAULT_INSEQ = 1      # 1 — from discord-adaptive.opt :inseq=1
 _DEFAULT_MAXSEQ = 32768      # standard_detector_defaults default
 
 
@@ -375,7 +375,7 @@ class DetectorLogicModelTest(unittest.TestCase):
 
     def test_reply_with_seq_beyond_inseq_is_success(self) -> None:
         # A TLS 1.3 server flight (ServerHello + Certificate + ...) easily
-        # exceeds 4096 bytes; the 4th reply data packet lands at seq > inseq.
+        # exceeds 1 bytes; the 4th reply data packet lands at seq > inseq.
         self.assertTrue(_combined_success(outgoing=False, seq=4381,
                                           payload=b"\x16\x03\x03" + b"\x00" * 50))
 
@@ -384,7 +384,7 @@ class DetectorLogicModelTest(unittest.TestCase):
         # transferred enough to prove success.
         self.assertFalse(_combined_success(outgoing=False, seq=1,
                                            payload=b"\x16\x03\x03" + b"\x00" * 50))
-        self.assertFalse(_combined_success(outgoing=False, seq=4096,
+        self.assertFalse(_combined_success(outgoing=False, seq=1,
                                            payload=b"\x16\x03\x03" + b"\x00" * 50))
 
     def test_outgoing_clienthello_is_not_a_false_success(self) -> None:
@@ -400,16 +400,16 @@ class DetectorLogicModelTest(unittest.TestCase):
         alert = bytes([0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x28])  # fatal, handshake_failure
         self.assertFalse(_combined_success(outgoing=False, seq=5000, payload=alert))
 
-    def test_inseq_threshold_is_0x1000(self) -> None:
-        # The shipped profiles use :inseq=0x1000 (4096).  seq 4097 => SUCCESS,
-        # seq 4096 => not yet.  Pin the threshold so a drift in the .opt is
+    def test_inseq_threshold_is_1(self) -> None:
+        # The shipped profiles use :inseq=1 (1).  seq 4097 => SUCCESS,
+        # seq 1 => not yet.  Pin the threshold so a drift in the .opt is
         # caught here too.
         for pid in CIRCULAR_READY_IDS:
             val = P.extract((PROFILES_DIR / f"{pid}.opt").read_text("utf-8")).value
-            m = re.search(r"circular_quality[^\"\n]*inseq=(0x1000|\d+)", val)
+            m = re.search(r"circular_quality[^\"\n]*inseq=(1|\d+)", val)
             self.assertIsNotNone(m, f"{pid}: circular_quality has no inseq=")
-            self.assertEqual(m.group(1), "0x1000",
-                             f"{pid}: inseq must be 0x1000 (4096)")
+            self.assertEqual(m.group(1), "1",
+                             f"{pid}: inseq must be 1 (1)")
 
 
 if __name__ == "__main__":
