@@ -338,12 +338,16 @@ class ProfileContractTest(unittest.TestCase):
                 self.assertTrue((UPSTREAM / "files/fake" / m.group(1)).is_file(),
                                 f"{p.name}: missing fake asset {m.group(1)}")
             for m in re.finditer(r"/opt/zapret2/lua/([^\s\"']+\.lua)", val):
-                # Either pinned core lua or the orchestra extension dir.
+                # Either pinned core lua (at /opt/zapret2/lua/<f>) or the
+                # Orchestra extension (at /opt/zapret2/lua/orchestra-extra/<f>).
+                # An "orchestra-extra/<f>" reference resolves under ORCH_LUA
+                # with the dir prefix stripped.
+                rel = m.group(1)
+                orch_rel = rel.removeprefix("orchestra-extra/")
                 self.assertTrue(
-                    (UPSTREAM / "lua" / m.group(1)).is_file()
-                    or (ORCH_LUA / m.group(1)).is_file()
-                    or (PACKAGE / "files/opt/zapret2/lua/orchestra-extra" / m.group(1)).is_file(),
-                    f"{p.name}: missing lua asset {m.group(1)}",
+                    (UPSTREAM / "lua" / rel).is_file()
+                    or (ORCH_LUA / orch_rel).is_file(),
+                    f"{p.name}: missing lua asset {rel}",
                 )
 
     def test_pos_markers_known(self) -> None:
@@ -533,10 +537,10 @@ class ProfileCliSmokeTest(unittest.TestCase):
         self.assertIn("APPLY validate-profile gui-circular", r.stderr)
 
     def test_enable_validates_then_enables(self) -> None:
-        r = self._run("enable", "gui-quic-fake")
+        r = self._run("enable", "gui-circular")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("APPLY validate-profile gui-quic-fake", r.stderr)
-        self.assertIn("APPLY enable gui-quic-fake", r.stderr)
+        self.assertIn("APPLY validate-profile gui-circular", r.stderr)
+        self.assertIn("APPLY enable gui-circular", r.stderr)
 
     def test_enable_aborts_when_validation_fails(self) -> None:
         # FAILME is a real-looking id shape but the mock apply rejects it; the
