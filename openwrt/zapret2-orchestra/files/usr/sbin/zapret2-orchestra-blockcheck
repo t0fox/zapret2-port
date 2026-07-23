@@ -62,9 +62,11 @@ domain_ok() {
 	_d="$1"
 	[ -n "$_d" ] || { REJECT_REASON="domain is empty"; return 1; }
 	# no whitespace (blockcheck2 DOMAINS is space-separated; a space would split
-	# the argument into a second domain)
+	# the argument into a second domain). Build the newline portably with printf
+	# instead of bash-only ANSI-C quoting, so this runs under BusyBox ash.
+	_nl=$(printf '\n_'); _nl=${_nl%_}
 	case "$_d" in
-		*" "*|*"	"*|*$'\n'*) REJECT_REASON="domain must not contain whitespace"; return 1 ;;
+		*" "*|*"	"*|*"$_nl"*) REJECT_REASON="domain must not contain whitespace"; return 1 ;;
 	esac
 	# no command-substitution / shell separators: ` $( ; | &
 	case "$_d" in

@@ -61,6 +61,7 @@ id_ok() {
 	case "$_id" in
 		.|..) REJECT_REASON="id must not be . or .."; return 1 ;;
 		.*)   REJECT_REASON="id must not start with a dot"; return 1 ;;
+		-*)   REJECT_REASON="id must not start with a dash"; return 1 ;;
 	esac
 	REJECT_REASON=""
 	return 0

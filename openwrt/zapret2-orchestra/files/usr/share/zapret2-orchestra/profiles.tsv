@@ -1,6 +1,5 @@
 id	название	transport	source
 gui-circular	TLS circular rotation (multi-strategy)	tcp	zapret2gui-9d57e55
-gui-quic-fake	QUIC fake (UDP)	udp	zapret2gui-9d57e55
 gui-tls-hostfakesplit	TLS hostfakesplit	tcp	zapret2gui-9d57e55
 gui-tls-multidisorder	TLS multidisorder	tcp	zapret2gui-9d57e55
 gui-tls-multisplit	TLS multisplit	tcp	zapret2gui-9d57e55

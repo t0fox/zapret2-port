@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=zapret2
 PKG_VERSION:=0.9.20260307
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 # Official source: bol-van/zapret2 at the pinned submodule SHA.
 # The OpenWrt build system downloads this via the standard source contract.
