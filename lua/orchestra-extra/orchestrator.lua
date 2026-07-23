@@ -54,30 +54,44 @@ end
 function circular_quality(ctx, desync)
     if desync.replay_seq then return VERDICT_PASS end
     orchestrate(ctx, desync)
-    if not desync.plan or #desync.plan == 0 then return VERDICT_PASS end
+    local has_plan = desync.plan and #desync.plan > 0
+    -- Outgoing with no plan = nothing to desync.  Incoming (reply) with no plan
+    -- must STILL run the detector — the reply carries the SUCCESS/FAIL signal
+    -- (standard_success_detector fires on incoming seq > inseq).  Without this,
+    -- SUCCESS is never detected and the learning loop never locks.  The original
+    -- circular (zapret-auto.lua) has no such early return for empty plans.
+    if not has_plan and desync.outgoing then return VERDICT_PASS end
     if not desync.track then
         if DLOG_ERR then DLOG_ERR("circular_quality: conntrack is required") end
         return VERDICT_PASS
     end
     local hrec = automate_host_record(desync)
     if not hrec then return VERDICT_PASS end
-    hrec.ctstrategy = hrec.ctstrategy or strategy_count(desync.plan)
-    if hrec.ctstrategy == 0 then error("circular_quality: add contiguous strategy=N arguments") end
+    if has_plan then
+        hrec.ctstrategy = hrec.ctstrategy or strategy_count(desync.plan)
+        if hrec.ctstrategy == 0 then error("circular_quality: add contiguous strategy=N arguments") end
+    end
     local askey = desync.arg.key or desync.func_instance or "tls"
     local host = slm_normalize_hostkey(standard_hostkey(desync))
     if not host then return VERDICT_PASS end
     if ORCHESTRA_WHITELIST and ORCHESTRA_WHITELIST[host] then
         return VERDICT_PASS
     end
-    hrec.nstrategy = hrec.nstrategy or 1
-    if slm_is_blocked(askey, host, hrec.nstrategy) then
-        hrec.nstrategy = selected_next(askey, host, hrec.nstrategy, hrec.ctstrategy)
+    if has_plan then
+        hrec.nstrategy = hrec.nstrategy or 1
+        if slm_is_blocked(askey, host, hrec.nstrategy) then
+            hrec.nstrategy = selected_next(askey, host, hrec.nstrategy, hrec.ctstrategy)
+        end
+        if not hrec.nstrategy then return VERDICT_PASS end
     end
-    if not hrec.nstrategy then return VERDICT_PASS end
 
+    -- Detector runs for BOTH outgoing and incoming (reply) packets.
+    -- For incoming with no plan, nstrategy may be nil — use the host record's
+    -- last-known strategy (from the outgoing pass) for history/lock bookkeeping.
     local crec = automate_conn_record(desync)
     local failure = combined_failure_detector(desync, crec)
     local success = not failure and combined_success_detector(desync, crec)
+    local strat = hrec.nstrategy or slm_get_locked(askey, host) or 1
     local locked = slm_get_locked(askey, host)
     if locked and slm_is_blocked(askey, host, locked) then
         slm_reset(askey, host)
@@ -85,6 +99,7 @@ function circular_quality(ctx, desync)
     end
     if locked then
         hrec.nstrategy = locked
+        strat = locked
         if failure and not crec.locked_failure_recorded then
             crec.locked_failure_recorded = true
             hrec.locked_fail_count = (hrec.locked_fail_count or 0) + 1
@@ -97,7 +112,9 @@ function circular_quality(ctx, desync)
                     orchestra_emit_event("unlock", event_fields(askey, host, locked, "unlock_fails_met", {state="auto"}))
                 end
                 slm_reset(askey, host)
-                hrec.nstrategy = selected_next(askey, host, locked, hrec.ctstrategy)
+                if has_plan then
+                    hrec.nstrategy = selected_next(askey, host, locked, hrec.ctstrategy)
+                end
                 hrec.locked_fail_count = 0
             end
         elseif success and not crec.locked_success_recorded then
@@ -110,46 +127,53 @@ function circular_quality(ctx, desync)
         end
     elseif failure and not crec.quality_failure_recorded then
         crec.quality_failure_recorded = true
-        slm_record_result(askey, host, hrec.nstrategy, false)
+        slm_record_result(askey, host, strat, false)
         if orchestra_emit_event then
-            orchestra_emit_event("fail", event_fields(askey, host, hrec.nstrategy, "combined_failure_detector", {state="learning"}))
+            orchestra_emit_event("fail", event_fields(askey, host, strat, "combined_failure_detector", {state="learning"}))
         end
-        if automate_failure_counter(hrec, crec, tonumber(desync.arg.fails) or 1, tonumber(desync.arg.time) or 60) then
+        if has_plan and automate_failure_counter(hrec, crec, tonumber(desync.arg.fails) or 1, tonumber(desync.arg.time) or 60) then
             hrec.nstrategy = selected_next(askey, host, hrec.nstrategy, hrec.ctstrategy) or hrec.nstrategy
+            strat = hrec.nstrategy
             if orchestra_emit_event then
                 orchestra_emit_event("rotate", event_fields(askey, host, hrec.nstrategy, "rotate", {state="learning"}))
             end
         end
     elseif success and not crec.quality_success_recorded then
         crec.quality_success_recorded = true
-        slm_record_result(askey, host, hrec.nstrategy, true)
+        slm_record_result(askey, host, strat, true)
         automate_failure_counter_reset(hrec)
         if orchestra_emit_event then
-            orchestra_emit_event("success", event_fields(askey, host, hrec.nstrategy, "combined_success_detector", {state="learning"}))
+            orchestra_emit_event("success", event_fields(askey, host, strat, "combined_success_detector", {state="learning"}))
         end
-        local should_lock, strategy = slm_should_lock(askey, host, desync.arg)
-        if should_lock then
-            hrec.nstrategy = strategy
-            if orchestra_emit_event then
-                orchestra_emit_event("lock", event_fields(askey, host, strategy, "lock_successes_met", {state="auto"}))
+        if has_plan then
+            local should_lock, strategy = slm_should_lock(askey, host, desync.arg)
+            if should_lock then
+                hrec.nstrategy = strategy
+                strat = strategy
+                if orchestra_emit_event then
+                    orchestra_emit_event("lock", event_fields(askey, host, strategy, "lock_successes_met", {state="auto"}))
+                end
             end
         end
     end
 
-    -- APPLIED: once per connection when a strategy is chosen and its chain is
-    -- about to be executed.  Emitted after the detection/lock bookkeeping so
-    -- the recorded nstrategy is the one actually applied.
-    if orchestra_emit_event then
-        orchestra_emit_event("applied", event_fields(askey, host, hrec.nstrategy, "applied"))
+    -- APPLIED: only for outgoing (strategy chosen + chain about to execute).
+    -- Incoming reply packets don't apply a strategy — they're detector-only.
+    if has_plan and desync.outgoing and orchestra_emit_event then
+        orchestra_emit_event("applied", event_fields(askey, host, strat, "applied"))
     end
 
-    local verdict = VERDICT_PASS
-    while true do
-        local instance = plan_instance_pop(desync)
-        if not instance then break end
-        if instance.arg and tonumber(instance.arg.strategy) == hrec.nstrategy then
-            verdict = plan_instance_execute(desync, verdict, instance)
+    -- Plan execution: only when there's a plan (outgoing).
+    if has_plan then
+        local verdict = VERDICT_PASS
+        while true do
+            local instance = plan_instance_pop(desync)
+            if not instance then break end
+            if instance.arg and tonumber(instance.arg.strategy) == hrec.nstrategy then
+                verdict = plan_instance_execute(desync, verdict, instance)
+            end
         end
+        return verdict
     end
-    return verdict
+    return VERDICT_PASS
 end
