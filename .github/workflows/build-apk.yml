@@ -42,6 +42,14 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Clone pinned preset repo (for importer tests)
+        run: |
+          git clone --depth 1 https://github.com/youtubediscord/zapret2-youtube-discord.git /tmp/zapret2-youtube-discord
+          cd /tmp/zapret2-youtube-discord
+          git fetch --depth 1 origin 4d75c70b430562e970bcf64cbe24072ce104b36a
+          git checkout 4d75c70b430562e970bcf64cbe24072ce104b36a
+          echo "ZAPRET2_PRESET_REPO_ROOT=/tmp/zapret2-youtube-discord" >> "$GITHUB_ENV"
+
       - name: Install host dependencies
         run: |
           set -eu
