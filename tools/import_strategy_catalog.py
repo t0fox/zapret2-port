@@ -1234,7 +1234,7 @@ ADAPTIVE_SELECTOR = (
     "failure_detector=combined_failure_detector:"
     "success_detector=combined_success_detector:"
     "lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:"
-    "inseq=0x1000:nld=3"
+    "inseq=1:nld=3"
 )
 
 
@@ -1337,7 +1337,7 @@ ORIGINAL_POOL_SELECTOR = (
     "failure_detector=combined_failure_detector:"
     "success_detector=combined_success_detector:"
     "lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:"
-    "inseq=0x1000:nld=3"
+    "inseq=1:nld=3"
 )
 
 # OpenWrt path mapping for bin blobs referenced by the original pool (the .bin
@@ -1540,7 +1540,7 @@ def _build_original_pool_opt(chains: list[dict[str, Any]]) -> str:
         "# first 1000 incoming data packets reach circular_quality so the success "
         "detector can see the TLS")
     lines.append(
-        "# server reply (incoming seq > inseq=0x1000).  --payload=all is kept from "
+        "# server reply (incoming seq > inseq=1).  --payload=all is kept from "
         "the original so HTTP-fake")
     lines.append(
         "# strategies (e.g. fake_default_http) work.")

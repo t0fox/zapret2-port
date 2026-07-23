@@ -9,7 +9,7 @@
 # (never), which blocks ALL incoming packets from Lua and starves combined_success_detector of reply
 # packets, so SUCCESS is never detected and the learning loop never locks.  --in-range=-d1000 lets the
 # first 1000 incoming data packets reach circular_quality so the success detector can see the TLS
-# server reply (incoming seq > inseq=0x1000).  --payload=all is kept from the original so HTTP-fake
+# server reply (incoming seq > inseq=1).  --payload=all is kept from the original so HTTP-fake
 # strategies (e.g. fake_default_http) work.
 NFQWS2_OPT="
 --lua-init=@/opt/zapret2/lua/orchestra-extra/init.lua
@@ -24,7 +24,7 @@ NFQWS2_OPT="
 --payload=all
 --in-range=-d1000
 --out-range=-d10
---lua-desync=circular_quality:key=tls:fails=3:failure_detector=combined_failure_detector:success_detector=combined_success_detector:lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:inseq=0x1000:nld=3
+--lua-desync=circular_quality:key=tls:fails=3:failure_detector=combined_failure_detector:success_detector=combined_success_detector:lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:inseq=1:nld=3
 --lua-desync=tls_multisplit_sni:seqovl=652:seqovl_pattern=tls_google:strategy=1
 --lua-desync=multisplit:pos=1:seqovl=740:seqovl_pattern=stun_pat:strategy=2
 --lua-desync=fake:blob=fake_default_tls:tls_mod=rnd,dupsid,sni=www.google.com:repeats=8:tcp_seq=1000:strategy=3
