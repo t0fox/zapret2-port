@@ -767,6 +767,15 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         env["ZAPRET2_BACKUP_DIR"] = str(self.orch / "backup")
         env["ZAPRET2_CONFIG"] = str(self.opt / "config")
         env["ZAPRET2_PRELOAD_WRAPPER"] = str(Path(self.tmp) / "fake-preload.sh")
+        # The preload generator (generate-preload.uc) uses ORCHESTRA_* env
+        # vars, while apply.uc uses ZAPRET2_* vars. Both must point to the
+        # same sandbox dirs so the fake preload wrapper and the real
+        # generate-preload.uc (when used) write to the right runtime path.
+        env["ORCHESTRA_STATE_DIR"] = str(self.orch)
+        env["ORCHESTRA_RUNTIME_DIR"] = str(self.runtime)
+        env["ORCHESTRA_PRELOAD_FILE"] = str(self.runtime / "preload.lua")
+        env["ORCHESTRA_WHITELIST_FILE"] = str(self.runtime / "whitelist.txt")
+        env["ORCHESTRA_MANIFEST_FILE"] = str(self.runtime / "manifest.json")
         return env
 
     def _write_default_config(self, nfqws2_opt: str = "--lua-desync=fake:blob=default") -> None:
