@@ -57,7 +57,9 @@ const PRELOAD_WRAPPER = getenv('ORCHESTRA_PRELOAD_WRAPPER') ?? '/usr/sbin/zapret
 // test-mode this is never used.  ORCHESTRA_RELOAD_CMD lets a deployment point
 // at a wrapper script; default empty (the procd service supplies it).
 const RELOAD_CMD   = getenv('ORCHESTRA_RELOAD_CMD')  ?? '';
-const RELOAD_DEBOUNCE = tonumber(getenv('ORCHESTRA_RELOAD_DEBOUNCE')) ?? 5;
+// ucode has no Lua tonumber(); use int() with a string default so unset env
+// yields 5 (int('5') == 5). getenv unset -> null ?? '5' -> '5' -> int 5.
+const RELOAD_DEBOUNCE = int(getenv('ORCHESTRA_RELOAD_DEBOUNCE') ?? '5');
 
 // UDP askeys: 1 SUCCESS locks (vs 3 for TCP).  Mirrors the original
 // orchestra_runner.py:1156 lock_threshold = 1 if is_udp else 3.
@@ -300,8 +302,11 @@ function is_udp_askey(askey) { return UDP_ASKEYS[askey] == true; }
 
 function normalize_host(host) {
 	if (type(host) != 'string') return null;
-	let h = lower(host);
-	h = replace(replace(h, '^%.*', ''), '%.*$', '');
+	let h = lc(host);  // ucode lc(), not Lua lower()
+	// Strip leading/trailing dots. ucode replace() is literal (not regex), so
+	// the original Lua patterns '^%.*'/'%.*$' would silently no-op; use substr.
+	while (length(h) > 0 && substr(h, 0, 1) == '.') h = substr(h, 1);
+	while (length(h) > 0 && substr(h, length(h) - 1, 1) == '.') h = substr(h, 0, length(h) - 1);
 	if (length(h) == 0) return null;
 	return h;
 }
@@ -389,14 +394,11 @@ function hash31(data) {
 // history update — contract §3 reload policy).
 // ---------------------------------------------------------------------------
 
-function event_dedup_key(ev) {
-	return (ev.run_id ?? '') + '|' + normalize_etype(ev.type) + '|' + (ev.host ?? '') + '|' + (ev.strategy ?? '') + '|' + (ev.ts ?? '');
-}
-
 // Contract §2 emits state-machine `type` in UPPER-CASE (SUCCESS/FAIL/LOCK/
 // UNLOCK/APPLIED/ROTATE) and lifecycle in lower-case (error/start/stop). The
 // learner compares against the lower-case internal names, so normalize once.
 // Explicit map (no ucode lower() builtin dependency) — robust on every build.
+// Declared BEFORE event_dedup_key (ucode requires declaration before use).
 const ETYPE_CANON = {
 	SUCCESS: 'success', FAIL: 'fail', LOCK: 'lock', UNLOCK: 'unlock',
 	APPLIED: 'applied', ROTATE: 'rotate',
@@ -408,6 +410,10 @@ const ETYPE_CANON = {
 function normalize_etype(t) {
 	if (t == null) return '';
 	return ETYPE_CANON[t] ?? t;
+}
+
+function event_dedup_key(ev) {
+	return (ev.run_id ?? '') + '|' + normalize_etype(ev.type) + '|' + (ev.host ?? '') + '|' + (ev.strategy ?? '') + '|' + (ev.ts ?? '');
 }
 
 function process_event(learned, blocked, manual, ev, seen_keys) {
