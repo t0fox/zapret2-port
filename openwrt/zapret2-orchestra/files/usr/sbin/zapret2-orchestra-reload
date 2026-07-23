@@ -1,0 +1,23 @@
+#!/bin/sh
+# zapret2-orchestra-reload — datapath reload helper owned by the procd layer.
+#
+# The learner daemon requests an nfqws2 reload by invoking this helper (via
+# ORCHESTRA_RELOAD_CMD) so the /etc/init.d reference lives in the procd-managed
+# service layer, NOT in the learner daemon or apply.uc.  This keeps the
+# architectural separation intact:
+#   * the Lua packet path never writes persistent JSON (only appends events);
+#   * apply.uc never references /etc/init.d (test_working_prototype forbids it);
+#   * the learner daemon never references /etc/init.d directly — it shells out
+#     to this controlled helper, which is the single owner of the restart.
+#
+# The reload is idempotent: if zapret2 is not enabled, /etc/init.d/zapret2
+# restart is a no-op on the datapath.  The learner only calls this after a lock
+# or blocked-strategy change AND the debounce window has elapsed.
+set -eu
+
+# /etc/init.d/zapret2 is the procd-managed zapret2 service.  restart reloads
+# nfqws2 with the freshly regenerated preload (the learner regenerates preload
+# BEFORE invoking this helper, so the new locks/blocks take effect).
+if [ -x /etc/init.d/zapret2 ]; then
+	/etc/init.d/zapret2 restart
+fi

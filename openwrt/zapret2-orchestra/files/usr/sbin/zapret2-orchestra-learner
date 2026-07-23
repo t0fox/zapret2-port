@@ -1,0 +1,22 @@
+#!/bin/sh
+# zapret2-orchestra-learner — closed-loop runtime learning daemon.
+#
+# Tails /tmp/zapret2-orchestra/events.ndjson, applies the Orchestra state
+# machine (auto-lock/unlock, blocked priority, ratings history), persists
+# learned.json / blocked.json / learner-state.json, and — only when a lock or
+# blocked-strategy changes — regenerates the preload and reloads nfqws2 via the
+# procd-managed service (debounced).  The Lua packet path never writes
+# persistent JSON; this daemon is the sole runtime writer of the seeds.
+#
+# Usage:
+#   zapret2-orchestra-learner run            long-running daemon (procd)
+#   zapret2-orchestra-learner process-once  read new events once, then exit
+#   zapret2-orchestra-learner test-process EVENTS_FILE  TEST MODE: one pass over
+#                                          EVENTS_FILE, no reload/preload-regen,
+#                                          emits a JSON result (used by tests)
+#
+# The reload (/etc/init.d/zapret2 restart) is owned by the procd init script /
+# a wrapper, NOT invoked from the Lua packet path.  ORCHESTRA_RELOAD_CMD lets a
+# deployment point at a wrapper script; the daemon coalesces reloads within
+# ORCHESTRA_RELOAD_DEBOUNCE seconds (default 5).
+exec ucode /usr/share/zapret2-orchestra/learner.uc "$@"
