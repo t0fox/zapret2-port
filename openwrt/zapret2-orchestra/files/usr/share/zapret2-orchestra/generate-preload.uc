@@ -175,6 +175,23 @@ function render_whitelist_table(seeds) {
 }
 
 // Resolve a list of stable chain ids into a sorted, de-duplicated list of
+// Resolve a stable chain id to a runtime strategy number via the active
+// profile's chain map (by_chain).  Returns null if the chain is absent from
+// the active profile (so the block is dropped, not transferred to a different
+// chain with the same runtime number).  Declared BEFORE resolve_chain_block_list
+// (ucode requires declaration before use).
+function resolve_chain_strategy(cm, stable_id) {
+	if (cm == null || type(stable_id) != 'string' || length(stable_id) == 0)
+		return null;
+	let n = cm.by_chain[stable_id];
+	if (n == null)
+		return null;
+	let nn = int(n);
+	if (nn < 1 || nn != int(nn))
+		return null;
+	return nn;
+}
+
 // runtime strategy numbers using the active profile's chain map.  Chains that
 // are absent from the active profile are silently dropped — a block authored
 // against chain X never transfers to a different chain that happens to share
@@ -459,17 +476,7 @@ function read_chain_map(profile) {
 // that happens to occupy the same runtime number).  When no chain map is
 // available (native profile, or adaptive profile with no sidecar), every
 // stable id is unresolvable (null) so chain-based blocks do not apply.
-function resolve_chain_strategy(cm, stable_id) {
-	if (cm == null || type(stable_id) != 'string' || length(stable_id) == 0)
-		return null;
-	let n = cm.by_chain[stable_id];
-	if (n == null)
-		return null;
-	let nn = int(n);
-	if (nn < 1 || nn != int(nn))
-		return null;
-	return nn;
-}
+// (resolve_chain_strategy is defined above, before resolve_chain_block_list.)
 
 // Render the ORCHESTRA_CHAIN_ID_FOR_STRATEGY Lua table and the
 // ORCHESTRA_PRELOAD_GENERATION assignment.  The chain map (already read and
