@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -1823,12 +1824,12 @@ def write_outputs(repo_root: Path, out_dir: Path, profile_dir: Path,
 # CLI
 # ---------------------------------------------------------------------------
 
-DEFAULT_REPO_ROOT = Path("H:/zapret-port/strategy-research/zapret2-youtube-discord")
+DEFAULT_REPO_ROOT = Path(os.environ.get("ZAPRET2_PRESET_REPO_ROOT", "H:/zapret-port/strategy-research/zapret2-youtube-discord"))
 DEFAULT_OUT_DIR = Path("strategy-sources")
 DEFAULT_PROFILE_DIR = Path(
     "openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/profiles"
 )
-DEFAULT_STATIC_SRC = Path("H:/zapret-port/strategy-research/port/r7")
+DEFAULT_STATIC_SRC = Path(os.environ.get("ZAPRET2_STATIC_SRC", "H:/zapret-port/strategy-research/port/r7"))
 
 
 def main(argv: list[str] | None = None) -> int:
