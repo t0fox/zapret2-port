@@ -88,9 +88,12 @@ def _find_learner() -> Optional[tuple[str, list[str]]]:
     if LEARNER_UC.is_file() and ucode:
         return ([ucode, str(LEARNER_UC), "--"], "ucode")
 
-    # 3. Shipped shell wrapper + sh on PATH.
+    # 3. Shipped shell wrapper + sh on PATH. The wrapper execs ucode internally,
+    #    so this path ALSO needs ucode on PATH; without it the wrapper would
+    #    fail at runtime (and the test would FAIL instead of SKIP). Match the
+    #    test_runtime_manager ucode-skip pattern: no ucode → no learner seam.
     sh = shutil.which("sh")
-    if LEARNER_WRAPPER.is_file() and sh:
+    if LEARNER_WRAPPER.is_file() and sh and ucode:
         return ([sh, str(LEARNER_WRAPPER)], "wrapper")
 
     return None

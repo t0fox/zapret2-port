@@ -237,11 +237,15 @@ class ReadyProfileContentTest(unittest.TestCase):
     def test_circular_strategy_numbering_starts_at_one_contiguous_unique(self) -> None:
         for pid in CIRCULAR_READY_IDS:
             val = self._value(pid)
-            nums = [int(n) for n in re.findall(r"strategy=(\d+)", val)]
+            # A strategy CHAIN is several --lua-desync steps sharing one
+            # :strategy=N (contract §1: same-line/same-chain desyncs share N),
+            # so the raw findall repeats N per step. Collapse to DISTINCT
+            # strategy numbers; those must start at 1 and be contiguous.
+            distinct = sorted({int(n) for n in re.findall(r"strategy=(\d+)", val)})
             self.assertEqual(
-                nums, list(range(1, len(nums) + 1)),
+                distinct, list(range(1, len(distinct) + 1)),
                 f"{pid}: strategy numbers must start at 1 and be contiguous "
-                f"and unique, got {nums}",
+                f"and unique, got {distinct}",
             )
 
     def test_circular_selector_appears_before_strategy_instances(self) -> None:

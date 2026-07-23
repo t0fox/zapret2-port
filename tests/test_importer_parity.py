@@ -98,8 +98,13 @@ def _run_importer(**extra_env: str) -> tuple[subprocess.CompletedProcess, Path]:
     out = tmp / "catalog.json"
     env = os.environ.copy()
     env.update(extra_env)
+    # The importer writes multiple files into --out-dir (catalog.json, manifest,
+    # default_blocked_pass_domains) AND writes the adaptive profile into
+    # --profile-dir. Point BOTH at the temp dir so a test run never overwrites
+    # the committed strategy-sources/catalog.json or profiles/discord-adaptive.*.
+    # DEFAULT_REPO_ROOT / DEFAULT_STATIC_SRC are absolute (pinned clone / r7 dir).
     r = subprocess.run(
-        [py, str(script), "--out", str(out)],
+        [py, str(script), "--out-dir", str(tmp), "--profile-dir", str(tmp)],
         env=env, capture_output=True, text=True, timeout=60,
     )
     return r, out
@@ -270,9 +275,13 @@ class AdaptiveProfileTest(unittest.TestCase):
         nums = [int(n) for n in re.findall(r"strategy=(\d+)", text)]
         self.assertGreaterEqual(len(nums), 2,
                                 "adaptive profile must have >=2 numbered strategies (Default old + v5)")
-        # Contiguous from 1 (orchestrator.lua requires it).
-        self.assertEqual(nums, list(range(1, len(nums) + 1)),
-                         f"adaptive strategy numbers must be contiguous from 1, got {nums}")
+        # A strategy CHAIN is several --lua-desync steps sharing one :strategy=N
+        # (contract §1: multiple desync on the same chain share N), so the raw
+        # findall repeats N per step. Collapse to the DISTINCT strategy numbers;
+        # those must be contiguous from 1 (orchestrator.lua requires it).
+        distinct = sorted(set(nums))
+        self.assertEqual(distinct, list(range(1, len(distinct) + 1)),
+                         f"adaptive strategy numbers must be contiguous from 1, got {distinct}")
 
     def test_adaptive_json_sidecar_has_chain_id_for_strategy(self) -> None:
         if not ADAPTIVE_JSON.is_file():

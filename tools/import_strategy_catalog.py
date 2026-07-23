@@ -38,7 +38,12 @@ PRESETS_SUBPATH = "presets/"
 # Original GUI (DEFAULT_BLOCKED_PASS_DOMAINS source).
 GUI_REPO = "youtubediscord/zapret"
 GUI_COMMIT = "9d57e55d6751587d9d52b52147a05a0a8fcc9fd8"
-GUI_SOURCE_PATH = "zapret2gui/src/orchestra/blocked_strategies_manager.py:65-102"
+# Provenance path is relative to the PINNED GUI repo root (src/orchestra/...),
+# not the port's submodule mount path (zapret2gui/src/...). The contract §1 +
+# the parity tests assert the GUI-repo-relative path so provenance identifies
+# the location inside youtubediscord/zapret @ 9d57e55 regardless of how the
+# port mounts it as a submodule.
+GUI_SOURCE_PATH = "src/orchestra/blocked_strategies_manager.py:65-102"
 
 # zapret2-core (lua desync functions: send/syndata/multisplit/...).  Used to
 # confirm core function names for the compat/closure report.  Not copied.
@@ -970,6 +975,29 @@ def _assign_adaptive_and_finalize(
 
     # Deterministic ordering: by strategy_number (2,1 first) then stable_id.
     entry_list = list(entries.values())
+
+    # Flat provenance fields (contract §1 / task Step 2 require source_id,
+    # source_commit, source_path, source_sha256 at entry top level). A chain
+    # may legitimately derive from multiple preset blocks (source_blocks[] is
+    # the full multi-block provenance); the flat fields mirror the FIRST block
+    # (source_blocks is sorted by source_path then index, so the first is the
+    # canonical/earliest preset). Keeping source_blocks[] preserves the richer
+    # model; the flat fields satisfy the task's per-entry contract.
+    for e in entry_list:
+        blocks = e.get("source_blocks") or []
+        if blocks:
+            b0 = blocks[0]
+            e["source_id"] = b0.get("source_id", "")
+            e["source_commit"] = b0.get("source_commit", SOURCE_COMMIT)
+            e["source_path"] = b0.get("source_path", "")
+            e["source_sha256"] = b0.get("source_sha256", "")
+            e["source_block_index"] = b0.get("source_block_index")
+        else:
+            e["source_id"] = ""
+            e["source_commit"] = SOURCE_COMMIT
+            e["source_path"] = ""
+            e["source_sha256"] = ""
+            e["source_block_index"] = None
 
     def sort_key(e: dict[str, Any]) -> tuple:
         sn = e["strategy_number"]

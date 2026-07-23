@@ -390,13 +390,30 @@ function hash31(data) {
 // ---------------------------------------------------------------------------
 
 function event_dedup_key(ev) {
-	return (ev.run_id ?? '') + '|' + (ev.type ?? '') + '|' + (ev.host ?? '') + '|' + (ev.strategy ?? '') + '|' + (ev.ts ?? '');
+	return (ev.run_id ?? '') + '|' + normalize_etype(ev.type) + '|' + (ev.host ?? '') + '|' + (ev.strategy ?? '') + '|' + (ev.ts ?? '');
+}
+
+// Contract §2 emits state-machine `type` in UPPER-CASE (SUCCESS/FAIL/LOCK/
+// UNLOCK/APPLIED/ROTATE) and lifecycle in lower-case (error/start/stop). The
+// learner compares against the lower-case internal names, so normalize once.
+// Explicit map (no ucode lower() builtin dependency) — robust on every build.
+const ETYPE_CANON = {
+	SUCCESS: 'success', FAIL: 'fail', LOCK: 'lock', UNLOCK: 'unlock',
+	APPLIED: 'applied', ROTATE: 'rotate',
+	success: 'success', fail: 'fail', lock: 'lock', unlock: 'unlock',
+	applied: 'applied', rotate: 'rotate',
+	error: 'error', start: 'start', stop: 'stop',
+};
+
+function normalize_etype(t) {
+	if (t == null) return '';
+	return ETYPE_CANON[t] ?? t;
 }
 
 function process_event(learned, blocked, manual, ev, seen_keys) {
 	let result = { changed_lock: false, changed_blocked: false, applied: false };
 	if (type(ev) != 'object') return result;
-	let etype = ev.type;
+	let etype = normalize_etype(ev.type);
 	let key = event_dedup_key(ev);
 	// Idempotent: skip a duplicate event (cursor stale after restart).
 	if (seen_keys[key]) return result;

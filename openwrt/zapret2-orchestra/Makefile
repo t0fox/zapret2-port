@@ -108,6 +108,17 @@ define Package/zapret2-orchestra/install
 	# and other tls_mod blobs via the nfqws2 builtin tls_mod. Verbatim from
 	# youtubediscord/zapret2-youtube-discord @ 4d75c70b (lua/init_vars.lua).
 	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/lua/init_vars.lua $(1)/opt/zapret2/lua/init_vars.lua
+	# custom_funcs.lua (r7 discord-adaptive strategy=1 "Default old" asset):
+	# defines tls_multisplit_sni (and other user-override desync functions),
+	# self-contained with helpers in the shipped core lua. Verbatim from
+	# youtubediscord/zapret2-youtube-discord @ 4d75c70b (lua/custom_funcs.lua).
+	# strategy=1 is blocked for discord.com by DEFAULT_BLOCKED_PASS_DOMAINS so it
+	# is not executed on the live Discord path, but the --lua-init must load.
+	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/lua/custom_funcs.lua $(1)/opt/zapret2/lua/custom_funcs.lua
+	# bin/stun.bin (r7 discord-adaptive strategy=1 stun_pat blob). Verbatim from
+	# youtubediscord/zapret2-youtube-discord @ 4d75c70b (bin/stun.bin).
+	$(INSTALL_DIR) $(1)/opt/zapret2/bin
+	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/bin/stun.bin $(1)/opt/zapret2/bin/stun.bin
 	# persistent JSON state seeds (also listed in conffiles)
 	$(INSTALL_DIR) $(1)/etc/zapret2-orchestra
 	$(INSTALL_DATA) $(CURDIR)/files/etc/zapret2-orchestra/*.json $(1)/etc/zapret2-orchestra/

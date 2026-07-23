@@ -87,6 +87,11 @@ def _collect_lua_functions() -> set[str]:
         UPSTREAM / "lua/zapret-auto.lua",
         UPSTREAM / "lua/zapret-lib.lua",
         UPSTREAM / "lua/zapret-obfs.lua",
+        # r7: custom_funcs.lua ships under the package lua tree and defines the
+        # user-override desync functions (tls_multisplit_sni, etc.) used by the
+        # discord-adaptive profile's strategy=1 (Default old). Pinned verbatim
+        # from youtubediscord/zapret2-youtube-discord @ 4d75c70b.
+        PACKAGE / "files/opt/zapret2/lua/custom_funcs.lua",
     ]
     for g in globs:
         if g.is_file():

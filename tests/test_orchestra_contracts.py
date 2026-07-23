@@ -211,9 +211,12 @@ def _validate_entry(entry: Any, i: int, seen_stable_ids: set[str],
             problems.append(f"{ctx}: chain_id {chain_id!r} duplicated across entries")
         else:
             seen_chain_ids.add(chain_id)
-    # strategy_number
+    # strategy_number — OPTIONAL: only the chains assigned to the generated
+    # adaptive profile get a number (contract §1 rule 3: the importer numbers
+    # within the adaptive profile); all other catalog chains are null. null/absent
+    # is valid; if present it must be a positive int.
     sn = entry.get("strategy_number")
-    if not _is_int(sn) or sn < 1:
+    if sn is not None and (not _is_int(sn) or sn < 1):
         problems.append(f"{ctx}: strategy_number must be a positive int")
     # askey
     if entry.get("askey") not in ASKEY_ALL:

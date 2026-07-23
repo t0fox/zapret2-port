@@ -5,5 +5,5 @@ gui-tls-multidisorder	TLS multidisorder	tcp	zapret2gui-9d57e55
 gui-tls-hostfakesplit	TLS hostfakesplit	tcp	zapret2gui-9d57e55
 gui-tls-syndata	TLS syndata + fake	tcp	zapret2gui-9d57e55
 gui-circular	TLS circular rotation (multi-strategy)	tcp	zapret2gui-9d57e55
-discord-v5	Discord Default v5 (native fallback, non-circular)	tcp	zapret2-youtube-discord-4d75c70
 discord-adaptive	Discord adaptive Orchestra (circular_quality, strategy=1 Default old + strategy=2 Default v5)	tcp	orchestra-r7-adaptive
+discord-v5	Discord Default v5 (native fallback, non-circular)	tcp	zapret2-youtube-discord-4d75c70

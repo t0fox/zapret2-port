@@ -36,6 +36,19 @@ local EVENT_TYPES = {
     error=true, start=true, stop=true
 }
 
+-- Canonical `type` spelling per contract §2: state-machine types are UPPER-
+-- CASE (SUCCESS/FAIL/LOCK/UNLOCK/APPLIED/ROTATE); lifecycle types stay
+-- lower-case (error/start/stop). Callers pass the lower-case internal name
+-- (e.g. orchestra_emit_event("fail", ...)); this map emits the contract-
+-- canonical spelling so the NDJSON `type` field matches the contract exactly.
+-- The learner normalizes `type` back to lower-case for its own comparisons, so
+-- both the UPPER-case wire form and the lower-case internal form agree.
+local CANONICAL_TYPE = {
+    success="SUCCESS", fail="FAIL", lock="LOCK", unlock="UNLOCK",
+    applied="APPLIED", rotate="ROTATE",
+    error="error", start="start", stop="stop",
+}
+
 -- Fields allowed in an event record.  The v1 set (host, protocol, strategy,
 -- state, message, dry_run) is retained; r7 adds askey, chain_id, reason,
 -- generation, run_id.  `protocol` is kept as a legacy alias of `askey`.
@@ -108,10 +121,13 @@ function orchestra_emit_event(event, fields)
         if ALLOWED_FIELDS[key] then keys[#keys + 1] = key end
     end
     table.sort(keys)
+    -- Emit the contract-canonical `type` spelling (UPPER-CASE for state-machine
+    -- types, lower-case for lifecycle) so the NDJSON wire form matches §2.
+    local canon = CANONICAL_TYPE[event] or event
     local parts = {
         '{"schema_version":1',
         '"ts":' .. tostring(os.time()),
-        '"type":' .. json_value(event)
+        '"type":' .. json_value(canon)
     }
     for _, key in ipairs(keys) do
         parts[#parts + 1] = '"' .. key .. '":' .. json_value(fields[key])

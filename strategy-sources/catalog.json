@@ -171,7 +171,7 @@
       "ytimg.com"
     ],
     "source_commit": "9d57e55d6751587d9d52b52147a05a0a8fcc9fd8",
-    "source_path": "zapret2gui/src/orchestra/blocked_strategies_manager.py:65-102",
+    "source_path": "src/orchestra/blocked_strategies_manager.py:65-102",
     "source_repo": "youtubediscord/zapret"
   },
   "entries": [
@@ -331,6 +331,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 8,
       "source_blocks": [
         {
           "source_block_index": 8,
@@ -354,6 +355,10 @@
           "source_sha256": "ba803da12b0a385f0465933da13733038f15ea8e648883712811ae0c8161622d"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default old",
+      "source_path": "presets/Default old.txt",
+      "source_sha256": "7a129feb0138ca3d39fb2a0cfdd4be74eaf62b48ac025b37cdfbbfee2c3b6065",
       "stable_id": "discord-send-syndata-tls_multisplit_sni-44860d17",
       "strategy_number": 1,
       "transport": "tcp",
@@ -451,6 +456,7 @@
       "services": [
         "discord"
       ],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -474,6 +480,10 @@
           "source_sha256": "9dea0dc0617c8e7a42aa2d672f8ac50382ab4181c84589ff65932db8bae4d9c2"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v5",
+      "source_path": "presets/Default v5.txt",
+      "source_sha256": "08f0e54056638577655936a27c076854a91031ad191c58d1dc3e04c7032c8f34",
       "stable_id": "discord-send-syndata-syndata-64820ded",
       "strategy_number": 2,
       "transport": "tcp",
@@ -556,6 +566,7 @@
       "services": [
         "amazon"
       ],
+      "source_block_index": 5,
       "source_blocks": [
         {
           "source_block_index": 5,
@@ -572,6 +583,10 @@
           "source_sha256": "6f37bb074bbb945f24cf4f613805c0d7d107c93f709ee5a2025770d3fae30b1e"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v2",
+      "source_path": "presets/ALL TCP & UDP v2.txt",
+      "source_sha256": "3f42f81eb83a85c8c18fb5189538d728ffbda26006925173fb0aab44c88d740b",
       "stable_id": "amazon-fake-11e6cb63",
       "strategy_number": null,
       "transport": "udp",
@@ -687,6 +702,7 @@
       "services": [
         "amazon"
       ],
+      "source_block_index": 11,
       "source_blocks": [
         {
           "source_block_index": 11,
@@ -696,6 +712,10 @@
           "source_sha256": "6b0c44d7dc20b890b7d86ce4db46cc92b5dea93a16f55bf4906ad83346c2f774"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Syndata + MultiDisorder legacy WoW (game filter)",
+      "source_path": "presets/Syndata + MultiDisorder legacy WoW (game filter).txt",
+      "source_sha256": "6b0c44d7dc20b890b7d86ce4db46cc92b5dea93a16f55bf4906ad83346c2f774",
       "stable_id": "amazon-send-syndata-fake-multidisorder_legacy-6a452212",
       "strategy_number": null,
       "transport": "tcp",
@@ -782,6 +802,7 @@
       "services": [
         "amazon"
       ],
+      "source_block_index": 7,
       "source_blocks": [
         {
           "source_block_index": 7,
@@ -1197,6 +1218,10 @@
           "source_sha256": "cb80fa56846a70fdbb358d8f77adcce7396b2bfe45fb3b3bd0101758fed48cf3"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight v2 (game filter)",
+      "source_path": "presets/Dead by Daylight v2 (game filter).txt",
+      "source_sha256": "adfea78816d5fb834dc9cb433b96ca19e0e0cf0aa4cd3a19fb6d65b73fb1cbe5",
       "stable_id": "chain-fake-0ecc22d4",
       "strategy_number": null,
       "transport": "udp",
@@ -1273,6 +1298,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -1436,6 +1462,10 @@
           "source_sha256": "d788a914aeae1c04458450e612e5b0aa41b0319d7477038420ec033f31361c23"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT11 (game filter)",
+      "source_path": "presets/general ALT11 (game filter).txt",
+      "source_sha256": "52e797ba8e99f5f3aa6ac08e38ce4aab5e777d6eb9765630bdae4d108e97271a",
       "stable_id": "chain-fake-1085e1eb",
       "strategy_number": null,
       "transport": "udp",
@@ -1511,6 +1541,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 7,
       "source_blocks": [
         {
           "source_block_index": 7,
@@ -1527,6 +1558,10 @@
           "source_sha256": "8dfb3afcb2e67e81053467a97871d4c860ac3fe32a33a0fadfe08d8976bbe918"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT10 (game filter)",
+      "source_path": "presets/general ALT10 (game filter).txt",
+      "source_sha256": "8dfb3afcb2e67e81053467a97871d4c860ac3fe32a33a0fadfe08d8976bbe918",
       "stable_id": "chain-fake-4f9e43a6",
       "strategy_number": null,
       "transport": "tcp",
@@ -1596,6 +1631,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -1626,6 +1662,10 @@
           "source_sha256": "6ec1ec1b4758c94f49f35dbabf33ae10d8cdd07dfb0ef9a026544e71207cfc7e"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v2",
+      "source_path": "presets/ALL TCP & UDP v2.txt",
+      "source_sha256": "6ec1ec1b4758c94f49f35dbabf33ae10d8cdd07dfb0ef9a026544e71207cfc7e",
       "stable_id": "chain-fake-530d1556",
       "strategy_number": null,
       "transport": "tcp",
@@ -1695,6 +1735,7 @@
       "services": [
         "youtube"
       ],
+      "source_block_index": 5,
       "source_blocks": [
         {
           "source_block_index": 5,
@@ -1998,6 +2039,10 @@
           "source_sha256": "a62b66c18cc42620128556d01b9e3acb3b388095f5c6b0f8acbbf324ab77bfe9"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight v2 (game filter)",
+      "source_path": "presets/Dead by Daylight v2 (game filter).txt",
+      "source_sha256": "6ca4791eae51fce7e6c214880e8138c00968e05a2edaec7c25fee7cf481f113a",
       "stable_id": "chain-fake-89301f43",
       "strategy_number": null,
       "transport": "tcp",
@@ -2061,6 +2106,7 @@
       "ports": [],
       "required_assets": [],
       "services": [],
+      "source_block_index": 5,
       "source_blocks": [
         {
           "source_block_index": 5,
@@ -2077,6 +2123,10 @@
           "source_sha256": "23ffda1e9d35c77f04fd0af3c1cc05b1310a7796490fd875e3f8517a8f05f863"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Preset X (game filter)",
+      "source_path": "presets/Preset X (game filter).txt",
+      "source_sha256": "23ffda1e9d35c77f04fd0af3c1cc05b1310a7796490fd875e3f8517a8f05f863",
       "stable_id": "chain-fake-ae720781",
       "strategy_number": null,
       "transport": "tcp",
@@ -2169,6 +2219,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 2,
       "source_blocks": [
         {
           "source_block_index": 2,
@@ -2206,6 +2257,10 @@
           "source_sha256": "fd972f7bc4a13b0dff13e050a81e67ebd6113a0bf9504adfae319939ec3e66a9"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v3_1",
+      "source_path": "presets/ALL TCP & UDP v3_1.txt",
+      "source_sha256": "5cb7f0e41beb9b2de8ffdad70166359bba0c7e5cdff8546f6b689329c0046122",
       "stable_id": "chain-fake-b7c2e41f",
       "strategy_number": null,
       "transport": "udp",
@@ -2318,6 +2373,7 @@
         "whatsapp",
         "youtube"
       ],
+      "source_block_index": 2,
       "source_blocks": [
         {
           "source_block_index": 2,
@@ -2572,6 +2628,10 @@
           "source_sha256": "d90f340caab7cbfaa50714260ccb7fc869b318b32cdf35a7a5a04d0d9f606445"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP multisplit_sni",
+      "source_path": "presets/ALL TCP & UDP multisplit_sni.txt",
+      "source_sha256": "a14522e05bf3398e2afb18f10cf6dcf6781486aa588115d6c7466758dd220bd9",
       "stable_id": "chain-fake-da201c98",
       "strategy_number": null,
       "transport": "udp",
@@ -2637,6 +2697,7 @@
       "ports": [],
       "required_assets": [],
       "services": [],
+      "source_block_index": 13,
       "source_blocks": [
         {
           "source_block_index": 13,
@@ -2709,6 +2770,10 @@
           "source_sha256": "18041e6f025ada56a820597d18a06e7534f63fc55d11f5005ac04d982f6ea7e0"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight v2 (game filter)",
+      "source_path": "presets/Dead by Daylight v2 (game filter).txt",
+      "source_sha256": "18041e6f025ada56a820597d18a06e7534f63fc55d11f5005ac04d982f6ea7e0",
       "stable_id": "chain-fake-e2c8be8b",
       "strategy_number": null,
       "transport": "tcp",
@@ -2786,6 +2851,7 @@
       "services": [
         "twitter"
       ],
+      "source_block_index": 6,
       "source_blocks": [
         {
           "source_block_index": 6,
@@ -2816,6 +2882,10 @@
           "source_sha256": "81b42a149e94754900b8de6798f06139ca442619d36a52756e1719371c86fa18"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v2",
+      "source_path": "presets/ALL TCP & UDP v2.txt",
+      "source_sha256": "7d70713b9f4abb3547f45f96b1dc6520d0d0ee39fddb2861be44bfa8bed0b62d",
       "stable_id": "chain-fake-f9c3b079",
       "strategy_number": null,
       "transport": "udp",
@@ -2935,6 +3005,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 6,
       "source_blocks": [
         {
           "source_block_index": 6,
@@ -2951,6 +3022,10 @@
           "source_sha256": "b6ebd32fa89899d2f336ded40dd892bfca533e5d8d3fdc6ef9749bbd70cf5d11"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight v2 (game filter)",
+      "source_path": "presets/Dead by Daylight v2 (game filter).txt",
+      "source_sha256": "165db721acfcb9d191440f6643165644684aa670c4eb5133a58b4e12c477f6e4",
       "stable_id": "chain-fake-fake-11882342",
       "strategy_number": null,
       "transport": "tcp",
@@ -3039,6 +3114,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 7,
       "source_blocks": [
         {
           "source_block_index": 7,
@@ -3055,6 +3131,10 @@
           "source_sha256": "966e349e4c4df5264a5ad8f452be4b4075b27dc4d2f5d34e99b0b2152ac34eb3"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general SIMPLE FAKE ALT2 (game filter)",
+      "source_path": "presets/general SIMPLE FAKE ALT2 (game filter).txt",
+      "source_sha256": "28be38e6a84c69ea594b8d3b678664c58081ac2ea0fba8d66246d944b4b271e4",
       "stable_id": "chain-fake-fake-244cf5c2",
       "strategy_number": null,
       "transport": "tcp",
@@ -3152,6 +3232,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 9,
       "source_blocks": [
         {
           "source_block_index": 9,
@@ -3161,6 +3242,10 @@
           "source_sha256": "21d3ea11e0b6e53fc1e8bd6f3fa0bc478a6e84d2a8595b698948473eb2d4c63a"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT",
+      "source_path": "presets/general ALT.txt",
+      "source_sha256": "21d3ea11e0b6e53fc1e8bd6f3fa0bc478a6e84d2a8595b698948473eb2d4c63a",
       "stable_id": "chain-fake-fake-fakedsplit-c52a46ff",
       "strategy_number": null,
       "transport": "tcp",
@@ -3270,6 +3355,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 7,
       "source_blocks": [
         {
           "source_block_index": 7,
@@ -3293,6 +3379,10 @@
           "source_sha256": "fd191aaf97fabd4cea32a4cd3eedeb9715f6481236fca87f3bc8cf45e37f9567"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT3 (game filter)",
+      "source_path": "presets/general ALT3 (game filter).txt",
+      "source_sha256": "115f127d4e4c5e610802598a39eda76f00c31568f7be0926c3da486c7040898a",
       "stable_id": "chain-fake-hostfakesplit-fake-hostfakesplit-278d1070",
       "strategy_number": null,
       "transport": "tcp",
@@ -3409,6 +3499,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 7,
       "source_blocks": [
         {
           "source_block_index": 7,
@@ -3439,6 +3530,10 @@
           "source_sha256": "c080af9c49777bac5339a179b5935e737833e1ec11b1571b308d454cd222f026"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT11 (game filter)",
+      "source_path": "presets/general ALT11 (game filter).txt",
+      "source_sha256": "f5e8e34f6e539035bf30fe341d350c16b104567c0d49b9f933ebbd0d9405f075",
       "stable_id": "chain-fake-multisplit-32b0ed56",
       "strategy_number": null,
       "transport": "tcp",
@@ -3525,6 +3620,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 17,
       "source_blocks": [
         {
           "source_block_index": 17,
@@ -3534,6 +3630,10 @@
           "source_sha256": "50c864ed5c76321b6f49bcacbe741107cb7798c26f2c97d9b20403e3234f5449"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default old",
+      "source_path": "presets/Default old.txt",
+      "source_sha256": "50c864ed5c76321b6f49bcacbe741107cb7798c26f2c97d9b20403e3234f5449",
       "stable_id": "chain-fake-udplen-91415a99",
       "strategy_number": null,
       "transport": "udp",
@@ -3596,6 +3696,7 @@
       ],
       "required_assets": [],
       "services": [],
+      "source_block_index": 7,
       "source_blocks": [
         {
           "source_block_index": 7,
@@ -3626,6 +3727,10 @@
           "source_sha256": "5fb271b86bf637c73984a833810ff631e96961a7c7980a5025ff20a9dd0c4c7b"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT9 1.9.4 (game filter)",
+      "source_path": "presets/general ALT9 1.9.4 (game filter).txt",
+      "source_sha256": "5fb271b86bf637c73984a833810ff631e96961a7c7980a5025ff20a9dd0c4c7b",
       "stable_id": "chain-hostfakesplit-df984f8c",
       "strategy_number": null,
       "transport": "tcp",
@@ -3748,6 +3853,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 10,
       "source_blocks": [
         {
           "source_block_index": 10,
@@ -3771,6 +3877,10 @@
           "source_sha256": "e759131f13928c0bfdbc9f2d2ee0f4d12755899222ac76b7b1fe57a904da461b"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Ultimate Main Riot + Valorant (game filter)",
+      "source_path": "presets/Ultimate Main Riot + Valorant (game filter).txt",
+      "source_sha256": "7f4431adc33f66a9886a02db466bf190b3cf2a76136242ffda00cff74e240027",
       "stable_id": "chain-send-multidisorder-48c82c95",
       "strategy_number": null,
       "transport": "tcp",
@@ -3913,6 +4023,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 5,
       "source_blocks": [
         {
           "source_block_index": 5,
@@ -4055,6 +4166,10 @@
           "source_sha256": "e8df1ef2d333b9b97c7622282b4aa62ac6e79d07b86d129cd10204e5f0eef664"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v1",
+      "source_path": "presets/ALL TCP & UDP v1.txt",
+      "source_sha256": "6d817a19fee2f2291b791c8def82921178f1d0afcd35b62be1b3281f14df92c9",
       "stable_id": "chain-send-syndata-00903e6e",
       "strategy_number": null,
       "transport": "tcp",
@@ -4155,6 +4270,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 18,
       "source_blocks": [
         {
           "source_block_index": 18,
@@ -4164,6 +4280,10 @@
           "source_sha256": "679aefa9bc40ca6cfd7a93c8feaf01de600d93becc14623f79bab01be1f9fec9"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Syndata + MultiDisorder legacy WoW (game filter)",
+      "source_path": "presets/Syndata + MultiDisorder legacy WoW (game filter).txt",
+      "source_sha256": "679aefa9bc40ca6cfd7a93c8feaf01de600d93becc14623f79bab01be1f9fec9",
       "stable_id": "chain-send-syndata-fake-multidisorder_legacy-b7821308",
       "strategy_number": null,
       "transport": "tcp",
@@ -4273,6 +4393,7 @@
         "youtube",
         "twitter"
       ],
+      "source_block_index": 7,
       "source_blocks": [
         {
           "source_block_index": 7,
@@ -4303,6 +4424,10 @@
           "source_sha256": "28409137d29d124e97fadc2938d1b99f3c1aab07ccbcef13e437dcd4833aaafd"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v2",
+      "source_path": "presets/ALL TCP & UDP v2.txt",
+      "source_sha256": "5841f8e88fd52631d5f3e08b68ed9590ecaeb74b0c5427c483ce47d1395de574",
       "stable_id": "chain-send-syndata-hostfakesplit_multi-a991b0ae",
       "strategy_number": null,
       "transport": "tcp",
@@ -4388,6 +4513,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -4397,6 +4523,10 @@
           "source_sha256": "9f62b79ec58cad2349484aede495f4c636fb4fca4f6b98289f5dac99fac51280"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP multisplit_stun",
+      "source_path": "presets/ALL TCP & UDP multisplit_stun.txt",
+      "source_sha256": "9f62b79ec58cad2349484aede495f4c636fb4fca4f6b98289f5dac99fac51280",
       "stable_id": "chain-send-syndata-multisplit-0d6f7e9d",
       "strategy_number": null,
       "transport": "tcp",
@@ -4482,6 +4612,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -4498,6 +4629,10 @@
           "source_sha256": "d719aa976b232069257753b2ff4da2ffb3ffee0f0a242331aacd2d1c2a90b310"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v3_1",
+      "source_path": "presets/ALL TCP & UDP v3_1.txt",
+      "source_sha256": "d719aa976b232069257753b2ff4da2ffb3ffee0f0a242331aacd2d1c2a90b310",
       "stable_id": "chain-send-syndata-pktmod-4e7dbb03",
       "strategy_number": null,
       "transport": "tcp",
@@ -4600,6 +4735,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -4609,6 +4745,10 @@
           "source_sha256": "24b5ce0e7d1920543b624e31e8e9c920a3a4dee581c3e9d86251c115f3ff3965"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default",
+      "source_path": "presets/Default.txt",
+      "source_sha256": "24b5ce0e7d1920543b624e31e8e9c920a3a4dee581c3e9d86251c115f3ff3965",
       "stable_id": "chain-send-syndata-tls_multisplit_sni-08eb65a3",
       "strategy_number": null,
       "transport": "tcp",
@@ -4708,6 +4848,7 @@
         }
       ],
       "services": [],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -4717,6 +4858,10 @@
           "source_sha256": "1f1f36dbc7bf9f151b5df1770445a283e0c2add9d56ac27ed01e017e0acd1e1c"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP multisplit_sni",
+      "source_path": "presets/ALL TCP & UDP multisplit_sni.txt",
+      "source_sha256": "1f1f36dbc7bf9f151b5df1770445a283e0c2add9d56ac27ed01e017e0acd1e1c",
       "stable_id": "chain-send-syndata-tls_multisplit_sni-db922116",
       "strategy_number": null,
       "transport": "tcp",
@@ -4812,6 +4957,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -4835,6 +4981,10 @@
           "source_sha256": "e554872a536d920992045b6228e64ccd075ebee358e5bfbf503f8f61dc005edc"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT5",
+      "source_path": "presets/general ALT5.txt",
+      "source_sha256": "210f2362409465a0f45c0571e008216923d1c933a56c0573ca118f47ad736372",
       "stable_id": "chain-syndata-5a3b0ab1",
       "strategy_number": null,
       "transport": "tcp",
@@ -4900,6 +5050,7 @@
       ],
       "required_assets": [],
       "services": [],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -4909,6 +5060,10 @@
           "source_sha256": "d52b4c9a6cb526e564956a81250962a0bc0470bc9586bd97eba6d9c897a1c89e"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v1",
+      "source_path": "presets/ALL TCP & UDP v1.txt",
+      "source_sha256": "d52b4c9a6cb526e564956a81250962a0bc0470bc9586bd97eba6d9c897a1c89e",
       "stable_id": "chain-syndata-multidisorder_legacy-4259bc37",
       "strategy_number": null,
       "transport": "tcp",
@@ -5048,6 +5203,7 @@
       "services": [
         "cloudflare"
       ],
+      "source_block_index": 16,
       "source_blocks": [
         {
           "source_block_index": 16,
@@ -5057,6 +5213,10 @@
           "source_sha256": "0add2cb0d1d3ec09aba954e40f8970145b79ebd78a8b0a31bd3d1b97961c5637"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Syndata + MultiDisorder legacy WoW (game filter)",
+      "source_path": "presets/Syndata + MultiDisorder legacy WoW (game filter).txt",
+      "source_sha256": "0add2cb0d1d3ec09aba954e40f8970145b79ebd78a8b0a31bd3d1b97961c5637",
       "stable_id": "cloudflare-send-syndata-fake-hostfakesplit_multi-de0e6468",
       "strategy_number": null,
       "transport": "tcp",
@@ -5186,6 +5346,7 @@
       "services": [
         "cloudflare"
       ],
+      "source_block_index": 13,
       "source_blocks": [
         {
           "source_block_index": 13,
@@ -5195,6 +5356,10 @@
           "source_sha256": "49a426c6390456f32bbac135e7c954b318214355f59508d0a6612322f191fe84"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Syndata + MultiDisorder legacy WoW (game filter)",
+      "source_path": "presets/Syndata + MultiDisorder legacy WoW (game filter).txt",
+      "source_sha256": "49a426c6390456f32bbac135e7c954b318214355f59508d0a6612322f191fe84",
       "stable_id": "cloudflare-send-syndata-fake-multidisorder_legacy-tls_fake_flood-b0f02489",
       "strategy_number": null,
       "transport": "tcp",
@@ -5290,6 +5455,7 @@
       "services": [
         "cloudflare"
       ],
+      "source_block_index": 9,
       "source_blocks": [
         {
           "source_block_index": 9,
@@ -5299,6 +5465,10 @@
           "source_sha256": "da0a150e7aa5c35152ff244e453899282969c4a05e440126a55313e7436f479b"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Preset X v2 (game filter)",
+      "source_path": "presets/Preset X v2 (game filter).txt",
+      "source_sha256": "da0a150e7aa5c35152ff244e453899282969c4a05e440126a55313e7436f479b",
       "stable_id": "cloudflare-send-syndata-fakedsplit-28e8ffa3",
       "strategy_number": null,
       "transport": "tcp",
@@ -5391,6 +5561,7 @@
       "services": [
         "cloudflare"
       ],
+      "source_block_index": 9,
       "source_blocks": [
         {
           "source_block_index": 9,
@@ -5400,6 +5571,10 @@
           "source_sha256": "a2a0decd1ac8011ba31224b93b306e8e5342d12b911bcbc25e00adbb519a254e"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Preset XY (game filter)",
+      "source_path": "presets/Preset XY (game filter).txt",
+      "source_sha256": "a2a0decd1ac8011ba31224b93b306e8e5342d12b911bcbc25e00adbb519a254e",
       "stable_id": "cloudflare-send-syndata-multidisorder_legacy-d02da8f6",
       "strategy_number": null,
       "transport": "tcp",
@@ -5507,6 +5682,7 @@
       "services": [
         "cloudflare"
       ],
+      "source_block_index": 12,
       "source_blocks": [
         {
           "source_block_index": 12,
@@ -5516,6 +5692,10 @@
           "source_sha256": "54efa2733443006f19285cc18f06025a2c7b4cd69a6d1cbee6db9e8a1bb0e640"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default old",
+      "source_path": "presets/Default old.txt",
+      "source_sha256": "54efa2733443006f19285cc18f06025a2c7b4cd69a6d1cbee6db9e8a1bb0e640",
       "stable_id": "cloudflare-send-syndata-pktmod-7b23b44b",
       "strategy_number": null,
       "transport": "tcp",
@@ -5583,6 +5763,7 @@
       "services": [
         "deepseek"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -5599,6 +5780,10 @@
           "source_sha256": "3f648b3268e9c5431bc95048d6b3dcce7672b321d915d257e617287cc859df17"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v4 (game filter)",
+      "source_path": "presets/Default v4 (game filter).txt",
+      "source_sha256": "54d51d8722c65b4ad0bc4a2261cd721ca555613cf60927b3213a2be452821757",
       "stable_id": "deepseek-pass-c062ccab",
       "strategy_number": null,
       "transport": "tcp",
@@ -5730,6 +5915,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 10,
       "source_blocks": [
         {
           "source_block_index": 10,
@@ -5802,6 +5988,10 @@
           "source_sha256": "cfd8d113b7054756ac20b47392664f91eb20969e80952a8538fa607c913911c2"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT (game filter)",
+      "source_path": "presets/general ALT (game filter).txt",
+      "source_sha256": "bed955f6107a44b0c55e2d8cb66baf4f57b029826a1d2c0217218631d1c02bfe",
       "stable_id": "discord-fake-2286e96c",
       "strategy_number": null,
       "transport": "udp",
@@ -5934,6 +6124,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 9,
       "source_blocks": [
         {
           "source_block_index": 9,
@@ -5943,6 +6134,10 @@
           "source_sha256": "1e6c9a33c496834d769d5657e012a6466e343c561d141a824a89bc6db71cd1f4"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general SIMPLE FAKE ALT2 (game filter)",
+      "source_path": "presets/general SIMPLE FAKE ALT2 (game filter).txt",
+      "source_sha256": "1e6c9a33c496834d769d5657e012a6466e343c561d141a824a89bc6db71cd1f4",
       "stable_id": "discord-fake-455a92da",
       "strategy_number": null,
       "transport": "tcp",
@@ -6077,6 +6272,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 8,
       "source_blocks": [
         {
           "source_block_index": 8,
@@ -6086,6 +6282,10 @@
           "source_sha256": "3f66b8bb1ae308183b15867f031536f908c4346d95451d860421af3eec406d40"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "complex multidisorder (game filter)",
+      "source_path": "presets/complex multidisorder (game filter).txt",
+      "source_sha256": "3f66b8bb1ae308183b15867f031536f908c4346d95451d860421af3eec406d40",
       "stable_id": "discord-fake-62ea0b03",
       "strategy_number": null,
       "transport": "udp",
@@ -6218,6 +6418,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 10,
       "source_blocks": [
         {
           "source_block_index": 10,
@@ -6290,6 +6491,10 @@
           "source_sha256": "76d8ecf17463cad359337469f98f0b0e3cbaa8e920d9d27a9428d7f3ef81026b"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT11 (game filter)",
+      "source_path": "presets/general ALT11 (game filter).txt",
+      "source_sha256": "20927622444a0a9382d32829123265a5447401626d294248954ccd020c1b3b6f",
       "stable_id": "discord-fake-975f42b1",
       "strategy_number": null,
       "transport": "udp",
@@ -6399,6 +6604,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -6471,6 +6677,10 @@
           "source_sha256": "1be35df0175794bfdc50ba6c5ff20c43ed35bc465daaa1349fe31c9f2358f7a9"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general SIMPLE FAKE (game filter)",
+      "source_path": "presets/general SIMPLE FAKE (game filter).txt",
+      "source_sha256": "c1c3388be93530d51d8934bdf743dc55e1ea3fc45d759c13e9d412464469d424",
       "stable_id": "discord-fake-fake-1905355b",
       "strategy_number": null,
       "transport": "tcp",
@@ -6561,6 +6771,7 @@
       "services": [
         "discord"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -6584,6 +6795,10 @@
           "source_sha256": "2bac8b4f2ec1cd564727cead37883150a992eac8713ab8cf5ce465265aa1d0ea"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT8 (game filter)",
+      "source_path": "presets/general ALT8 (game filter).txt",
+      "source_sha256": "bf7e786f997c2b1f7c42cf6ce60d92ff95d5ae8daf9f39c652aa7d7c86fe171c",
       "stable_id": "discord-fake-fake-37797bb5",
       "strategy_number": null,
       "transport": "tcp",
@@ -6725,6 +6940,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -6811,6 +7027,10 @@
           "source_sha256": "567e6b65597f5c20d5af1aa5f16fbae1423250fbc7e7aabb5cb86b04caf433dd"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general FAKE TLS AUTO (game filter)",
+      "source_path": "presets/general FAKE TLS AUTO (game filter).txt",
+      "source_sha256": "159237127f6a10b2cbf7850ba4e91819948492acbe6fee1fb4ee82173bde1b48",
       "stable_id": "discord-fake-fake-multidisorder_legacy-c9c3565a",
       "strategy_number": null,
       "transport": "tcp",
@@ -6938,6 +7158,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -7024,6 +7245,10 @@
           "source_sha256": "046e4e99fb0f19f20e25eed33fc5a2cdb5792938275c33d7e4696935bbb08bd6"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general FAKE TLS AUTO ALT (game filter)",
+      "source_path": "presets/general FAKE TLS AUTO ALT (game filter).txt",
+      "source_sha256": "42ccdfa91331fb7f58eaa8766f9098c9ca0e5b5efd53b90a6d6b2a411593464b",
       "stable_id": "discord-fake-fakedsplit-02c465cb",
       "strategy_number": null,
       "transport": "tcp",
@@ -7187,6 +7412,7 @@
         "facebook",
         "instagram"
       ],
+      "source_block_index": 12,
       "source_blocks": [
         {
           "source_block_index": 12,
@@ -7273,6 +7499,10 @@
           "source_sha256": "018d7ec3070daf51c4886def57c4e451351301eaae8f5032429ae0955dc0ea95"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default (game filter)",
+      "source_path": "presets/Default (game filter).txt",
+      "source_sha256": "eb3ff8c022b2dcb1bfaac5963ecb812008cd4c1bb489cfab5c3eeb81be536ea9",
       "stable_id": "discord-fake-fakedsplit-27aa6740",
       "strategy_number": null,
       "transport": "tcp",
@@ -7411,6 +7641,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 9,
       "source_blocks": [
         {
           "source_block_index": 9,
@@ -7420,6 +7651,10 @@
           "source_sha256": "8280019344ad3d417d4b24a4635a64c72033a32d54fa65735c48a7992b30ab0f"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT3 (game filter)",
+      "source_path": "presets/general ALT3 (game filter).txt",
+      "source_sha256": "8280019344ad3d417d4b24a4635a64c72033a32d54fa65735c48a7992b30ab0f",
       "stable_id": "discord-fake-hostfakesplit-ee8a393e",
       "strategy_number": null,
       "transport": "tcp",
@@ -7526,6 +7761,7 @@
         "discord",
         "youtube"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -7549,6 +7785,10 @@
           "source_sha256": "fdb8f21f19ff09b8ef64673b2bc58810a879697558a50a8ff4d5bdb1d35968e9"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT3 (game filter)",
+      "source_path": "presets/general ALT3 (game filter).txt",
+      "source_sha256": "6c2c9fcd41a1c84eebce505a9bea136c5e12dd2848b39b5a263a62b137fbbd67",
       "stable_id": "discord-fake-hostfakesplit-fake-hostfakesplit-1a4633e4",
       "strategy_number": null,
       "transport": "tcp",
@@ -7676,6 +7916,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -7762,6 +8003,10 @@
           "source_sha256": "7299292b5c2a351db3cb2e9a445efc57f88827fd8a59f0ace2b0da5dd06d27c2"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general FAKE TLS AUTO v2 (game filter)",
+      "source_path": "presets/general FAKE TLS AUTO v2 (game filter).txt",
+      "source_sha256": "e8b1e77a9bdf2548c3eae56b78583f4843428ad403a394e7f95b2c9e91c4d408",
       "stable_id": "discord-fake-multidisorder-833e3853",
       "strategy_number": null,
       "transport": "tcp",
@@ -7871,6 +8116,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -7929,6 +8175,10 @@
           "source_sha256": "9fbd27dd2daf98746e6a72d7d5f5f00448cbed973c9e7b608a17a97e2cf6e6e9"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT11 (game filter)",
+      "source_path": "presets/general ALT11 (game filter).txt",
+      "source_sha256": "15929c2b723f24dfc4935ccf993e511b7592b877bae07ef3f196e51678eb5407",
       "stable_id": "discord-fake-multisplit-35878a24",
       "strategy_number": null,
       "transport": "tcp",
@@ -8077,6 +8327,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 13,
       "source_blocks": [
         {
           "source_block_index": 13,
@@ -8093,6 +8344,10 @@
           "source_sha256": "3e91dce38054c6e4a48b9110551edbce414abe1ea4ca5d3f0fb37458aa709333"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight (game filter)",
+      "source_path": "presets/Dead by Daylight (game filter).txt",
+      "source_sha256": "eda72cef7d2144d34d08ea17d07c395b954581842199c84848b3ce5a37b6c518",
       "stable_id": "discord-fake-multisplit-82f470b7",
       "strategy_number": null,
       "transport": "tcp",
@@ -8222,6 +8477,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -8308,6 +8564,10 @@
           "source_sha256": "6e9cf243989df5d51bbd32d15976aaf0d74a3694bf3315628887ecfccd048102"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general FAKE TLS AUTO ALT3 (game filter)",
+      "source_path": "presets/general FAKE TLS AUTO ALT3 (game filter).txt",
+      "source_sha256": "a0c8fd00607c03fa7b6b42b53f50faa9a42fb5bb76149d94fda3fa8ee9abfaec",
       "stable_id": "discord-fake-multisplit-e3cdc1fe",
       "strategy_number": null,
       "transport": "tcp",
@@ -8438,6 +8698,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -8524,6 +8785,10 @@
           "source_sha256": "6235d3211f97ebf73444a352f63ebcb67f32390ea7c3df692e2876437c10ade1"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general FAKE TLS AUTO ALT2 (game filter)",
+      "source_path": "presets/general FAKE TLS AUTO ALT2 (game filter).txt",
+      "source_sha256": "5de24eebd91496fb618b6fda65f7defa7d2950402047fb58d0fe6a312ed139a2",
       "stable_id": "discord-fake-multisplit-e69654d9",
       "strategy_number": null,
       "transport": "tcp",
@@ -8658,6 +8923,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -8744,6 +9010,10 @@
           "source_sha256": "1fc2d22caffa0cfe3b3117f5deac7a292994eea6ddd8fdb9ca345b7f1574021e"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT4 (game filter)",
+      "source_path": "presets/general ALT4 (game filter).txt",
+      "source_sha256": "b2076de0f04904f198694cf1e63d992a4233313167963a86fc93aa955c5516de",
       "stable_id": "discord-fake-multisplit-f0dba2b1",
       "strategy_number": null,
       "transport": "tcp",
@@ -8856,6 +9126,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 8,
       "source_blocks": [
         {
           "source_block_index": 8,
@@ -8872,6 +9143,10 @@
           "source_sha256": "3cbc8e1f7ccd0bf6e217692f1f669776a003aefcee8e306a188546be9c2e24be"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v5",
+      "source_path": "presets/Default v5.txt",
+      "source_sha256": "9a3f8508f3b7257b85a30c8158c74c91c6b53691d624bcdd8a37f2a9c858a69f",
       "stable_id": "discord-fake-udplen-c3dcca3c",
       "strategy_number": null,
       "transport": "udp",
@@ -8959,6 +9234,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -9017,6 +9293,10 @@
           "source_sha256": "5f700ec9b02f92338f606225cf5dac65f7b770a7674064c73b62a96056684ecc"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT9 1.9.4 (game filter)",
+      "source_path": "presets/general ALT9 1.9.4 (game filter).txt",
+      "source_sha256": "1b4c048ef81e74b671545c72832f0ce30b5716e35125508c882c3c091495e77a",
       "stable_id": "discord-hostfakesplit-6569586c",
       "strategy_number": null,
       "transport": "tcp",
@@ -9103,6 +9383,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -9161,6 +9442,10 @@
           "source_sha256": "983d69adfe8e240f8933368a6658b0fac22ec44d61698fcc0370513ff86c3c37"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT9 1.9.5 (game filter)",
+      "source_path": "presets/general ALT9 1.9.5 (game filter).txt",
+      "source_sha256": "d4e848afbc6bbb10117e6e155afcfbafcf91aaecad0ccf66fb2a1ff5f50d3017",
       "stable_id": "discord-hostfakesplit-69ca2d7a",
       "strategy_number": null,
       "transport": "tcp",
@@ -9282,6 +9567,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 9,
       "source_blocks": [
         {
           "source_block_index": 9,
@@ -9312,6 +9598,10 @@
           "source_sha256": "3879d69a77e48310d822b3f26f529c7d91dcdf013379cc013ac48a58322a3284"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT9 1.9.4 (game filter)",
+      "source_path": "presets/general ALT9 1.9.4 (game filter).txt",
+      "source_sha256": "4aa73f6fd33dd495a7dab76c923f4d090e3aca5e38a9beaf57abe0029b7883c0",
       "stable_id": "discord-hostfakesplit-f41730ad",
       "strategy_number": null,
       "transport": "tcp",
@@ -9418,6 +9708,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -9658,6 +9949,10 @@
           "source_sha256": "15097b2dec2401e34021ee46c289cb586cb0fdadc70a596e1ca63f0523be4b63"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v2",
+      "source_path": "presets/ALL TCP & UDP v2.txt",
+      "source_sha256": "76cb0009a238f23bca93950026f39e3167bd2e5fc1dc605f95b514fe4be05ea0",
       "stable_id": "discord-hostfakesplit_multi-e3804838",
       "strategy_number": null,
       "transport": "tcp",
@@ -9744,6 +10039,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -9809,6 +10105,10 @@
           "source_sha256": "16ef6e2d2a039087512aeda66da1a2f2a680d7613752311bf6ce7c656c870a34"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT7 (game filter)",
+      "source_path": "presets/general ALT7 (game filter).txt",
+      "source_sha256": "81b42a0b6558f18ffbd1f65cc52493ac73fec44e6608acc7c42a59d058a8e112",
       "stable_id": "discord-multisplit-147443ac",
       "strategy_number": null,
       "transport": "tcp",
@@ -9923,6 +10223,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -10009,6 +10310,10 @@
           "source_sha256": "8d09eedbbdbf68aa8792cd8c1520a219f4553ab2b6e5da2b41266c9b3205ca90"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT6 (game filter)",
+      "source_path": "presets/general ALT6 (game filter).txt",
+      "source_sha256": "d9f9b03f05e9e176b2367cb6df06fa4c7ab8b71ebb5d700fb9036907154c5401",
       "stable_id": "discord-multisplit-2e4531fc",
       "strategy_number": null,
       "transport": "tcp",
@@ -10102,6 +10407,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -10195,6 +10501,10 @@
           "source_sha256": "a954ac898466c0b758d63303fe3609a3ea8a89edf669aab0cc792be4a4e224b7"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default multisplit_stun (game filter)",
+      "source_path": "presets/Default multisplit_stun (game filter).txt",
+      "source_sha256": "613656147b2e4491511375b512e23c6111d2dcf920990a0ff1fcb989877044be",
       "stable_id": "discord-multisplit-370c9508",
       "strategy_number": null,
       "transport": "tcp",
@@ -10311,6 +10621,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -10397,6 +10708,10 @@
           "source_sha256": "5c1ecd35708233ad10803481608d2fb9b8aefa6b1c23c5de17913773aa0047f6"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT2 (game filter)",
+      "source_path": "presets/general ALT2 (game filter).txt",
+      "source_sha256": "efb784b31183fd08c256fdb3490f32c0e4ff1b86532c6780338d818c67ae91f6",
       "stable_id": "discord-multisplit-51161edc",
       "strategy_number": null,
       "transport": "tcp",
@@ -10502,6 +10817,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 8,
       "source_blocks": [
         {
           "source_block_index": 8,
@@ -10511,6 +10827,10 @@
           "source_sha256": "c54f7394a18db1576e8e0533b041bdc6a14696c2938f0391c7fce1fe8ac7e800"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Ultimate Main Riot + Valorant (game filter)",
+      "source_path": "presets/Ultimate Main Riot + Valorant (game filter).txt",
+      "source_sha256": "c54f7394a18db1576e8e0533b041bdc6a14696c2938f0391c7fce1fe8ac7e800",
       "stable_id": "discord-send-fa4f6f00",
       "strategy_number": null,
       "transport": "tcp",
@@ -10652,6 +10972,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 17,
       "source_blocks": [
         {
           "source_block_index": 17,
@@ -10668,6 +10989,10 @@
           "source_sha256": "3a33c4b489f938491e75a79cf972c76749857ce7ae2d6aa0e6b02dad3cd1f2ca"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight v2 (game filter)",
+      "source_path": "presets/Dead by Daylight v2 (game filter).txt",
+      "source_sha256": "dbe73a13ba628c88b75c9a6ccd4936109df8f9f0ac87d8f156f4f591586fb81f",
       "stable_id": "discord-send-syndata-fake-multisplit-6cbb1a62",
       "strategy_number": null,
       "transport": "tcp",
@@ -10829,6 +11154,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 6,
       "source_blocks": [
         {
           "source_block_index": 6,
@@ -10873,6 +11199,10 @@
           "source_sha256": "4831fae9fe72b26a81cf750e3e0412b001be94bed9245529dcfa502d9853fef7"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Preset X (game filter)",
+      "source_path": "presets/Preset X (game filter).txt",
+      "source_sha256": "57c1dfbb9565c02a2c7f29f0852f3e740809634123b4f7baf5fa3f9229deef69",
       "stable_id": "discord-send-syndata-multidisorder-51960083",
       "strategy_number": null,
       "transport": "tcp",
@@ -11022,6 +11352,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 21,
       "source_blocks": [
         {
           "source_block_index": 21,
@@ -11045,6 +11376,10 @@
           "source_sha256": "826ca689e44e69b5a501e06b156ed0a7a0c0005138ca06e89d0b93615f65956b"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight v2 (game filter)",
+      "source_path": "presets/Dead by Daylight v2 (game filter).txt",
+      "source_sha256": "826ca689e44e69b5a501e06b156ed0a7a0c0005138ca06e89d0b93615f65956b",
       "stable_id": "discord-send-syndata-multisplit-3357ce50",
       "strategy_number": null,
       "transport": "tcp",
@@ -11192,6 +11527,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 13,
       "source_blocks": [
         {
           "source_block_index": 13,
@@ -11201,6 +11537,10 @@
           "source_sha256": "84a1a7386832ad8e691f4cd87dadd4539ada66bd86ec5fd614925df5a7b6fc9d"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default multisplit_stun (game filter)",
+      "source_path": "presets/Default multisplit_stun (game filter).txt",
+      "source_sha256": "84a1a7386832ad8e691f4cd87dadd4539ada66bd86ec5fd614925df5a7b6fc9d",
       "stable_id": "discord-send-syndata-multisplit-c56f3b10",
       "strategy_number": null,
       "transport": "tcp",
@@ -11360,6 +11700,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 13,
       "source_blocks": [
         {
           "source_block_index": 13,
@@ -11369,6 +11710,10 @@
           "source_sha256": "66ed1f25c63022a12405c0b553ffd2dd6a4cab8dd0dfce66ad4e90b9a63aa8ca"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default multisplit_sni (game filter)",
+      "source_path": "presets/Default multisplit_sni (game filter).txt",
+      "source_sha256": "66ed1f25c63022a12405c0b553ffd2dd6a4cab8dd0dfce66ad4e90b9a63aa8ca",
       "stable_id": "discord-send-syndata-tls_multisplit_sni-0b508bf5",
       "strategy_number": null,
       "transport": "tcp",
@@ -11495,6 +11840,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -11511,6 +11857,10 @@
           "source_sha256": "a41c8fd4051b977f9a14bf87cb04df879af4360814f954381004a52dbfcec8e5"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT5 (game filter)",
+      "source_path": "presets/general ALT5 (game filter).txt",
+      "source_sha256": "b604cb4467a90a4f08e2cbffab20753f3f8526a99fa44bb44bbeff4b4c748c8f",
       "stable_id": "discord-syndata-multidisorder-8a62e9be",
       "strategy_number": null,
       "transport": "tcp",
@@ -11656,6 +12006,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 5,
       "source_blocks": [
         {
           "source_block_index": 5,
@@ -11665,6 +12016,10 @@
           "source_sha256": "df23b024ba041643cec81f37b8a4903f141fc8780f831d5e021a047911d16009"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Ростелеком",
+      "source_path": "presets/Ростелеком.txt",
+      "source_sha256": "df23b024ba041643cec81f37b8a4903f141fc8780f831d5e021a047911d16009",
       "stable_id": "discord-syndata-multidisorder_legacy-syndata-multidisorder_legacy-179b7de0",
       "strategy_number": null,
       "transport": "tcp",
@@ -11774,6 +12129,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -11818,6 +12174,10 @@
           "source_sha256": "d5c9d04fefda02b312e8b0f4223a8e8e3deead574f560961d06dff7aafe0ff47"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT2 + syndata",
+      "source_path": "presets/general ALT2 + syndata.txt",
+      "source_sha256": "b02bb594e4972039754668ae28a096b16ec4ad38ee53ec6075a8808b7f3efb9d",
       "stable_id": "discord-syndata-multisplit-6d15da35",
       "strategy_number": null,
       "transport": "tcp",
@@ -11921,6 +12281,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -11986,6 +12347,10 @@
           "source_sha256": "1374dabed1a155733daec69c39b003b3ffb012dab5f64ce5647bddf7980c4da4"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default multisplit_sni (game filter)",
+      "source_path": "presets/Default multisplit_sni (game filter).txt",
+      "source_sha256": "8170c007351217cad0981265701ad95da34fc64835329d8198147fa18d20d964",
       "stable_id": "discord-tls_multisplit_sni-70576793",
       "strategy_number": null,
       "transport": "tcp",
@@ -12111,6 +12476,7 @@
       "services": [
         "google"
       ],
+      "source_block_index": 10,
       "source_blocks": [
         {
           "source_block_index": 10,
@@ -12120,6 +12486,10 @@
           "source_sha256": "bbd891c1c0466dfd9b08fad1b14848bed10e4a793ce09c168ae107e5ac950092"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Syndata + MultiDisorder legacy WoW (game filter)",
+      "source_path": "presets/Syndata + MultiDisorder legacy WoW (game filter).txt",
+      "source_sha256": "bbd891c1c0466dfd9b08fad1b14848bed10e4a793ce09c168ae107e5ac950092",
       "stable_id": "google-send-syndata-fake-multidisorder-multidisorder_legacy-d0a385c8",
       "strategy_number": null,
       "transport": "tcp",
@@ -12208,6 +12578,7 @@
         "obsidian",
         "twitter"
       ],
+      "source_block_index": 5,
       "source_blocks": [
         {
           "source_block_index": 5,
@@ -12224,6 +12595,10 @@
           "source_sha256": "15a4ae3dc37a453ab8787a4a244d0a1bcd085eac705c4599aa545fd007d29496"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default old",
+      "source_path": "presets/Default old.txt",
+      "source_sha256": "4862642bf6ed17f6c087016ae0c8072a1073e8553d44b9e347a10f396031bf7e",
       "stable_id": "obsidian-send-syndata-5b2b8f72",
       "strategy_number": null,
       "transport": "tcp",
@@ -12339,6 +12714,7 @@
         "zapretkvn",
         "timeweb"
       ],
+      "source_block_index": 5,
       "source_blocks": [
         {
           "source_block_index": 5,
@@ -12439,6 +12815,10 @@
           "source_sha256": "236b6d0a1bf06ff02d4e0c79d150fe120c4ecb278c3e3b0966b7d90aa90f1e13"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight (game filter)",
+      "source_path": "presets/Dead by Daylight (game filter).txt",
+      "source_sha256": "efa3fce7bdf567a2df097f97580af3b30d2242d3c31474260e8cb458a6aa05ac",
       "stable_id": "obsidian-send-syndata-hostfakesplit_multi-d78a38b7",
       "strategy_number": null,
       "transport": "tcp",
@@ -12530,6 +12910,7 @@
       "services": [
         "porn"
       ],
+      "source_block_index": 11,
       "source_blocks": [
         {
           "source_block_index": 11,
@@ -12539,6 +12920,10 @@
           "source_sha256": "bfac62cf1341fa756d782f859770bca71bc52cd11be7ca34865d71c66fd22bc2"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Preset X v2 (game filter)",
+      "source_path": "presets/Preset X v2 (game filter).txt",
+      "source_sha256": "bfac62cf1341fa756d782f859770bca71bc52cd11be7ca34865d71c66fd22bc2",
       "stable_id": "porn-send-syndata-multisplit-c687fb8e",
       "strategy_number": null,
       "transport": "tcp",
@@ -12660,6 +13045,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 10,
       "source_blocks": [
         {
           "source_block_index": 10,
@@ -12676,6 +13062,10 @@
           "source_sha256": "9366e9f65aa8d0796ae439daf732da0cc74560b2aac4879494b2a249c16c4fd8"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v5",
+      "source_path": "presets/Default v5.txt",
+      "source_sha256": "6845dacf9cb20811061363889c755b0e8e22e6ad6936d597d6e907d3712159a5",
       "stable_id": "rutracker-send-syndata-multisplit-58526a29",
       "strategy_number": null,
       "transport": "tcp",
@@ -12751,6 +13141,7 @@
       "services": [
         "telegram"
       ],
+      "source_block_index": 9,
       "source_blocks": [
         {
           "source_block_index": 9,
@@ -12760,6 +13151,10 @@
           "source_sha256": "9f12be843bd9fa0c3e02eeafc31e50a606479a5dee3b2478e3d4f84e641a52ed"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v5",
+      "source_path": "presets/Default v5.txt",
+      "source_sha256": "9f12be843bd9fa0c3e02eeafc31e50a606479a5dee3b2478e3d4f84e641a52ed",
       "stable_id": "telegram-send-multisplit-72e02c56",
       "strategy_number": null,
       "transport": "tcp",
@@ -12894,6 +13289,7 @@
         "cloudflare",
         "zapretkvn"
       ],
+      "source_block_index": 10,
       "source_blocks": [
         {
           "source_block_index": 10,
@@ -12931,6 +13327,10 @@
           "source_sha256": "4cc9acbdce089a71dacd34a4584d45c2857a2793226982ef5631adba155b24aa"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v3 (game filter)",
+      "source_path": "presets/Default v3 (game filter).txt",
+      "source_sha256": "689ee1750ed263b9a232c5225337332bf691fc78264ae5075dcd690805bbbf78",
       "stable_id": "telegram-send-syndata-hostfakesplit_multi-9076ab3e",
       "strategy_number": null,
       "transport": "tcp",
@@ -13023,6 +13423,7 @@
       "services": [
         "telegram"
       ],
+      "source_block_index": 14,
       "source_blocks": [
         {
           "source_block_index": 14,
@@ -13060,6 +13461,10 @@
           "source_sha256": "0099a6bf66759c13dd769b2017b6b3d261824302fb9308f50d42c987512b0737"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight v2 (game filter)",
+      "source_path": "presets/Dead by Daylight v2 (game filter).txt",
+      "source_sha256": "0099a6bf66759c13dd769b2017b6b3d261824302fb9308f50d42c987512b0737",
       "stable_id": "telegram-send-syndata-pass-3be08b7b",
       "strategy_number": null,
       "transport": "tcp",
@@ -13150,6 +13555,7 @@
       "services": [
         "twitter"
       ],
+      "source_block_index": 8,
       "source_blocks": [
         {
           "source_block_index": 8,
@@ -13166,6 +13572,10 @@
           "source_sha256": "448898d935413c95f1ce5d384fef1768094f7946f533ab1b6273944b26aff5aa"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Preset X (game filter)",
+      "source_path": "presets/Preset X (game filter).txt",
+      "source_sha256": "448898d935413c95f1ce5d384fef1768094f7946f533ab1b6273944b26aff5aa",
       "stable_id": "twitter-send-syndata-multisplit-d2f5cb16",
       "strategy_number": null,
       "transport": "tcp",
@@ -13277,6 +13687,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 11,
       "source_blocks": [
         {
           "source_block_index": 11,
@@ -13321,6 +13732,10 @@
           "source_sha256": "22026fd1028e995253e2f12d993f5e1c05d0daf068d650e8c7efa46172bc3aff"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default (game filter)",
+      "source_path": "presets/Default (game filter).txt",
+      "source_sha256": "22026fd1028e995253e2f12d993f5e1c05d0daf068d650e8c7efa46172bc3aff",
       "stable_id": "txrevive-fake-multidisorder-be0e3d40",
       "strategy_number": null,
       "transport": "tcp",
@@ -13400,6 +13815,7 @@
       "services": [
         "youtube"
       ],
+      "source_block_index": 2,
       "source_blocks": [
         {
           "source_block_index": 2,
@@ -13493,6 +13909,10 @@
           "source_sha256": "848172fb3099d0392197aa2333435e27afdd05d6cc151a9d12d85c99a0b17b7e"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v1",
+      "source_path": "presets/ALL TCP & UDP v1.txt",
+      "source_sha256": "1c4b06b35f1d22a36b0b34dce9b115312482d30013a3abf4571e462f5b2411cd",
       "stable_id": "youtube-fake-395513c4",
       "strategy_number": null,
       "transport": "udp",
@@ -13602,6 +14022,7 @@
         "ovh",
         "whatsapp"
       ],
+      "source_block_index": 2,
       "source_blocks": [
         {
           "source_block_index": 2,
@@ -13632,6 +14053,10 @@
           "source_sha256": "9965b3945d778ebd57a56b96df4e1eb248b17196f4382b4983cf63f0410bd37b"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight (game filter)",
+      "source_path": "presets/Dead by Daylight (game filter).txt",
+      "source_sha256": "9965b3945d778ebd57a56b96df4e1eb248b17196f4382b4983cf63f0410bd37b",
       "stable_id": "youtube-fake-a20b4a72",
       "strategy_number": null,
       "transport": "udp",
@@ -13756,6 +14181,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -13912,6 +14338,10 @@
           "source_sha256": "c4e0ef58ef84e99f4e361bdabda28548260833b1e9c613dabf4944d2fc4dbf3b"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Dead by Daylight v2 (game filter)",
+      "source_path": "presets/Dead by Daylight v2 (game filter).txt",
+      "source_sha256": "06fbfba230c3d8f670b181b0cec778b862b244ca634eb1df2cec9de67961110c",
       "stable_id": "youtube-fake-c8522504",
       "strategy_number": null,
       "transport": "tcp",
@@ -14036,6 +14466,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -14178,6 +14609,10 @@
           "source_sha256": "faf0cbe6f03690b6fdd37c975cf9429b1b3eb3835f6d259ebd3471cdc9c46406"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT8 (game filter)",
+      "source_path": "presets/general ALT8 (game filter).txt",
+      "source_sha256": "a38bbe601416a809583d268926e87546a9edd224fac3fdfe01976d99fdeed536",
       "stable_id": "youtube-fake-df736303",
       "strategy_number": null,
       "transport": "tcp",
@@ -14264,6 +14699,7 @@
       "services": [
         "youtube"
       ],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -14273,6 +14709,10 @@
           "source_sha256": "6d8534973a0b9d9856a6a0755ddbb61976b581f2689e09a688a9a77e3ed749f3"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT (game filter)",
+      "source_path": "presets/general ALT (game filter).txt",
+      "source_sha256": "6d8534973a0b9d9856a6a0755ddbb61976b581f2689e09a688a9a77e3ed749f3",
       "stable_id": "youtube-fake-fakedsplit-3587c08b",
       "strategy_number": null,
       "transport": "tcp",
@@ -14378,6 +14818,7 @@
         "instagram",
         "whatsapp"
       ],
+      "source_block_index": 4,
       "source_blocks": [
         {
           "source_block_index": 4,
@@ -14415,6 +14856,10 @@
           "source_sha256": "aefcd40c793e5fface3462602c361687b56d6e64016b5663c0817e871c33d1f1"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "general ALT3 (game filter)",
+      "source_path": "presets/general ALT3 (game filter).txt",
+      "source_sha256": "5c66a41137b3ecccd01bbff7a0207958afb46800ef68baa3d7e62e29a4c76dda",
       "stable_id": "youtube-fake-hostfakesplit-a5c569b5",
       "strategy_number": null,
       "transport": "tcp",
@@ -14505,6 +14950,7 @@
       "services": [
         "youtube"
       ],
+      "source_block_index": 2,
       "source_blocks": [
         {
           "source_block_index": 2,
@@ -14514,6 +14960,10 @@
           "source_sha256": "d8bd288a3c4e3ea04add22423dcc957e59b6e8027abffc534d7d650c2faaba31"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v5",
+      "source_path": "presets/Default v5.txt",
+      "source_sha256": "d8bd288a3c4e3ea04add22423dcc957e59b6e8027abffc534d7d650c2faaba31",
       "stable_id": "youtube-fake-multidisorder-a6cb5f69",
       "strategy_number": null,
       "transport": "tcp",
@@ -14595,6 +15045,7 @@
         "discord",
         "ntcparty"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -14884,6 +15335,10 @@
           "source_sha256": "ebc6011b7b0817251454f3c888c9a4e5f0f883ded960d9c8160919655cc203e1"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v1",
+      "source_path": "presets/ALL TCP & UDP v1.txt",
+      "source_sha256": "58a26b3b0b38551b38f82ac3424973dde2a82bb0554a60e47d150e67b9038485",
       "stable_id": "youtube-multidisorder-aa50cc82",
       "strategy_number": null,
       "transport": "tcp",
@@ -14948,6 +15403,7 @@
       "services": [
         "youtube"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -14957,6 +15413,10 @@
           "source_sha256": "af3f86a2e60c5e7a9964d0e301ff563d4d8b421bce0acde882af712ed1f5fa1b"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v5",
+      "source_path": "presets/Default v5.txt",
+      "source_sha256": "af3f86a2e60c5e7a9964d0e301ff563d4d8b421bce0acde882af712ed1f5fa1b",
       "stable_id": "youtube-multisplit-0678e5a8",
       "strategy_number": null,
       "transport": "tcp",
@@ -15023,6 +15483,7 @@
       "services": [
         "youtube"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -15032,6 +15493,10 @@
           "source_sha256": "2638badeb7630227e3a7960972f91a558f1811c08c2063a4f0ea6e71511c1c09"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "ALL TCP & UDP v1",
+      "source_path": "presets/ALL TCP & UDP v1.txt",
+      "source_sha256": "2638badeb7630227e3a7960972f91a558f1811c08c2063a4f0ea6e71511c1c09",
       "stable_id": "youtube-multisplit-15f5c3bd",
       "strategy_number": null,
       "transport": "tcp",
@@ -15106,6 +15571,7 @@
       "services": [
         "youtube"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -15150,6 +15616,10 @@
           "source_sha256": "f010365d773a127cca5e0e49c1992b25ab8b2b815e88600d981ea510716c35f2"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default (game filter)",
+      "source_path": "presets/Default (game filter).txt",
+      "source_sha256": "602bbfa22e2e16905b5d62df9513a3af46531e2a728f7839f8016fa68923e03d",
       "stable_id": "youtube-multisplit-2282706d",
       "strategy_number": null,
       "transport": "tcp",
@@ -15219,6 +15689,7 @@
         "youtube",
         "speedtest"
       ],
+      "source_block_index": 3,
       "source_blocks": [
         {
           "source_block_index": 3,
@@ -15228,6 +15699,10 @@
           "source_sha256": "760d915f305b92b9980f8b021dddbe518516e008b0c6d64bada0e05604672065"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default old",
+      "source_path": "presets/Default old.txt",
+      "source_sha256": "760d915f305b92b9980f8b021dddbe518516e008b0c6d64bada0e05604672065",
       "stable_id": "youtube-multisplit-23b710a0",
       "strategy_number": null,
       "transport": "tcp",
@@ -15299,6 +15774,7 @@
       "services": [
         "youtube"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -15308,6 +15784,10 @@
           "source_sha256": "904fd5164a1fe4b7af38d29cd76a8840deccbb3df0da0ecffe2526e69a1354e0"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default v3 (game filter)",
+      "source_path": "presets/Default v3 (game filter).txt",
+      "source_sha256": "904fd5164a1fe4b7af38d29cd76a8840deccbb3df0da0ecffe2526e69a1354e0",
       "stable_id": "youtube-send-multidisorder-628735e8",
       "strategy_number": null,
       "transport": "tcp",
@@ -15441,6 +15921,7 @@
         "youtube",
         "discord"
       ],
+      "source_block_index": 17,
       "source_blocks": [
         {
           "source_block_index": 17,
@@ -15450,6 +15931,10 @@
           "source_sha256": "1af017839a514bb93768d79f82007f30c0e516df0e11b995431549de645d4314"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Syndata + MultiDisorder legacy WoW (game filter)",
+      "source_path": "presets/Syndata + MultiDisorder legacy WoW (game filter).txt",
+      "source_sha256": "1af017839a514bb93768d79f82007f30c0e516df0e11b995431549de645d4314",
       "stable_id": "youtube-send-syndata-fake-multidisorder_legacy-c5db0294",
       "strategy_number": null,
       "transport": "tcp",
@@ -15559,6 +16044,7 @@
         "youtube",
         "discord"
       ],
+      "source_block_index": 12,
       "source_blocks": [
         {
           "source_block_index": 12,
@@ -15575,6 +16061,10 @@
           "source_sha256": "17354a599e7428962fc0c7b002bd1f8dc878b84063c5da97881adb082af6711d"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Preset X v2 (game filter)",
+      "source_path": "presets/Preset X v2 (game filter).txt",
+      "source_sha256": "17354a599e7428962fc0c7b002bd1f8dc878b84063c5da97881adb082af6711d",
       "stable_id": "youtube-send-syndata-multisplit-229cd941",
       "strategy_number": null,
       "transport": "tcp",
@@ -15672,6 +16162,7 @@
         "youtube",
         "twitter"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -15695,6 +16186,10 @@
           "source_sha256": "1a71632cc2f435401348f742323225b837ba6ba635b98fbb31c2badc900f4465"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default multisplit_stun (game filter)",
+      "source_path": "presets/Default multisplit_stun (game filter).txt",
+      "source_sha256": "e73b5d85055061c85895b29cb2228064b3d16ba189f9fa79ba665107bb82027e",
       "stable_id": "youtube-send-syndata-multisplit-e555566b",
       "strategy_number": null,
       "transport": "tcp",
@@ -15804,6 +16299,7 @@
         "youtube",
         "twitter"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -15827,6 +16323,10 @@
           "source_sha256": "691666cb9e2c7a9d17538d30a88717e52fe0db471ce6fa205b997fb0dea3fc1c"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Default multisplit_sni (game filter)",
+      "source_path": "presets/Default multisplit_sni (game filter).txt",
+      "source_sha256": "354d32dd97427a846309045e08f0159f62ac395263453066714d556707f84a44",
       "stable_id": "youtube-send-syndata-tls_multisplit_sni-3dc60cd0",
       "strategy_number": null,
       "transport": "tcp",
@@ -15954,6 +16454,7 @@
         "leagueoflegends",
         "ovh"
       ],
+      "source_block_index": 1,
       "source_blocks": [
         {
           "source_block_index": 1,
@@ -16096,6 +16597,10 @@
           "source_sha256": "7552c35b1ccc95719f87921fdd0d3cc9e7e2681a4e4208d3474f34406cbc9672"
         }
       ],
+      "source_commit": "4d75c70b430562e970bcf64cbe24072ce104b36a",
+      "source_id": "Syndata + MultiDisorder legacy (game filter)",
+      "source_path": "presets/Syndata + MultiDisorder legacy (game filter).txt",
+      "source_sha256": "d42ed309452481a7d9edce68df42bcecd6d6c2906354eee538d871658d6a4b36",
       "stable_id": "youtube-syndata-multidisorder_legacy-0d5b1578",
       "strategy_number": null,
       "transport": "tcp",
