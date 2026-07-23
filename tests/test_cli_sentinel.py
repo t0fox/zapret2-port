@@ -193,6 +193,18 @@ class ShippedCliSentinelRuntimeTest(unittest.TestCase):
             encoding="utf-8",
         )
         fake_preload.chmod(0o755)
+        # The profile frontend `exec "$APPLY"` runs the apply-wrapper DIRECTLY
+        # (not via `sh`), so it needs the executable bit. Git stores the
+        # shipped CLIs as 100644 (the OpenWrt Makefile's INSTALL_BIN sets 0755
+        # only at install time), so the repo source tree is non-executable on a
+        # fresh checkout (e.g. CI). Run a chmod'd copy so the profile-frontend
+        # path works without mutating the source tree. The apply-wrapper itself
+        # is still exercised via `sh` in _run_wrapper (its exec bit is not
+        # required there).
+        self.apply_wrapper_exe = Path(self.tmp) / "zapret2-orchestra-apply"
+        self.apply_wrapper_exe.write_text(
+            APPLY_WRAPPER.read_text(encoding="utf-8"), encoding="utf-8")
+        self.apply_wrapper_exe.chmod(0o755)
         self._write_default_config()
 
     def tearDown(self) -> None:
@@ -220,7 +232,9 @@ class ShippedCliSentinelRuntimeTest(unittest.TestCase):
         env["ZAPRET2_CONFIG"] = str(self.opt / "config")
         env["ZAPRET2_PRELOAD_WRAPPER"] = str(Path(self.tmp) / "fake-preload.sh")
         env["ZAPRET2_APPLY_UC"] = str(APPLY_UC)
-        env["ZAPRET2_APPLY"] = str(APPLY_WRAPPER)
+        # Point the profile frontend at the chmod'd copy so `exec "$APPLY"`
+        # succeeds even when the repo source tree is non-executable (CI).
+        env["ZAPRET2_APPLY"] = str(self.apply_wrapper_exe)
         env["ORCHESTRA_STATE_DIR"] = str(self.orch)
         env["ORCHESTRA_RUNTIME_DIR"] = str(self.runtime)
         env["ORCHESTRA_PRELOAD_FILE"] = str(self.runtime / "preload.lua")

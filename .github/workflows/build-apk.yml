@@ -326,6 +326,13 @@ jobs:
           WRAP="$REPO_FILES/usr/sbin/zapret2-orchestra-apply"
           PROF="$REPO_FILES/usr/sbin/zapret2-orchestra-profile"
           export ZAPRET2_APPLY="$WRAP"
+          # Git stores the shipped CLIs as 100644; the OpenWrt Makefile's
+          # INSTALL_BIN sets 0755 only at install time, so the repo source tree
+          # is non-executable on a fresh checkout. The profile frontend runs the
+          # apply-wrapper via `exec "$APPLY"` (not `sh`), so it needs the
+          # executable bit. Make the source-tree copies executable for this gate
+          # (does not affect the built APK, whose modes come from INSTALL_BIN).
+          chmod +x "$WRAP" "$PROF"
           run_cmd "13 shipped-apply status"           sh "$WRAP" status
           run_cmd "14 shipped-apply validate-config"  sh "$WRAP" validate-config
           run_cmd "15 shipped-apply validate-profile" sh "$WRAP" validate-profile orchestra-tls-mvp
