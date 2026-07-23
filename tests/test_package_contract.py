@@ -39,7 +39,7 @@ class PackageContractTest(unittest.TestCase):
         expected = {
             "PKG_NAME": "zapret2-orchestra",
             "PKG_VERSION": "0.1.0",
-            "PKG_RELEASE": "6",
+            "PKG_RELEASE": "7",
             "PKGARCH": "all",
         }
         for key, value in expected.items():
@@ -53,9 +53,10 @@ class PackageContractTest(unittest.TestCase):
         )
         self.assertIsNotNone(package)
         dependencies = re.findall(r"\+([a-z0-9-]+)", package.group("body"))
+        # r7: +procd added for the learner procd service (START=22).
         self.assertEqual(
             dependencies,
-            ["zapret2", "rpcd", "rpcd-mod-ucode", "ucode", "ucode-mod-fs", "ucode-mod-uci"],
+            ["zapret2", "rpcd", "rpcd-mod-ucode", "ucode", "ucode-mod-fs", "ucode-mod-uci", "procd"],
         )
         self.assertNotIn("+lua", self.makefile)
 

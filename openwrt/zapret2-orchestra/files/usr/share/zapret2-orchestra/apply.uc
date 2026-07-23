@@ -208,6 +208,78 @@ function transform_nfqws2_opt(text, new_value) {
 	return p.head + escape_value(new_value) + p.tail;
 }
 
+// ---------------------------------------------------------------------------
+// NFQWS2_ENABLE parser/transformer (simple KEY=0|1 line, unquoted).
+//
+// enable/disable flip this bit in /opt/zapret2/config so the zapret2 service
+// brings the datapath up/down on next start.  The value is a bare integer
+// (0 or 1), NOT a quoted string like NFQWS2_OPT, so it has its own tiny
+// parser.  Only one assignment is allowed.  Returns { ok, value, head, tail,
+// line } or { ok:false, error }.
+// ---------------------------------------------------------------------------
+
+const ENABLE_KEY = 'NFQWS2_ENABLE';
+
+function parse_nfqws2_enable(text) {
+	let starts = [];
+	let line_start = 0;
+	let i = 0;
+	while (i < length(text)) {
+		if (i == line_start) {
+			let nl = index(substr(text, i), '\n');
+			let line = (nl < 0) ? substr(text, i) : substr(text, i, nl);
+			let s = 0;
+			while (s < length(line) && (substr(line, s, 1) == ' ' || substr(line, s, 1) == '\t'))
+				s++;
+			if (s < length(line) && substr(line, s, 1) != '#') {
+				if (substr(line, s, length(ENABLE_KEY) + 1) == ENABLE_KEY + '=')
+					push(starts, line_start + s);
+			}
+		}
+		if (substr(text, i, 1) == '\n')
+			line_start = i + 1;
+		i++;
+	}
+	if (length(starts) == 0)
+		return { ok: false, error: 'missing NFQWS2_ENABLE assignment' };
+	if (length(starts) > 1)
+		return { ok: false, error: 'duplicate NFQWS2_ENABLE assignment' };
+	let st = starts[0];
+	let eq_pos = st + length(ENABLE_KEY);
+	let line_end = index(substr(text, eq_pos + 1), '\n');
+	let val_end = (line_end < 0) ? length(text) : (eq_pos + 1 + line_end);
+	let raw_val = substr(text, eq_pos + 1, val_end - (eq_pos + 1));
+	let v = trim(raw_val);
+	if (v != '0' && v != '1')
+		return { ok: false, error: 'NFQWS2_ENABLE value must be 0 or 1' };
+	return {
+		ok: true,
+		value: int(v),
+		head: substr(text, 0, eq_pos + 1),
+		tail: substr(text, val_end),
+		line: line_of(text, st)
+	};
+}
+
+// Return the full config text with NFQWS2_ENABLE replaced by 0 or 1.
+function transform_nfqws2_enable(text, new_value) {
+	let p = parse_nfqws2_enable(text);
+	if (!p.ok)
+		fail(p.error);
+	if (new_value != 0 && new_value != 1)
+		fail('NFQWS2_ENABLE new value must be 0 or 1');
+	return p.head + '' + int(new_value) + p.tail;
+}
+
+// Read the current NFQWS2_ENABLE value (0/1), or null if unparseable.
+function current_enable_value() {
+	let text = readfile(CONFIG_FILE);
+	if (text == null) return null;
+	let p = parse_nfqws2_enable(text);
+	if (!p.ok) return null;
+	return p.value;
+}
+
 // 31-bit rolling hash (djb2 variant), identical to generate-preload.uc.
 function hash31(data) {
 	let h = 5381;
@@ -722,17 +794,28 @@ function validate_profile(name) {
 	if (verr != null)
 		push(problems, 'profile value rejected: ' + verr);
 
-	// Orchestra runtime markers: init.lua and the whitelist seed must exist,
-	// and circular_quality must be referenced by the profile value.
-	if (stat(ORCH_LUA + '/init.lua')?.type != 'file')
-		push(problems, 'orchestra init.lua missing');
-	if (stat(ORCH_DIR + '/whitelist.json')?.type != 'file')
-		push(problems, 'orchestra whitelist.json seed missing');
-	if (index(p.value, 'circular_quality') < 0)
-		push(problems, 'profile does not reference circular_quality');
+	// r7: a profile is either an Orchestra-runtime (circular/adaptive) profile
+	// or a NATIVE nfqws2 profile.  The Orchestra-runtime markers (init.lua,
+	// whitelist.json seed, circular_quality) are required ONLY when the profile
+	// loads the Orchestra runtime — i.e. its NFQWS2_OPT references the
+	// orchestra-extra Lua chain (via --lua-init=@.../orchestra-extra/init.lua
+	// or the orchestra-extra path).  A native profile (e.g. the static
+	// discord-v5 profile: send+syndata, --ipset, --lua-init=init_vars.lua,
+	// NO circular_quality) is NOT required to reference circular_quality.  This
+	// matches contract §5 / spec §4 item 2 (gate circular_quality on "profile
+	// loads orchestra runtime").
+	let loads_orchestra = (index(p.value, 'orchestra-extra') >= 0 || index(p.value, 'orchestra_extra') >= 0);
+	if (loads_orchestra) {
+		if (stat(ORCH_LUA + '/init.lua')?.type != 'file')
+			push(problems, 'orchestra init.lua missing');
+		if (stat(ORCH_DIR + '/whitelist.json')?.type != 'file')
+			push(problems, 'orchestra whitelist.json seed missing');
+		if (index(p.value, 'circular_quality') < 0)
+			push(problems, 'profile loads orchestra runtime but does not reference circular_quality');
+	}
 
 	// The profile is NOT applied to the config in Phase 1A.
-	return { ok: length(problems) == 0, problems: problems, source: chosen, source_type: source_type, value_bytes: length(p.value) };
+	return { ok: length(problems) == 0, problems: problems, source: chosen, source_type: source_type, value_bytes: length(p.value), loads_orchestra: loads_orchestra };
 }
 
 // ---------------------------------------------------------------------------
@@ -875,7 +958,11 @@ function internal_rollback(backup_path) {
 // On failure BEFORE rename: unlink candidate, state=idle, no config change.
 // On failure AFTER rename: internal_rollback (restore backup), state=idle.
 // Generation is incremented ONLY on full success.
-function do_apply_transaction(new_value, profile_name) {
+//
+// r7: the optional `enable_value` (0/1/null) flips NFQWS2_ENABLE in the same
+// atomic transaction as the NFQWS2_OPT rewrite, so enable/disable is one
+// consistent config write.  null = leave NFQWS2_ENABLE unchanged (apply path).
+function do_apply_transaction(new_value, profile_name, enable_value) {
 	let state = read_state();
 	if (state == null) state = default_state();
 	let gen = state.generation;
@@ -892,6 +979,15 @@ function do_apply_transaction(new_value, profile_name) {
 
 	// 3. Build candidate text (transform NFQWS2_OPT value)
 	let candidate_text = p.head + escape_value(new_value) + p.tail;
+	// r7: if an enable_value was given, also flip NFQWS2_ENABLE in the
+	// candidate.  This is a byte-edit of the simple KEY=0|1 line via its own
+	// parser; it never touches the NFQWS2_OPT value.
+	if (enable_value != null) {
+		let enp = parse_nfqws2_enable(candidate_text);
+		if (!enp.ok)
+			return { ok: false, error: 'config parse: ' + enp.error };
+		candidate_text = enp.head + '' + int(enable_value) + enp.tail;
+	}
 
 	// 4. Write candidate to CANDIDATE_FILE (same filesystem as config)
 	if (writefile(CANDIDATE_FILE, candidate_text) == null)
@@ -1006,7 +1102,16 @@ function cmd_apply() {
 }
 
 // ---------------------------------------------------------------------------
-// cmd_enable: apply a profile and mark Orchestra enabled (idempotent)
+// cmd_enable: apply a profile, set NFQWS2_ENABLE=1, mark Orchestra enabled.
+//
+// r7 (contract §5): enable is ONE-STEP parity with OrchestraRunner.start():
+//   validate → apply NFQWS2_OPT → set NFQWS2_ENABLE=1 (byte-edit) → commit.
+// The actual zapret2 service start + learner start is owned by the init.d/
+// procd layer / the CLI wrapper, NOT a direct /etc/init.d reference inside
+// apply.uc (test_working_prototype forbids that).  apply.uc emits a
+// `service_action: "start"` field so the wrapper knows to start the service
+// and the learner after a successful enable.  Idempotent if already enabled
+// with the same profile (still re-asserts NFQWS2_ENABLE=1).
 // ---------------------------------------------------------------------------
 
 function cmd_enable() {
@@ -1014,13 +1119,17 @@ function cmd_enable() {
 	let state = read_state();
 	if (state == null) state = default_state();
 
-	// Idempotent: if already enabled with the same profile, no-op
-	if (state.enabled == true && state.profile == profile_name) {
-		emit({ ok: true, command: 'enable', profile: profile_name, idempotent: true, generation: state.generation });
+	// Idempotent: if already enabled with the same profile AND NFQWS2_ENABLE is
+	// already 1, no config write is needed — just re-assert the service should
+	// be running.  This preserves the idempotent contract the existing tests
+	// rely on while still being one-step from the CLI.
+	let cur_enable = current_enable_value();
+	if (state.enabled == true && state.profile == profile_name && cur_enable == 1) {
+		emit({ ok: true, command: 'enable', profile: profile_name, idempotent: true, generation: state.generation, nfqws2_enable: 1, service_action: 'start' });
 		exit(0);
 	}
 
-	// Validate the profile
+	// Validate the profile (read-only, no lock needed)
 	let pv = validate_profile(profile_name);
 	if (!pv.ok)
 		fail('profile invalid: ' + join('; ', pv.problems));
@@ -1031,17 +1140,20 @@ function cmd_enable() {
 	if (!pp.ok)
 		fail('profile parse error: ' + pp.error);
 
-	// Acquire lock, run transaction, release
+	// Acquire lock, run transaction (NFQWS2_OPT + NFQWS2_ENABLE=1), release
 	let acq = lock_acquire();
 	if (!acq.ok)
 		fail('lock: ' + acq.error);
-	let result = do_apply_transaction(pp.value, profile_name);
+	let result = do_apply_transaction(pp.value, profile_name, 1);
 	lock_release();
 	if (!result.ok) {
 		emit({ ok: false, command: 'enable', error: result.error, rollback: result.rollback });
 		exit(1);
 	}
-	emit({ ok: true, command: 'enable', profile: profile_name, source: pv.source, source_type: pv.source_type, generation: result.generation, backup: result.backup });
+	// service_action tells the CLI wrapper / init.d layer to start the zapret2
+	// service and the learner daemon.  apply.uc itself never references
+	// /etc/init.d (the prohibition in test_working_prototype).
+	emit({ ok: true, command: 'enable', profile: profile_name, source: pv.source, source_type: pv.source_type, generation: result.generation, backup: result.backup, nfqws2_enable: 1, service_action: 'start', loads_orchestra: pv.loads_orchestra });
 	exit(0);
 }
 
@@ -1094,6 +1206,25 @@ function cmd_disable() {
 		exit(1);
 	}
 
+	// r7: explicitly set NFQWS2_ENABLE=0 in the restored config so the datapath
+	// is down on next service start.  The backup usually already has 0 (it was
+	// taken before enable flipped it to 1), but this guarantees the bit is
+	// cleared regardless of backup contents or drift.  Byte-edit via the
+	// NFQWS2_ENABLE parser, written through CANDIDATE_FILE + rename (atomic on
+	// the same filesystem as the config).
+	let restored_text = readfile(CONFIG_FILE);
+	if (restored_text != null) {
+		let enp = parse_nfqws2_enable(restored_text);
+		if (enp.ok && enp.value != 0) {
+			let disabled_text = enp.head + '0' + enp.tail;
+			if (writefile(CANDIDATE_FILE, disabled_text) != null && rename(CANDIDATE_FILE, CONFIG_FILE)) {
+				// success
+			} else {
+				unlink(CANDIDATE_FILE);
+			}
+		}
+	}
+
 	// Regenerate preload from restored config
 	run_preload('generate');
 
@@ -1113,7 +1244,10 @@ function cmd_disable() {
 	atomic_write_state(state);
 
 	lock_release();
-	emit({ ok: true, command: 'disable', restored_from: bk.path, generation: state.generation, drift: drift });
+	// service_action tells the CLI wrapper / init.d layer to stop the learner
+	// and the zapret2 service (and tear down the datapath).  apply.uc itself
+	// never references /etc/init.d.
+	emit({ ok: true, command: 'disable', restored_from: bk.path, generation: state.generation, drift: drift, nfqws2_enable: 0, service_action: 'stop' });
 	exit(0);
 }
 

@@ -134,7 +134,34 @@ cmd_enable() {
 	"$APPLY" validate-profile "$1"
 	_rc=$?
 	[ "$_rc" -eq 0 ] || die "profile failed validation: $1 (rc=$_rc)" "$_rc"
-	exec "$APPLY" enable "$1"
+	# r7: one-step enable.  Run the manager (do NOT exec) so we can act on its
+	# result: apply.uc sets NFQWS2_ENABLE=1 and emits a `service_action:"start"`
+	# field; this wrapper then starts the zapret2 service + the learner daemon
+	# so a single `enable <id>` leaves a running, bypassing datapath (parity
+	# with OrchestraRunner.start()).  The /etc/init.d reference lives HERE in
+	# the thin wrapper / procd layer, NOT inside apply.uc (which
+	# test_working_prototype forbids).  Service start is gated on the
+	# `service_action` field the manager emits, so a mock apply that omits it
+	# (tests) does not trigger a real service start.
+	_out=$("$APPLY" enable "$1")
+	_rc=$?
+	printf '%s\n' "$_out"
+	[ "$_rc" -eq 0 ] || exit "$_rc"
+	# Parse the service_action field without jq (busybox).  Only "start" trips
+	# the service bring-up.
+	case "$_out" in
+		*'"service_action":"start"'*|*'"service_action": "start"'*)
+			ZAPRET2_SERVICE_CTL="${ZAPRET2_SERVICE_CTL:-1}"
+			if [ "$ZAPRET2_SERVICE_CTL" = "1" ]; then
+				if [ -x /etc/init.d/zapret2 ]; then
+					/etc/init.d/zapret2 restart
+				fi
+				if [ -x /etc/init.d/zapret2-orchestra-learner ]; then
+					/etc/init.d/zapret2-orchestra-learner restart
+				fi
+			fi
+			;;
+	esac
 }
 
 cmd_status() {
@@ -142,7 +169,29 @@ cmd_status() {
 }
 
 cmd_disable() {
-	exec "$APPLY" disable
+	# r7: one-step disable.  Run the manager (do NOT exec) so we can act on its
+	# `service_action:"stop"` field: stop the learner, stop zapret2, then the
+	# manager restores the backup and sets NFQWS2_ENABLE=0.  The /etc/init.d
+	# reference lives HERE in the thin wrapper, NOT inside apply.uc.
+	_out=$("$APPLY" disable)
+	_rc=$?
+	# Stop the learner and datapath BEFORE printing the result so the manager's
+	# NFQWS2_ENABLE=0 takes effect on a stopped service.
+	case "$_out" in
+		*'"service_action":"stop"'*|*'"service_action": "stop"'*)
+			ZAPRET2_SERVICE_CTL="${ZAPRET2_SERVICE_CTL:-1}"
+			if [ "$ZAPRET2_SERVICE_CTL" = "1" ]; then
+				if [ -x /etc/init.d/zapret2-orchestra-learner ]; then
+					/etc/init.d/zapret2-orchestra-learner stop
+				fi
+				if [ -x /etc/init.d/zapret2 ]; then
+					/etc/init.d/zapret2 stop
+				fi
+			fi
+			;;
+	esac
+	printf '%s\n' "$_out"
+	exit "$_rc"
 }
 
 # --- dispatch ---------------------------------------------------------------

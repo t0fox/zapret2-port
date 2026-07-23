@@ -360,17 +360,17 @@ class ReadyProfileUcodeRuntimeTest(unittest.TestCase):
 
 
 class ReleaseVersionTest(unittest.TestCase):
-    """zapret2 PKG_RELEASE=3, zapret2-orchestra PKG_RELEASE=6."""
+    """zapret2 PKG_RELEASE=3, zapret2-orchestra PKG_RELEASE=7 (r7)."""
 
     def test_zapret2_release_is_three(self) -> None:
         text = Z2_MAKEFILE.read_text("utf-8")
         self.assertRegex(text, r"(?m)^PKG_RELEASE:=3$",
                          "zapret2 PKG_RELEASE must be 3")
 
-    def test_orchestra_release_is_six(self) -> None:
+    def test_orchestra_release_is_seven(self) -> None:
         text = ORCH_MAKEFILE.read_text("utf-8")
-        self.assertRegex(text, r"(?m)^PKG_RELEASE:=6$",
-                         "zapret2-orchestra PKG_RELEASE must be 6")
+        self.assertRegex(text, r"(?m)^PKG_RELEASE:=7$",
+                         "zapret2-orchestra PKG_RELEASE must be 7 (r7)")
 
 
 if __name__ == "__main__":

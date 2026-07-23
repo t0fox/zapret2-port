@@ -321,7 +321,16 @@ class PreloadOracleTest(unittest.TestCase):
     """Python replica of the ucode generator; verifies determinism and shape."""
 
     def test_empty_seeds_produce_minimal_valid_preload(self) -> None:
-        seeds = load_seeds(STATE_SRC)
+        # Use explicitly-empty seeds (not the dev seeds, which now ship the
+        # DEFAULT_BLOCKED_PASS_DOMAINS blocked-strategy=1 set under tls).  This
+        # tests the "empty seeds" case the name promises, independent of the
+        # seeded default blocked domains.
+        seeds = {
+            "blocked": {"schema_version": 1, "protocols": {"tls": {"global": [], "hosts": {}}}},
+            "learned": {"schema_version": 1, "protocols": {"tls": {}}},
+            "manual_locks": {"schema_version": 1, "protocols": {"tls": {}}},
+            "whitelist": {"schema_version": 1, "hosts": []},
+        }
         for name in EXPECTED_SEEDS:
             key = name.replace(".json", "").replace("-", "_")
             self.assertEqual(seeds[key]["schema_version"], 1)
@@ -330,6 +339,9 @@ class PreloadOracleTest(unittest.TestCase):
         self.assertNotIn("slm_preload_blocked", preload)
         self.assertNotIn("slm_preload_locked", preload)
         self.assertNotIn("slm_preload_history", preload)
+        # r7: the preload always carries the chain map + generation assignments.
+        self.assertIn("ORCHESTRA_CHAIN_ID_FOR_STRATEGY = {}", preload)
+        self.assertIn("ORCHESTRA_PRELOAD_GENERATION = 0", preload)
         wl = render_whitelist_txt(seeds)
         self.assertEqual(wl, "")
 

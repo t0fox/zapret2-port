@@ -19,7 +19,7 @@ define Package/zapret2-orchestra
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=Zapret2
-  TITLE:=Read-only rpcd backend and preload generator for Zapret2 Orchestra
+  TITLE:=Orchestra runtime learner, rpcd backend and preload generator
   MAINTAINER:=t0fox
   DEPENDS:= \
     +zapret2 \
@@ -27,7 +27,8 @@ define Package/zapret2-orchestra
     +rpcd-mod-ucode \
     +ucode \
     +ucode-mod-fs \
-    +ucode-mod-uci
+    +ucode-mod-uci \
+    +procd
 endef
 
 define Package/zapret2-orchestra/description
@@ -85,9 +86,21 @@ define Package/zapret2-orchestra/install
 	# batch mode for a single domain; it does NOT stop services or touch
 	# packet-filter rules — upstream blockcheck2 owns its own cleanup.
 	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-blockcheck $(1)/usr/sbin/zapret2-orchestra-blockcheck
+	# r7 closed-loop learner: a ucode long-running daemon that tails
+	# events.ndjson, persists learned/blocked/learner-state, and reloads nfqws2
+	# (debounced) when a lock/blocked-strategy changes.  The daemon program
+	# lives under /usr/share; the shell wrapper invokes ucode on it.
+	$(INSTALL_DATA) $(CURDIR)/files/usr/share/zapret2-orchestra/learner.uc $(1)/usr/share/zapret2-orchestra/learner.uc
+	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-learner $(1)/usr/sbin/zapret2-orchestra-learner
+	# reload helper: the zapret2 service restart reference lives here (procd
+	# layer), NOT in apply.uc or learner.uc (test_working_prototype prohibition).
+	$(INSTALL_BIN) $(CURDIR)/files/usr/sbin/zapret2-orchestra-reload $(1)/usr/sbin/zapret2-orchestra-reload
 	# boot hook (one-shot backup regeneration, START=20 runs before zapret2 START=21)
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) $(CURDIR)/files/etc/init.d/zapret2-orchestra $(1)/etc/init.d/zapret2-orchestra
+	# learner procd service (START=22, after zapret2 START=21 so the events sink
+	# and datapath exist before the learner begins).
+	$(INSTALL_BIN) $(CURDIR)/files/etc/init.d/zapret2-orchestra-learner $(1)/etc/init.d/zapret2-orchestra-learner
 	# TLS runtime extension
 	$(INSTALL_DIR) $(1)/opt/zapret2/lua/orchestra-extra
 	$(INSTALL_DATA) $(CURDIR)/files/opt/zapret2/lua/orchestra-extra/*.lua $(1)/opt/zapret2/lua/orchestra-extra/
@@ -108,6 +121,7 @@ define Package/zapret2-orchestra/postinst
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	/etc/init.d/zapret2-orchestra enable
+	/etc/init.d/zapret2-orchestra-learner enable
 	/usr/sbin/zapret2-orchestra-preload
 	if [ -x /etc/init.d/rpcd ]; then
 		/etc/init.d/rpcd restart
@@ -120,6 +134,7 @@ define Package/zapret2-orchestra/postrm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	/etc/init.d/zapret2-orchestra disable
+	/etc/init.d/zapret2-orchestra-learner disable
 	if [ -x /etc/init.d/rpcd ]; then
 		/etc/init.d/rpcd restart
 	fi

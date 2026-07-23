@@ -393,11 +393,12 @@ class MakefileInstallTest(unittest.TestCase):
             self.body,
         )
 
-    def test_release_number_is_six(self) -> None:
-        # zapret2-orchestra PKG_RELEASE is bumped to 6 for the shipped-CLI
-        # argv-sentinel fix in apply.uc (r6). r3/r5 was the executable profile
-        # set + blockcheck batch CLI release.
-        self.assertRegex(self.body, r"(?m)^PKG_RELEASE:=6$")
+    def test_release_number_is_seven(self) -> None:
+        # zapret2-orchestra PKG_RELEASE is bumped to 7 for r7 (closed-loop
+        # learner daemon + enable/disable lifecycle + blocked.json seed).
+        # r6 was the shipped-CLI argv-sentinel fix; r3/r5 was the executable
+        # profile set + blockcheck batch CLI release.
+        self.assertRegex(self.body, r"(?m)^PKG_RELEASE:=7$")
 
     def test_new_opt_picked_up_by_existing_wildcard(self) -> None:
         self.assertIn(
