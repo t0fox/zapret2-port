@@ -30,7 +30,7 @@ case "$SUB" in
 		tmp="${ZAPRET2_VALIDATE_OUT:-/tmp/zapret2-orchestra/validate-config.cfg}"
 		# Ensure the parent exists so ucode can write the re-emitted config.
 		mkdir -p "$(dirname "$tmp")" 2>/dev/null || true
-		report=$(ZAPRET2_VALIDATE_OUT="$tmp" ucode "$UC" validate-config)
+		report=$(ZAPRET2_VALIDATE_OUT="$tmp" ucode "$UC" -- validate-config)
 		rc=$?
 		printf '%s\n' "$report"
 		if [ "$rc" -eq 0 ] && [ -f "$tmp" ]; then
@@ -49,7 +49,10 @@ case "$SUB" in
 		exit "$rc"
 		;;
 	""|status|validate-profile|lock-test|apply|enable|disable|rollback|boot-check)
-		exec ucode "$UC" "$SUB" "$@"
+		# The "--" terminates ucode's own getopt so subcommand arguments like
+		# rollback's --force / --gen are passed to apply.uc as ARGV instead of
+		# being consumed (and rejected) by the ucode CLI (permuting getopt).
+		exec ucode "$UC" -- "$SUB" "$@"
 		;;
 	*)
 		printf '%s\n' "zapret2-orchestra-apply: unknown subcommand '$SUB'" >&2

@@ -799,7 +799,7 @@ class RuntimeManagerRuntimeTest(unittest.TestCase):
         if config_text is not None:
             (self.opt / "config").write_text(config_text, encoding="utf-8")
         r = subprocess.run(
-            [self.ucode, str(APPLY_UC), *args],
+            [self.ucode, str(APPLY_UC), "--", *args],
             env=env,
             capture_output=True,
             text=True,
