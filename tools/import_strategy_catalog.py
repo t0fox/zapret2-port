@@ -1265,6 +1265,12 @@ def build_adaptive_opt(catalog: dict[str, Any]) -> str:
     lines.append("--filter-tcp=80,443,1080,2053,2083,2087,2096,8443")
     lines.append("--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt")
     lines.append("--payload=tls_client_hello")
+    # --in-range MUST be set (non-x): nfqws2 defaults --in-range=x (never),
+    # which blocks ALL incoming packets from Lua and starves
+    # combined_success_detector of reply packets, so SUCCESS is never detected
+    # and the learning loop never locks.  -d1000 lets the first 1000 incoming
+    # data packets reach circular_quality (matches reference circular-config.txt).
+    lines.append("--in-range=-d1000")
     lines.append("--out-range=-d10")
     # Selector first (contract §1.3: selector is unnumbered).
     lines.append(f"--lua-desync={ADAPTIVE_SELECTOR}")
@@ -1516,16 +1522,28 @@ def _build_original_pool_opt(chains: list[dict[str, Any]]) -> str:
         "# /opt/zapret2/bin/tls_clienthello_{1,5,7}.bin; stun_pat as "
         "/opt/zapret2/bin/stun.bin.")
     lines.append(
-        "# Packet selection: --out-range=-d10 (port convention).  The original "
-        "used --out-range=-s9656 --in-range=-s3508 (seq-range packet filters);")
+        "# Packet selection: --in-range=-d1000 --out-range=-d10 (port convention).  "
+        "The original used")
     lines.append(
-        "# the desync strategies do not depend on those values (they select "
-        "which packets to desync, not the desync logic), so the port")
+        "# --out-range=-s9656 --in-range=-s3508 (seq-range packet filters); "
+        "-d10/-d1000 are used here for")
     lines.append(
-        "# convention -d10 is used here for consistency with "
-        "discord-adaptive.opt.  --payload=all is kept from the original so")
+        "# consistency with discord-adaptive.opt.  --in-range MUST be set (non-x): "
+        "nfqws2 defaults --in-range=x")
     lines.append(
-        "# HTTP-fake strategies (e.g. fake_default_http) work.")
+        "# (never), which blocks ALL incoming packets from Lua and starves "
+        "combined_success_detector of reply")
+    lines.append(
+        "# packets, so SUCCESS is never detected and the learning loop never locks.  "
+        "--in-range=-d1000 lets the")
+    lines.append(
+        "# first 1000 incoming data packets reach circular_quality so the success "
+        "detector can see the TLS")
+    lines.append(
+        "# server reply (incoming seq > inseq=0x1000).  --payload=all is kept from "
+        "the original so HTTP-fake")
+    lines.append(
+        "# strategies (e.g. fake_default_http) work.")
     lines.append('NFQWS2_OPT="')
     # Lua init: orchestra runtime (circular_quality/slm) + init_vars (tls_google)
     # + custom_funcs (tls_multisplit_sni).  NOT custom_diag / zapret-multishake /
@@ -1539,6 +1557,8 @@ def _build_original_pool_opt(chains: list[dict[str, Any]]) -> str:
     lines.append("--filter-tcp=80,443,1080,2053,2083,2087,2096,8443")
     lines.append("--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt")
     lines.append("--payload=all")
+    # --in-range=-d1000: see discord-adaptive.opt.  Required for SUCCESS detection.
+    lines.append("--in-range=-d1000")
     lines.append("--out-range=-d10")
     # Selector first (contract §1.3: selector is unnumbered).
     lines.append(f"--lua-desync={ORIGINAL_POOL_SELECTOR}")
