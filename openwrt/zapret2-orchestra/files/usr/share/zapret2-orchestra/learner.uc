@@ -136,10 +136,27 @@ function validate_blocked(doc) {
 	if (type(doc.protocols) != 'object') return 'protocols must be an object';
 	for (let askey, bp in doc.protocols) {
 		if (type(bp) != 'object') return 'protocols.' + askey + ' must be an object';
-		// global, hosts, user_global, user_hosts are optional arrays
+		// global, hosts, user_global, user_hosts are optional arrays/objects of
+		// RUNTIME strategy numbers (existing numeric-block form).
 		for (let k in ['global', 'hosts', 'user_global', 'user_hosts']) {
 			if (bp[k] != null && type(bp[k]) != 'array' && type(bp[k]) != 'object')
 				return 'blocked.' + askey + '.' + k + ' must be array/object';
+		}
+		// global_chain / hosts_chain / user_global_chain / user_hosts_chain are
+		// the r7 stable-identity form: blocks authored against a STABLE chain id
+		// (contract §4).  generate-preload resolves these to runtime strategy
+		// numbers via the active profile sidecar and drops chains absent from
+		// the active profile.  Validated loosely here (the learner only persists
+		// blocked.json; it does not resolve chain ids — that is generate-preload's
+		// job).  global_chain / user_global_chain are arrays of strings;
+		// hosts_chain / user_hosts_chain are objects of host -> array of strings.
+		for (let k in ['global_chain', 'user_global_chain']) {
+			if (bp[k] != null && type(bp[k]) != 'array')
+				return 'blocked.' + askey + '.' + k + ' must be an array of chain ids';
+		}
+		for (let k in ['hosts_chain', 'user_hosts_chain']) {
+			if (bp[k] != null && type(bp[k]) != 'object')
+				return 'blocked.' + askey + '.' + k + ' must be an object of host -> [chain id]';
 		}
 	}
 	return null;

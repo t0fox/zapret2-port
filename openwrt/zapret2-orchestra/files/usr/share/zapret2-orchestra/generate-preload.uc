@@ -174,11 +174,40 @@ function render_whitelist_table(seeds) {
 	return 'ORCHESTRA_WHITELIST = { ' + join(', ', entries) + ' }';
 }
 
-function render_blocked(lines, seeds) {
+// Resolve a list of stable chain ids into a sorted, de-duplicated list of
+// runtime strategy numbers using the active profile's chain map.  Chains that
+// are absent from the active profile are silently dropped — a block authored
+// against chain X never transfers to a different chain that happens to share
+// the same runtime number (the DEFAULT_BLOCKED_PASS_DOMAINS fix: the pass
+// chain, excluded from the original-parity pool, does NOT block the winner
+// that now occupies runtime strategy 1).  Returns a sorted int list.
+function resolve_chain_block_list(cm, chain_ids, ctx) {
+	let out = [], seen = {};
+	for (let i = 0; i < length(chain_ids); i++) {
+		let sid = chain_ids[i];
+		if (type(sid) != 'string' || length(sid) == 0)
+			fail(ctx + ': chain id must be a non-empty string');
+		let n = resolve_chain_strategy(cm, sid);
+		if (n == null)
+			continue;  // absent from the active profile -> drop, do not transfer
+		if (!seen[n]) {
+			seen[n] = true;
+			push(out, n);
+		}
+	}
+	return sort(out);
+}
+
+function render_blocked(lines, seeds, cm) {
 	let protocols = sorted_keys(seeds.blocked.protocols);
 	for (let pi = 0; pi < length(protocols); pi++) {
 		let askey = protocols[pi];
 		let bp = seeds.blocked.protocols[askey] ?? {};
+
+		// --- Numeric blocks (existing): global + hosts hold RUNTIME strategy
+		// numbers.  These cover user/runtime blocks authored against the active
+		// profile's numbering.  Emitted verbatim (sorted/deduped).  The golden
+		// fixture and any native profile use this path.
 		let global = sorted_unique_strategies(bp.global ?? [], 'blocked.' + askey + '.global');
 		if (length(global) > 0)
 			push(lines, 'slm_preload_blocked(' + lua_quote(askey) + ', "*", ' + lua_int_list(global) + ')');
@@ -188,6 +217,51 @@ function render_blocked(lines, seeds) {
 			let vals = sorted_unique_strategies(bp.hosts[host], 'blocked.' + askey + '.' + host);
 			if (length(vals) > 0)
 				push(lines, 'slm_preload_blocked(' + lua_quote(askey) + ', ' + lua_quote(host) + ', ' + lua_int_list(vals) + ')');
+		}
+
+		// --- Stable chain-id blocks (Phase 3): global_chain + hosts_chain hold
+		// STABLE chain ids (contract §4).  Each id is resolved to the runtime
+		// strategy number the ACTIVE profile's sidecar assigns to that chain;
+		// ids whose chain is absent from the active profile are dropped (not
+		// transferred to a different chain with the same runtime number).  This
+		// is how DEFAULT_BLOCKED_PASS_DOMAINS blocks the pass chain without
+		// accidentally blocking the winner (tls_multisplit_sni, runtime #1 in
+		// the original-parity pool) when the pass chain was excluded.
+		let gchain = bp.global_chain;
+		if (type(gchain) == 'array' && length(gchain) > 0) {
+			let gvals = resolve_chain_block_list(cm, gchain, 'blocked.' + askey + '.global_chain');
+			if (length(gvals) > 0)
+				push(lines, 'slm_preload_blocked(' + lua_quote(askey) + ', "*", ' + lua_int_list(gvals) + ')');
+		}
+		let hchain_hosts = sorted_keys(bp.hosts_chain ?? {});
+		for (let hi = 0; hi < length(hchain_hosts); hi++) {
+			let host = hchain_hosts[hi];
+			let ids = bp.hosts_chain[host];
+			if (type(ids) != 'array')
+				fail('blocked.' + askey + '.hosts_chain.' + host + ' must be an array of chain ids');
+			let hvals = resolve_chain_block_list(cm, ids, 'blocked.' + askey + '.hosts_chain.' + host);
+			if (length(hvals) > 0)
+				push(lines, 'slm_preload_blocked(' + lua_quote(askey) + ', ' + lua_quote(host) + ', ' + lua_int_list(hvals) + ')');
+		}
+		// user_global_chain / user_hosts_chain are read with the same resolution
+		// as their default counterparts (a user block authored against a chain id
+		// follows the chain across renumbers, and is dropped when the chain is
+		// absent — identical semantics).
+		let ugchain = bp.user_global_chain;
+		if (type(ugchain) == 'array' && length(ugchain) > 0) {
+			let ugvals = resolve_chain_block_list(cm, ugchain, 'blocked.' + askey + '.user_global_chain');
+			if (length(ugvals) > 0)
+				push(lines, 'slm_preload_blocked(' + lua_quote(askey) + ', "*", ' + lua_int_list(ugvals) + ')');
+		}
+		let uhchain_hosts = sorted_keys(bp.user_hosts_chain ?? {});
+		for (let hi = 0; hi < length(uhchain_hosts); hi++) {
+			let host = uhchain_hosts[hi];
+			let ids = bp.user_hosts_chain[host];
+			if (type(ids) != 'array')
+				fail('blocked.' + askey + '.user_hosts_chain.' + host + ' must be an array of chain ids');
+			let uhvals = resolve_chain_block_list(cm, ids, 'blocked.' + askey + '.user_hosts_chain.' + host);
+			if (length(uhvals) > 0)
+				push(lines, 'slm_preload_blocked(' + lua_quote(askey) + ', ' + lua_quote(host) + ', ' + lua_int_list(uhvals) + ')');
 		}
 	}
 }
@@ -291,9 +365,28 @@ function sidecar_path(profile) {
 }
 
 // Read and validate the chain_id_for_strategy map from the sidecar.  Returns
-// { askey, chain_id_for_strategy } or null if no sidecar / no map.  The map is
-// keyed by strategy NUMBER (string in JSON) -> chain_id (string).  We group by
-// askey so the runtime lookup is ORCHESTRA_CHAIN_ID_FOR_STRATEGY[askey][n].
+// { askey, by_strategy, by_chain } or null if no sidecar exists (native profile
+// or adaptive profile whose sidecar has not been generated yet).
+//
+//   by_strategy: { <n>: "<stable_id>" }   (runtime strategy number -> chain)
+//   by_chain:    { "<stable_id>": <n> }   (chain -> runtime strategy number)
+//
+// The inverse (by_chain) is what resolves a STABLE chain id stored in
+// blocked.json (hosts_chain / global_chain) back to the runtime strategy
+// number the active profile assigned to that chain.  This is the crux of the
+// stable block/lock identity fix (contract §4): a block authored against a
+// specific chain only applies when that chain is present in the active
+// profile; a chain that is absent (e.g. the pass chain, excluded from the
+// original-parity pool) is silently dropped rather than transferred to a
+// different chain that happens to share the same runtime number.
+//
+// Phase 2 hardening: a sidecar FILE found at the expected path is validated
+// against the manager-state profile.  If the file's profile_id does not match
+// the active profile (a stale / mismatched sidecar — the vector by which the
+// OLD adaptive profile's 2-strategy map could be silently baked for
+// original-pool), generation FAILS with an explicit diagnostic instead of
+// silently baking the wrong map.  schema_version must be 1 and
+// chain_id_for_strategy must be present; otherwise the sidecar is rejected.
 function read_chain_map(profile) {
 	let path = sidecar_path(profile);
 	if (path == null)
@@ -308,14 +401,28 @@ function read_chain_map(profile) {
 		fail(path + ' is not a JSON object');
 	if (doc.schema_version != 1)
 		fail(path + ': schema_version must be 1');
+	// Phase 2: the sidecar's profile_id MUST match the active profile.  A
+	// mismatch means the file at profiles/<profile>.json is stale or was
+	// never regenerated for the active profile (e.g. an old adaptive sidecar
+	// left behind after a profile switch).  Die explicitly — never silently
+	// bake a map that belongs to a different profile.
+	if (profile != null && length(profile) > 0) {
+		let pid = doc.profile_id;
+		if (type(pid) != 'string' || length(pid) == 0)
+			fail(path + ': sidecar missing profile_id; expected ' + profile);
+		if (pid != profile)
+			fail(path + ': sidecar profile_id ' + pid + ' does not match active profile ' + profile
+				+ ' (stale or mismatched sidecar — refusing to bake the wrong chain map)');
+	}
 	let askey = (type(doc.askey) == 'string') ? doc.askey : null;
 	let map = doc.chain_id_for_strategy;
 	if (type(map) != 'object')
-		return null;
+		fail(path + ': sidecar for profile ' + profile + ' has no chain_id_for_strategy map');
 	// Validate: keys are strategy numbers (as strings in JSON), values are
-	// non-empty strings.  Return a normalized { askey, by_strategy } where
-	// by_strategy is { "<n>": "<chain_id>" }.
+	// non-empty strings.  Build by_strategy { <n>: "<stable_id>" } and the
+	// inverse by_chain { "<stable_id>": <n> }.
 	let by_strategy = {};
+	let by_chain = {};
 	for (let k, v in map) {
 		let n = int(k);
 		if (n < 1 || n != int(n))
@@ -323,18 +430,55 @@ function read_chain_map(profile) {
 		if (type(v) != 'string' || length(v) == 0)
 			fail(path + ': chain_id_for_strategy[' + k + '] must be a non-empty string');
 		by_strategy[n] = v;
+		by_chain[v] = n;
 	}
-	return { askey: askey, by_strategy: by_strategy };
+	// Prefer the sidecar's explicit strategy_for_chain_id inverse when present
+	// (it is the authoritative chain -> number map the importer recorded); fall
+	// back to the inverted chain_id_for_strategy otherwise.  Cross-check that
+	// the explicit inverse agrees with the forward map so a corrupt sidecar is
+	// caught here rather than misapplied at runtime.
+	if (type(doc.strategy_for_chain_id) == 'object') {
+		for (let sid, n in doc.strategy_for_chain_id) {
+			if (type(sid) != 'string' || length(sid) == 0)
+				fail(path + ': strategy_for_chain_id key must be a non-empty string');
+			let nn = int(n);
+			if (nn < 1 || nn != int(n))
+				fail(path + ': strategy_for_chain_id[' + sid + '] must be a positive integer');
+			if (by_strategy[nn] != sid)
+				fail(path + ': strategy_for_chain_id[' + sid + ']=' + nn + ' disagrees with chain_id_for_strategy');
+			by_chain[sid] = nn;
+		}
+	}
+	return { askey: askey, by_strategy: by_strategy, by_chain: by_chain };
+}
+
+// Resolve a stable chain id to the runtime strategy number assigned by the
+// active profile's sidecar.  Returns the strategy number, or null when the
+// chain is ABSENT from the active profile — in which case a block authored
+// against that chain is silently dropped (not transferred to a different chain
+// that happens to occupy the same runtime number).  When no chain map is
+// available (native profile, or adaptive profile with no sidecar), every
+// stable id is unresolvable (null) so chain-based blocks do not apply.
+function resolve_chain_strategy(cm, stable_id) {
+	if (cm == null || type(stable_id) != 'string' || length(stable_id) == 0)
+		return null;
+	let n = cm.by_chain[stable_id];
+	if (n == null)
+		return null;
+	let nn = int(n);
+	if (nn < 1 || nn != int(nn))
+		return null;
+	return nn;
 }
 
 // Render the ORCHESTRA_CHAIN_ID_FOR_STRATEGY Lua table and the
-// ORCHESTRA_PRELOAD_GENERATION assignment.  The chain map is grouped by askey;
-// when the sidecar carries an askey we key under it, otherwise under the
-// profile's implicit askey (default "tls").  An empty map is emitted as {} so
-// the runtime always sees a table (events.lua checks type == 'table').
-function render_chain_map_and_generation(seeds, mgr) {
+// ORCHESTRA_PRELOAD_GENERATION assignment.  The chain map (already read and
+// validated once by the caller) is grouped by askey; when the sidecar carries
+// an askey we key under it, otherwise under the profile's implicit askey
+// (default "tls").  An empty map is emitted as {} so the runtime always sees a
+// table (events.lua checks type == 'table').
+function render_chain_map_and_generation(seeds, mgr, cm) {
 	let lines = [];
-	let cm = read_chain_map(mgr.profile);
 	let askey = cm?.askey ?? 'tls';
 	let by_strategy = cm?.by_strategy ?? {};
 	// Build ORCHESTRA_CHAIN_ID_FOR_STRATEGY[askey] = { [n] = "chain_id", ... }
@@ -357,16 +501,22 @@ function render_chain_map_and_generation(seeds, mgr) {
 }
 
 function render_preload(seeds, mgr) {
+	// Read the active profile's sidecar ONCE (contract §4).  The returned chain
+	// map drives both the stable block/lock resolution in render_blocked and
+	// the ORCHESTRA_CHAIN_ID_FOR_STRATEGY table.  read_chain_map returns null
+	// for a native profile (no sidecar) — in which case chain-based blocks are
+	// unresolvable (dropped) and the chain map is emitted empty.
+	let cm = read_chain_map(mgr.profile);
 	let lines = [
 		'-- Auto-generated by zapret2-orchestra preload generator. Do not edit.',
 		'-- Source: ' + STATE_DIR + '/*.json',
 		render_whitelist_table(seeds)
 	];
-	render_blocked(lines, seeds);
+	render_blocked(lines, seeds, cm);
 	render_learned(lines, seeds);
 	render_manual_locks(lines, seeds);
 	// chain_id_for_strategy map + preload generation (contract §4 / §2).
-	push(lines, render_chain_map_and_generation(seeds, mgr));
+	push(lines, render_chain_map_and_generation(seeds, mgr, cm));
 	return join('\n', lines) + '\n';
 }
 

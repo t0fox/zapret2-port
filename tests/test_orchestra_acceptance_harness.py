@@ -111,17 +111,24 @@ ACCEPTANCE_SCENARIOS: list[dict[str, Any]] = [
     },
     {
         "id": "D",
-        "name": "circular-rotation-skips-default-blocked-strategy-one",
-        "contract_ref": "contracts §3 DEFAULT_BLOCKED_PASS_DOMAINS; §4 rotation skip",
+        "name": "circular-rotation-skips-default-blocked-pass-chain",
+        "contract_ref": "contracts §3 DEFAULT_BLOCKED_PASS_DOMAINS; §4 rotation skip + stable chain identity",
         "precondition": "scenario B complete; discord.com in DEFAULT_BLOCKED_PASS_DOMAINS",
         "steps": [
-            "inspect blocked.json: strategy=1 blocked for discord.com (DEFAULT_BLOCKED_PASS_DOMAINS seed)",
-            "observe the circular rotation in events.ndjson: ROTATE events never select strategy=1 for discord.com",
+            "inspect blocked.json: discord.com blocks the pass-like chain by STABLE CHAIN ID "
+            "(hosts_chain, DEFAULT_BLOCKED_PASS_DOMAINS seed) — not a runtime strategy number",
+            "observe the circular rotation in events.ndjson: for the discord-adaptive (2-strategy) "
+            "profile the pass-like chain resolves to runtime strategy=1 (Default old) and is skipped; "
+            "for discord-adaptive-original-pool the pass-like chain is absent and the block is dropped "
+            "(the winner at runtime strategy=1 is NOT blocked)",
         ],
         "pass_criteria": [
-            "strategy=1 is blocked for discord.com at load (cannot be unblocked by user)",
-            "no APPLIED/ROTATE event selects strategy=1 for discord.com",
-            "rotation moves to strategy=2 (Default v5) — the proven winner",
+            "the pass-like chain is blocked for discord.com at load (stable chain id; cannot be "
+            "unblocked by user)",
+            "a chain absent from the active profile does NOT transfer its block to a different chain "
+            "sharing the same runtime number (original-pool winner is not blocked)",
+            "in the 2-strategy profile rotation skips strategy=1 (Default old) and moves to strategy=2 "
+            "(Default v5) — the proven winner",
         ],
         "asserts_universal_network_outcome": False,
     },

@@ -180,7 +180,7 @@ targeted extensions — the existing atomic-write/recovery machinery is reused (
 | `locked_by_askey` | `learned.json` | `protocols.<askey>.<host>.auto_lock = <strategy>` (EXISTING) |
 | `strategy_history` | `learned.json` | `protocols.<askey>.<host>.strategies."<N>" = {successes, failures}` (EXISTING) |
 | `user_locked_by_askey` | `manual-locks.json` | `protocols.<askey>.<host> = <strategy>` (EXISTING; emits `slm_preload_locked(...,true)`) |
-| `blocked_by_askey` (default) | `blocked.json` | `protocols.<askey>.global = [N,...]` and `protocols.<askey>.hosts.<host> = [N,...]` (EXISTING). DEFAULT_BLOCKED_PASS_DOMAINS seeds `global=[1]` for the discord/youtube/… askey=TLS hosts. |
+| `blocked_by_askey` (default) | `blocked.json` | `protocols.<askey>.global = [N,...]` and `protocols.<askey>.hosts.<host> = [N,...]` (EXISTING, RUNTIME strategy numbers). r7 stable identity: `protocols.<askey>.global_chain = ["<stable_id>",...]` and `protocols.<askey>.hosts_chain.<host> = ["<stable_id>",...]` hold STABLE CHAIN IDs (contract §4); `generate-preload.uc` resolves each to the runtime strategy number the ACTIVE profile's sidecar assigns and DROPS chains absent from the active profile (a block never transfers to a different chain sharing the same runtime number). DEFAULT_BLOCKED_PASS_DOMAINS seeds `hosts_chain.<host> = ["discord-send-syndata-tls_multisplit_sni-44860d17"]` (the pass-like chain) for the discord/youtube/… askey=TLS hosts. |
 | `user_blocked_by_askey` | `blocked.json` (EXTEND) | NEW keys `user_global`/`user_hosts` alongside `global`/`hosts`. User-blocks are unblockable-by-user but NOT protected from… (see rules). generate-preload.uc emits user-blocks with a user flag so `slm.lua` can distinguish default-blocked (never unblockable) from user-blocked (unblockable by user action only). |
 | `whitelist` | `whitelist.json` | `hosts: [...]` (EXISTING) |
 | processed event cursor | `learner-state.json` (NEW) | `{schema_version:1, event_cursor:{bytes:<offset>, lines:<n>, sha256:<last-line-hash>}, last_preload_gen:<int>, run_id:"...", updated_at:<ts>}` |
@@ -279,10 +279,21 @@ on restart a persisted `locked_by_askey.tls["discord.com"] = 2` resolves to
 `chain_id = discord-default-v5` and the runtime applies the v5 chain. The learner writes
 `learned.json` with the strategy NUMBER (per the task's required learned-result form
 `locked_by_askey.tls["discord.com"] = <strategy number Default v5>`); the number↔chain mapping
-is stable because the importer is the only numberer (§1 rule 3).
+is stable because the importer is the only numberer (§1 rule 3). The sidecar's
+`profile_id` MUST match the active profile in `manager-state.json`; a stale or mismatched
+sidecar (e.g. an old adaptive sidecar left at the original-pool path) is rejected with an
+explicit diagnostic rather than silently baked.
 
-If `discord.com` blocks strategy=1 by DEFAULT_BLOCKED_PASS_DOMAINS policy, circular rotation
-skips strategy=1 (`slm_is_blocked` → `selected_next`) and moves to strategy=2 (v5).
+DEFAULT_BLOCKED_PASS_DOMAINS blocks the pass-like chain by STABLE CHAIN ID
+(`hosts_chain.<host> = ["discord-send-syndata-tls_multisplit_sni-44860d17"]`), not by runtime
+strategy number. `generate-preload.uc` resolves the stable id to the runtime strategy number
+the ACTIVE profile's sidecar assigns via `strategy_for_chain_id` and DROPS it when the chain
+is absent from the active profile. In the `discord-adaptive` (2-strategy) profile the chain
+resolves to runtime strategy=1 (Default old) and circular rotation skips it
+(`slm_is_blocked` → `selected_next`), moving to strategy=2 (Default v5). In
+`discord-adaptive-original-pool` (24-strategy) the pass-like chain is EXCLUDED, so the block is
+dropped and the winner at runtime strategy=1 (`chain-tls_multisplit_sni-70576793`) is NOT
+blocked — the block never transfers to a different chain sharing the same runtime number.
 
 ---
 

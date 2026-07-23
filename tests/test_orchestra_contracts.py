@@ -380,7 +380,7 @@ def _validate_blocked(doc: Any) -> list[str]:
         if not isinstance(bp, dict):
             problems.append(f"blocked.json: protocols.{askey} must be an object")
             continue
-        # global + hosts (existing)
+        # global + hosts (existing) — RUNTIME strategy numbers
         for key in ("global", "user_global"):
             if key in bp:
                 vals = bp[key]
@@ -397,6 +397,29 @@ def _validate_blocked(doc: Any) -> list[str]:
                         problems.append(f"blocked.json: {askey}.{key} host key must be a non-empty string")
                     if not isinstance(vals, list) or not all(_is_int(s) and s > 0 for s in vals):
                         problems.append(f"blocked.json: {askey}.{key}.{host} must be a list of positive ints")
+        # r7 stable-identity form (contract §4): blocks authored against a
+        # STABLE chain id, resolved to a runtime strategy number by
+        # generate-preload against the active profile sidecar.  Chain ids are
+        # non-empty strings (NOT ints); a chain absent from the active profile
+        # is dropped by generate-preload, never transferred to a replacement
+        # number.  global_chain/user_global_chain: list of strings;
+        # hosts_chain/user_hosts_chain: host -> list of strings.
+        for key in ("global_chain", "user_global_chain"):
+            if key in bp:
+                vals = bp[key]
+                if not isinstance(vals, list) or not all(_is_str(s) for s in vals):
+                    problems.append(f"blocked.json: {askey}.{key} must be a list of non-empty chain-id strings")
+        for key in ("hosts_chain", "user_hosts_chain"):
+            if key in bp:
+                hh = bp[key]
+                if not isinstance(hh, dict):
+                    problems.append(f"blocked.json: {askey}.{key} must be an object")
+                    continue
+                for host, vals in hh.items():
+                    if not _is_str(host):
+                        problems.append(f"blocked.json: {askey}.{key} host key must be a non-empty string")
+                    if not isinstance(vals, list) or not all(_is_str(s) for s in vals):
+                        problems.append(f"blocked.json: {askey}.{key}.{host} must be a list of non-empty chain-id strings")
     return problems
 
 
@@ -752,6 +775,27 @@ class StateSchemaValidatorTest(unittest.TestCase):
             "global": [1], "hosts": {"discord.com": [1]},
             "user_global": [3], "user_hosts": {"example.com": [2]}}}}
         self.assertEqual(validate_state_file("blocked.json", doc), [])
+
+    def test_good_blocked_with_chain_keys_passes(self) -> None:
+        # r7 stable identity: hosts_chain / global_chain / user_*_chain hold
+        # STABLE chain ids (strings), resolved to runtime numbers by
+        # generate-preload against the active profile sidecar.
+        doc = {"schema_version": 1, "protocols": {"tls": {
+            "global": [], "hosts": {},
+            "global_chain": ["discord-send-syndata-syndata-64820ded"],
+            "hosts_chain": {"discord.com": ["discord-send-syndata-tls_multisplit_sni-44860d17"]},
+            "user_global_chain": ["chain-multisplit-370c9508"],
+            "user_hosts_chain": {"example.com": ["chain-fake-67252439"]}}}}
+        self.assertEqual(validate_state_file("blocked.json", doc), [])
+
+    def test_blocked_bad_chain_key_fails(self) -> None:
+        # chain-id lists must be strings, not ints — a numeric value would be
+        # the old runtime-number form misfiled under the chain key (the exact
+        # confusion the stable-identity split exists to prevent).
+        doc = {"schema_version": 1, "protocols": {"tls": {
+            "hosts_chain": {"discord.com": [1]}}}}
+        self.assertIn("blocked.json: tls.hosts_chain.discord.com must be a list of non-empty chain-id strings",
+                      validate_state_file("blocked.json", doc))
 
     def test_blocked_bad_global_fails(self) -> None:
         doc = {"schema_version": 1, "protocols": {"tls": {"global": [0]}}}

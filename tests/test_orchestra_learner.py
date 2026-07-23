@@ -21,7 +21,10 @@ Coverage (contract §3 + the task's Step 8 list):
   * cursor recovery after restart
   * enable sets NFQWS2_ENABLE=1 (config byte-edit) + service_action:'start'
   * validate_profile accepts a native profile without circular_quality
-  * discord.com ∈ DEFAULT_BLOCKED_PASS_DOMAINS (blocked strat=1 on TLS)
+  * discord.com ∈ DEFAULT_BLOCKED_PASS_DOMAINS (blocked by STABLE CHAIN ID on
+    TLS via hosts_chain; generate-preload resolves the chain to a runtime
+    strategy number per the active profile and drops it when the chain is
+    absent — see test_profile_chain_map.py)
 """
 
 from __future__ import annotations
@@ -585,20 +588,37 @@ class LearnerStaticContractTest(unittest.TestCase):
     def test_blocked_seed_has_default_blocked_pass_domains(self) -> None:
         doc = json.loads(BLOCKED_SEED.read_text(encoding="utf-8"))
         self.assertEqual(doc["schema_version"], 1)
-        hosts = doc["protocols"]["tls"]["hosts"]
-        # discord.com MUST be blocked strategy=1 on TLS (contract §1 rule 7)
-        self.assertIn("discord.com", hosts)
-        self.assertEqual(hosts["discord.com"], [1])
+        tls = doc["protocols"]["tls"]
+        # r7 stable-identity fix: DEFAULT_BLOCKED_PASS_DOMAINS blocks the
+        # pass-like chain by STABLE CHAIN ID (hosts_chain), not by runtime
+        # strategy number.  The pinned chain id is the OLD adaptive profile's
+        # strategy-1 chain (Default old).  It is present in the discord-adaptive
+        # (2-strategy) sidecar (-> strategy 1, Default old, harmless in circular)
+        # and ABSENT from discord-adaptive-original-pool (24-strategy), so
+        # generate-preload drops the block for the original-parity pool and the
+        # winner (runtime strategy 1 = chain-tls_multisplit_sni-70576793) is NOT
+        # blocked.  See docs/ORCHESTRA_R7_CONTRACTS.md §4 + docs/orchestra-
+        # blocked-seed-provenance.md.
+        PASS_LIKE_CHAIN = "discord-send-syndata-tls_multisplit_sni-44860d17"
+        hosts_chain = tls["hosts_chain"]
+        # discord.com MUST be blocked (the pass-like chain) on TLS (contract §1
+        # rule 7 — the domain set is preserved; only the representation changed
+        # from a runtime number to a stable chain id).
+        self.assertIn("discord.com", hosts_chain)
+        self.assertEqual(hosts_chain["discord.com"], [PASS_LIKE_CHAIN])
         # a representative spread of the 59-domain set
         for d in ("youtube.com", "google.com", "github.com", "rutracker.org", "facebook.com", "twitch.tv"):
-            self.assertIn(d, hosts, f"{d} must be in DEFAULT_BLOCKED_PASS_DOMAINS")
-            self.assertEqual(hosts[d], [1], f"{d} blocked strategy=1")
-        # all entries block strategy 1
-        for d, vals in hosts.items():
-            self.assertEqual(vals, [1], f"{d} -> [1]")
-        # global is empty (per-host, not global — original model)
-        self.assertEqual(doc["protocols"]["tls"]["global"], [])
-        self.assertGreaterEqual(len(hosts), 59)
+            self.assertIn(d, hosts_chain, f"{d} must be in DEFAULT_BLOCKED_PASS_DOMAINS")
+            self.assertEqual(hosts_chain[d], [PASS_LIKE_CHAIN], f"{d} blocks the pass-like chain")
+        # all entries block the same pass-like chain
+        for d, vals in hosts_chain.items():
+            self.assertEqual(vals, [PASS_LIKE_CHAIN], f"{d} -> [pass-like chain]")
+        # global is empty (per-host, not global — original model); numeric hosts
+        # is empty because the DBPD policy is now chain-based (numeric hosts is
+        # reserved for user/runtime blocks authored against runtime numbers).
+        self.assertEqual(tls["global"], [])
+        self.assertEqual(tls.get("hosts", {}), {})
+        self.assertGreaterEqual(len(hosts_chain), 59)
 
     def test_dev_blocked_seed_matches_shipped(self) -> None:
         self.assertEqual(BLOCKED_SEED.read_bytes(), DEV_BLOCKED.read_bytes())

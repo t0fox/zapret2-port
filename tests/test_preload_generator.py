@@ -98,10 +98,38 @@ def render_whitelist_table(seeds: dict) -> str:
     return "ORCHESTRA_WHITELIST = { " + ", ".join(entries) + " }"
 
 
-def render_blocked(seeds: dict) -> list[str]:
+def _resolve_chain_block_list(by_chain: dict, chain_ids: list, ctx: str) -> list[int]:
+    """Mirror of generate-preload.uc resolve_chain_block_list: resolve a list
+    of stable chain ids to sorted runtime strategy numbers via the active
+    profile's inverse map (stable_id -> number).  Chains absent from the
+    active profile are DROPPED — a block never transfers to a different chain
+    that happens to share the same runtime number."""
+    out: list[int] = []
+    seen: set[int] = set()
+    for sid in chain_ids:
+        if not isinstance(sid, str) or len(sid) == 0:
+            raise ValueError(f"{ctx}: chain id must be a non-empty string")
+        n = by_chain.get(sid)
+        if n is None:
+            continue  # absent from the active profile -> drop, do not transfer
+        if n not in seen:
+            seen.add(n)
+            out.append(n)
+    return sorted(out)
+
+
+def render_blocked(seeds: dict, by_chain: dict | None = None) -> list[str]:
+    """Mirror of generate-preload.uc render_blocked.  Numeric global/hosts hold
+    RUNTIME strategy numbers (emitted verbatim).  global_chain/hosts_chain (+
+    user_*_chain) hold STABLE chain ids, resolved to runtime numbers via
+    ``by_chain`` (the active profile's inverse map); absent chains are dropped.
+    With ``by_chain=None`` (native profile / golden fixture) chain-based blocks
+    are unresolvable and omitted — matching the ucode generator."""
     lines: list[str] = []
+    bc = by_chain or {}
     for askey in sorted_keys(seeds["blocked"].get("protocols", {})):
         bp = seeds["blocked"]["protocols"][askey] or {}
+        # numeric runtime-number blocks
         global_vals = sorted_unique_strategies(bp.get("global", []), f"blocked.{askey}.global")
         if global_vals:
             lines.append(f"slm_preload_blocked({lua_quote(askey)}, \"*\", {lua_int_list(global_vals)})")
@@ -109,6 +137,21 @@ def render_blocked(seeds: dict) -> list[str]:
             vals = sorted_unique_strategies(bp["hosts"][host], f"blocked.{askey}.{host}")
             if vals:
                 lines.append(f"slm_preload_blocked({lua_quote(askey)}, {lua_quote(host)}, {lua_int_list(vals)})")
+        # stable chain-id blocks (r7): resolved against the active profile, dropped if absent
+        for gkey, glabel in (("global_chain", "global_chain"), ("user_global_chain", "user_global_chain")):
+            gchain = bp.get(gkey) or []
+            if isinstance(gchain, list) and gchain:
+                gvals = _resolve_chain_block_list(bc, gchain, f"blocked.{askey}.{glabel}")
+                if gvals:
+                    lines.append(f"slm_preload_blocked({lua_quote(askey)}, \"*\", {lua_int_list(gvals)})")
+        for hkey, hlabel in (("hosts_chain", "hosts_chain"), ("user_hosts_chain", "user_hosts_chain")):
+            for host in sorted_keys(bp.get(hkey, {})):
+                ids = bp[hkey][host]
+                if not isinstance(ids, list):
+                    raise ValueError(f"blocked.{askey}.{hlabel}.{host} must be an array of chain ids")
+                hvals = _resolve_chain_block_list(bc, ids, f"blocked.{askey}.{hlabel}.{host}")
+                if hvals:
+                    lines.append(f"slm_preload_blocked({lua_quote(askey)}, {lua_quote(host)}, {lua_int_list(hvals)})")
     return lines
 
 
@@ -151,6 +194,31 @@ def render_manual_locks(seeds: dict) -> list[str]:
     return lines
 
 
+def _oracle_chain_map(seeds: dict) -> tuple[dict[int, str], dict[str, int], str]:
+    """Read the chain map the caller wired into seeds (self-contained oracle:
+    does not read the sidecar from disk).  Returns (by_strategy, by_chain,
+    askey).  by_chain is the inverse of by_strategy — the map generate-preload
+    uses to resolve stable chain ids in hosts_chain/global_chain to runtime
+    strategy numbers."""
+    askey = "tls"
+    by_strategy: dict[int, str] = {}
+    cm = seeds.get("_chain_id_for_strategy") if isinstance(seeds, dict) else None
+    if isinstance(cm, dict):
+        by_strategy = {int(k): str(v) for k, v in cm.items()}
+        a = seeds.get("_chain_askey")
+        if isinstance(a, str):
+            askey = a
+    # honor an explicit inverse if the caller supplied one (matches the sidecar
+    # strategy_for_chain_id); otherwise invert by_strategy.
+    by_chain: dict[str, int] = {}
+    explicit = seeds.get("_strategy_for_chain_id") if isinstance(seeds, dict) else None
+    if isinstance(explicit, dict):
+        by_chain = {str(k): int(v) for k, v in explicit.items()}
+    else:
+        by_chain = {sid: n for n, sid in by_strategy.items()}
+    return by_strategy, by_chain, askey
+
+
 def render_chain_map_and_generation(
     seeds: dict, state_dir: str = DEFAULT_STATE_DIR, profile: str | None = None, generation: int = 0
 ) -> list[str]:
@@ -161,22 +229,8 @@ def render_chain_map_and_generation(
     # native profile), emit an empty chain map and generation 0 so the runtime
     # always sees a table and a number.
     if profile is None:
-        # The oracle does not read manager-state.json from disk by default; the
-        # ucode generator does.  Callers that want a non-default generation pass
-        # it explicitly.  For the golden fixture there is no manager-state, so
-        # generation stays 0 — matching the ucode read_manager_state() default.
         generation = 0
-    askey = "tls"
-    # The oracle does not read the sidecar by default; when a profile is given,
-    # a caller may pass a chain map via seeds["_chain_id_for_strategy"].  This
-    # keeps the oracle self-contained for the existing fixtures.
-    by_strategy: dict[int, str] = {}
-    cm = seeds.get("_chain_id_for_strategy") if isinstance(seeds, dict) else None
-    if isinstance(cm, dict):
-        by_strategy = {int(k): str(v) for k, v in cm.items()}
-        a = seeds.get("_chain_askey")
-        if isinstance(a, str):
-            askey = a
+    by_strategy, _by_chain, askey = _oracle_chain_map(seeds)
     if not by_strategy:
         return ["ORCHESTRA_CHAIN_ID_FOR_STRATEGY = {}", f"ORCHESTRA_PRELOAD_GENERATION = {int(generation)}"]
     nums = sorted(by_strategy)
@@ -188,12 +242,16 @@ def render_chain_map_and_generation(
 
 
 def render_preload(seeds: dict, state_dir: str = DEFAULT_STATE_DIR) -> str:
+    # Read the chain map once (mirrors generate-preload.uc render_preload) so
+    # the same inverse map drives both the stable block resolution in
+    # render_blocked and the ORCHESTRA_CHAIN_ID_FOR_STRATEGY table.
+    _by_strategy, by_chain, _askey = _oracle_chain_map(seeds)
     lines = [
         "-- Auto-generated by zapret2-orchestra preload generator. Do not edit.",
         f"-- Source: {state_dir}/*.json",
         render_whitelist_table(seeds),
     ]
-    lines.extend(render_blocked(seeds))
+    lines.extend(render_blocked(seeds, by_chain))
     lines.extend(render_learned(seeds))
     lines.extend(render_manual_locks(seeds))
     lines.extend(render_chain_map_and_generation(seeds, state_dir))
