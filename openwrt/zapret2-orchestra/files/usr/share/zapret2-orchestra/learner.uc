@@ -364,11 +364,14 @@ function strategy_history(rec, strategy) {
 	return rec.strategies[skey];
 }
 
-// sha256 of a string for cursor validation.  ucode-mod-fs does not expose a
-// sha256 helper directly, but the uloop/digest module is not always present;
-// use a lightweight 31-bit rolling hash (same family as the preload manifest)
-// for the cursor last-line fingerprint.  This is NOT a security primitive —
-// it only detects truncation/rotation between poll cycles.
+// Cursor last-line fingerprint.  The contract field is named
+// `last_line_sha256`, but ucode-mod-fs does not expose a SHA-256 helper
+// portably (the digest module is not always present), so we store a
+// lightweight 31-bit rolling hash (same family as the preload manifest hash)
+// in that field.  This is NOT a security primitive — it only detects
+// truncation/rotation between poll cycles (the bytes offset + dedup keys
+// carry the correctness guarantees).  The field name is kept for contract
+// compatibility; the value is an 8-hex-char rolling hash.
 function hash31(data) {
 	let h = 5381;
 	for (let i = 0; i < length(data); i++)
