@@ -796,7 +796,7 @@ jobs:
           echo "=== B6: zapret2 release = r3 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
           Z2_NAME="${{ steps.locate-apk.outputs.z2_apk_name }}"
           audit "zapret2 apk name: $Z2_NAME"
-          echo "$Z2_NAME" | grep -Eq 'zapret2_[^_]+-3_' || fail "zapret2 APK release != 3 (name: $Z2_NAME)"
+          echo "$Z2_NAME" | grep -Eq 'zapret2-.*-r3\.apk$' || fail "zapret2 APK release != 3 (name: $Z2_NAME)"
           grep -Eq '^PKG_RELEASE:=3$' "$GITHUB_WORKSPACE/openwrt/zapret2/Makefile" \
             || fail "zapret2 Makefile PKG_RELEASE != 3"
           audit "OK: zapret2 release = r3"
@@ -873,7 +873,7 @@ jobs:
           echo "=== B7: orchestra release = r5 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
           ORCH_NAME="${{ steps.locate-apk.outputs.orch_apk_name }}"
           audit "orchestra apk name: $ORCH_NAME"
-          echo "$ORCH_NAME" | grep -Eq 'zapret2-orchestra_[^_]+-5_' \
+          echo "$ORCH_NAME" | grep -Eq 'zapret2-orchestra-.*-r5\.apk$' \
             || fail "orchestra APK release != 5 (name: $ORCH_NAME)"
           grep -Eq '^PKG_RELEASE:=5$' "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile" \
             || fail "orchestra Makefile PKG_RELEASE != 5"
