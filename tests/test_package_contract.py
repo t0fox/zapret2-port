@@ -846,6 +846,23 @@ class ApkFormatContractTest(unittest.TestCase):
         self.assertIn("/lib/apk/packages/$p.list", text)
         self.assertIn("/lib/apk/packages/$p.conffiles", text)
 
+    def test_workflow_stage3_orchestra_release_regex_is_r7(self) -> None:
+        # r7 reconciliation: the Stage 3 release regex and Makefile grep must
+        # expect orchestra r7 (APK name zapret2-orchestra-.*-r7\.apk), and
+        # zapret2 stays r3. The r6 regex must be gone. (The YAML escapes the
+        # dots in the grep -E regexes, so the literal text carries '\.'; the
+        # patterns below match that literal backslash-dot.)
+        wf = ROOT / ".github" / "workflows" / "build-apk.yml"
+        text = wf.read_text(encoding="utf-8")
+        self.assertRegex(text, r"zapret2-orchestra-\.\*-r7\\.apk",
+                         "Stage 3 must expect the r7 orchestra APK name regex")
+        self.assertRegex(text, r"\^PKG_RELEASE:=7\$",
+                         "Stage 3 must grep orchestra Makefile for PKG_RELEASE:=7")
+        self.assertRegex(text, r"zapret2-\.\*-r3\\.apk",
+                         "Stage 3 must still expect zapret2 r3")
+        self.assertNotRegex(text, r"zapret2-orchestra-\.\*-r6\\.apk",
+                            "Stage 3 must not still expect the r6 orchestra regex")
+
 
 if __name__ == "__main__":
     unittest.main()

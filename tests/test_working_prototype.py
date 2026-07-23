@@ -241,10 +241,24 @@ class ProfileCleanlinessTest(unittest.TestCase):
                                   f"{name}: forbidden pattern {pat} in profile")
 
     def test_every_profile_references_circular_quality(self) -> None:
-        # The existing validator (apply.uc validate_profile) requires this.
+        # The existing validator (apply.uc validate_profile) requires this for
+        # CIRCULAR profiles. The r7 native profile (discord-v5) is a static
+        # nfqws2 chain with NO circular_quality and is allowed by the relaxed
+        # validator (contracts §6 / spec §4) — exclude it here.
         for name, val in self._values():
+            if name.startswith("discord-v5"):
+                continue
             self.assertIn("circular_quality", val,
                           f"{name}: must reference circular_quality (validator requirement)")
+
+    def test_native_discord_v5_does_not_reference_circular_quality(self) -> None:
+        # The static native discord-v5 profile is NOT circular.
+        v5 = PROFILES_DIR / "discord-v5.opt"
+        if not v5.is_file():
+            self.skipTest("discord-v5.opt not present (post-integration)")
+        val = P.extract(v5.read_text("utf-8")).value
+        self.assertNotIn("circular_quality", val,
+                         "discord-v5.opt must NOT reference circular_quality (static native)")
 
     def test_every_profile_passes_profile_value_ok(self) -> None:
         # Mirror apply.uc profile_value_ok: reject NUL/CR/$()/`/;/|/&& and
@@ -331,7 +345,10 @@ class ProfileContractTest(unittest.TestCase):
     def test_opt_zapret2_file_assets_exist_in_package_source(self) -> None:
         # Test 6: any /opt/zapret2/files/.../X.bin or /opt/zapret2/lua/X.lua
         # reference must point at a file present in the pinned source tree
-        # (which is what the package installs from PKG_BUILD_DIR).
+        # (which is what the package installs from PKG_BUILD_DIR), OR — for the
+        # r7 native profile's init_vars.lua — at a package-shipped asset under
+        # files/opt/zapret2/lua/ (NEW in r7, not in the pinned upstream core).
+        PKG_LUA_ROOT = PACKAGE / "files/opt/zapret2/lua"
         for p in _opt_files():
             val = P.extract(p.read_text("utf-8")).value
             for m in re.finditer(r"/opt/zapret2/files/fake/([^\s\"']+)", val):
@@ -339,14 +356,16 @@ class ProfileContractTest(unittest.TestCase):
                                 f"{p.name}: missing fake asset {m.group(1)}")
             for m in re.finditer(r"/opt/zapret2/lua/([^\s\"']+\.lua)", val):
                 # Either pinned core lua (at /opt/zapret2/lua/<f>) or the
-                # Orchestra extension (at /opt/zapret2/lua/orchestra-extra/<f>).
-                # An "orchestra-extra/<f>" reference resolves under ORCH_LUA
-                # with the dir prefix stripped.
+                # Orchestra extension (at /opt/zapret2/lua/orchestra-extra/<f>),
+                # or an r7 package-shipped lua (e.g. init_vars.lua) under the
+                # package files tree. An "orchestra-extra/<f>" reference
+                # resolves under ORCH_LUA with the dir prefix stripped.
                 rel = m.group(1)
                 orch_rel = rel.removeprefix("orchestra-extra/")
                 self.assertTrue(
                     (UPSTREAM / "lua" / rel).is_file()
-                    or (ORCH_LUA / orch_rel).is_file(),
+                    or (ORCH_LUA / orch_rel).is_file()
+                    or (PKG_LUA_ROOT / rel).is_file(),
                     f"{p.name}: missing lua asset {rel}",
                 )
 
@@ -394,10 +413,11 @@ class MakefileInstallTest(unittest.TestCase):
         )
 
     def test_release_number_is_seven(self) -> None:
-        # zapret2-orchestra PKG_RELEASE is bumped to 7 for r7 (closed-loop
-        # learner daemon + enable/disable lifecycle + blocked.json seed).
-        # r6 was the shipped-CLI argv-sentinel fix; r3/r5 was the executable
-        # profile set + blockcheck batch CLI release.
+        # zapret2-orchestra PKG_RELEASE is bumped to 7 for r7 (the full closed-
+        # loop Orchestra: importer + catalog, runtime learner daemon + enable/
+        # disable lifecycle + blocked.json seed, discord-adaptive/v5 profiles +
+        # init_vars + ipset-discord + learner service). r6 was the shipped-CLI
+        # argv-sentinel fix; r3/r5 was the executable profile set + blockcheck CLI.
         self.assertRegex(self.body, r"(?m)^PKG_RELEASE:=7$")
 
     def test_new_opt_picked_up_by_existing_wildcard(self) -> None:

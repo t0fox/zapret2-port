@@ -968,7 +968,13 @@ jobs:
           [ -n "$ORCH_PROFILES" ] || fail "orchestra profiles dir missing from APK"
           OPT_COUNT=$(find "$ORCH_PROFILES" -maxdepth 1 -name '*.opt' -type f | wc -l | tr -d ' ')
           audit "orchestra ready .opt count: $OPT_COUNT"
-          [ "$OPT_COUNT" = "6" ] || fail "expected exactly 6 ready .opt, got $OPT_COUNT"
+          # r7: 8 ready .opt (6 r6 circular + discord-adaptive + discord-v5).
+          [ "$OPT_COUNT" = "8" ] || fail "expected exactly 8 ready .opt (r7), got $OPT_COUNT"
+          # The two new r7 profiles must be present.
+          for p in discord-adaptive discord-v5; do
+            [ -f "$ORCH_PROFILES/$p.opt" ] || fail "$p.opt missing from orchestra APK"
+            audit "OK: $p.opt present"
+          done
           # gui-quic-fake must NOT be a ready/install profile.
           if find "$ORCH_PROFILES" -maxdepth 1 -name 'gui-quic-fake.opt' -type f | grep -q .; then
             fail "gui-quic-fake.opt is present as a ready profile"
@@ -1013,18 +1019,37 @@ jobs:
           [ "$LUA_COUNT" -ge 6 ] || fail "expected >=6 orchestra-extra lua files, got $LUA_COUNT"
           [ -f "$ORCH_LUA_DIR_EXT/init.lua" ] || fail "orchestra-extra/init.lua missing from APK"
 
-          echo "=== B7: each packaged ready profile has the Orchestra --lua-init ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          echo "=== B7: each packaged CIRCULAR ready profile has the Orchestra --lua-init ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
           LUA_INIT='--lua-init=@/opt/zapret2/lua/orchestra-extra/init.lua'
+          # r7: the circular_quality + orchestra-extra --lua-init contract applies
+          # to CIRCULAR profiles only. The native discord-v5.opt is a static
+          # nfqws2 chain (no circular_quality, --lua-init=init_vars.lua) and is
+          # allowed by the r7-relaxed validator — exclude it from this loop.
           for o in "$ORCH_PROFILES"/*.opt; do
+            base="$(basename "$o")"
+            if [ "$base" = "discord-v5.opt" ]; then
+              audit "$base: native profile — circular_quality not required"
+              continue
+            fi
             n=$(grep -F -c -- "$LUA_INIT" "$o" || true)
-            audit "$(basename "$o"): --lua-init count=$n"
-            [ "$n" = "1" ] || fail "$(basename "$o"): expected exactly one --lua-init line, got $n"
+            audit "$base: --lua-init count=$n"
+            [ "$n" = "1" ] || fail "$base: expected exactly one --lua-init line, got $n"
             # --lua-init must appear before the first circular_quality selector.
             init_ln=$(grep -nF -- "$LUA_INIT" "$o" | head -1 | cut -d: -f1)
             cq_ln=$(grep -nF -- '--lua-desync=circular_quality' "$o" | head -1 | cut -d: -f1)
             [ -n "$init_ln" ] && [ -n "$cq_ln" ] && [ "$init_ln" -lt "$cq_ln" ] \
-              || fail "$(basename "$o"): --lua-init must precede first circular_quality"
+              || fail "$base: --lua-init must precede first circular_quality"
           done
+          # The native discord-v5 profile must NOT reference circular_quality
+          # and must --lua-init=init_vars.lua (r7 contract).
+          V5_OPT="$ORCH_PROFILES/discord-v5.opt"
+          [ -f "$V5_OPT" ] || fail "discord-v5.opt missing from orchestra APK"
+          if grep -F -q -- 'circular_quality' "$V5_OPT"; then
+            fail "discord-v5.opt must NOT reference circular_quality (static native)"
+          fi
+          grep -F -q -- 'init_vars.lua' "$V5_OPT" \
+            || fail "discord-v5.opt must --lua-init=init_vars.lua"
+          audit "OK: discord-v5 is native (no circular_quality, init_vars.lua)"
           # Packaged MVP must contain strategy=1.
           MVP_OPT="$ORCH_PROFILES/orchestra-tls-mvp.opt"
           [ -f "$MVP_OPT" ] || fail "orchestra-tls-mvp.opt missing from APK"
@@ -1032,14 +1057,47 @@ jobs:
             || fail "packaged orchestra-tls-mvp.opt has no strategy=1"
           audit "OK: packaged MVP contains strategy=1"
 
-          echo "=== B7: orchestra release = r6 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          echo "=== B7: r7 new assets present in orchestra APK ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          # r7 ships: discord-adaptive.opt + sidecar, init_vars.lua,
+          # lists/ipset-discord.txt, the learner ucode + learner init.d.
+          for f in \
+            /usr/share/zapret2-orchestra/profiles/discord-adaptive.opt \
+            /usr/share/zapret2-orchestra/profiles/discord-adaptive.json \
+            /opt/zapret2/lua/init_vars.lua
+          do
+            grep -F -q "$f" "$ART_DIR/orchestra-files.txt" \
+              || fail "$f not found in orchestra APK"
+            audit "OK: $f"
+          done
+          # ipset-discord.txt ships under /etc/zapret2-orchestra/lists/.
+          if grep -F -q '/etc/zapret2-orchestra/lists/ipset-discord.txt' "$ART_DIR/orchestra-files.txt"; then
+            audit "OK: ipset-discord.txt present"
+          else
+            # Fall back to a looser match in case the path differs.
+            grep -F -q 'ipset-discord.txt' "$ART_DIR/orchestra-files.txt" \
+              || fail "ipset-discord.txt not found in orchestra APK"
+            audit "OK: ipset-discord.txt present (loose match)"
+          fi
+
+          echo "=== B7: r7 learner service present in orchestra APK ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          # B ships a learner (a ucode entry and/or an init.d service). At least
+          # one of these must be present so enable (contracts §5) can start it.
+          LEARNER_UC=$(grep -F -c '/usr/share/zapret2-orchestra/learner.uc' "$ART_DIR/orchestra-files.txt" || true)
+          LEARNER_INIT=$(grep -F -c '/etc/init.d/zapret2-orchestra-learner' "$ART_DIR/orchestra-files.txt" || true)
+          audit "learner.uc entries: $LEARNER_UC; learner init.d entries: $LEARNER_INIT"
+          if [ "$LEARNER_UC" -eq 0 ] && [ "$LEARNER_INIT" -eq 0 ]; then
+            fail "no learner service (learner.uc or init.d/zapret2-orchestra-learner) found in orchestra APK"
+          fi
+          audit "OK: learner service present"
+
+          echo "=== B7: orchestra release = r7 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
           ORCH_NAME="${{ steps.locate-apk.outputs.orch_apk_name }}"
           audit "orchestra apk name: $ORCH_NAME"
-          echo "$ORCH_NAME" | grep -Eq 'zapret2-orchestra-.*-r6\.apk$' \
-            || fail "orchestra APK release != 6 (name: $ORCH_NAME)"
-          grep -Eq '^PKG_RELEASE:=6$' "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile" \
-            || fail "orchestra Makefile PKG_RELEASE != 6"
-          audit "OK: orchestra release = r6"
+          echo "$ORCH_NAME" | grep -Eq 'zapret2-orchestra-.*-r7\.apk$' \
+            || fail "orchestra APK release != 7 (name: $ORCH_NAME)"
+          grep -Eq '^PKG_RELEASE:=7$' "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile" \
+            || fail "orchestra Makefile PKG_RELEASE != 7"
+          audit "OK: orchestra release = r7"
 
           echo "=== Stage 3 contract audit PASS ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
 
