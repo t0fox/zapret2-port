@@ -39,7 +39,7 @@ class PackageContractTest(unittest.TestCase):
         expected = {
             "PKG_NAME": "zapret2-orchestra",
             "PKG_VERSION": "0.1.0",
-            "PKG_RELEASE": "5",
+            "PKG_RELEASE": "6",
             "PKGARCH": "all",
         }
         for key, value in expected.items():

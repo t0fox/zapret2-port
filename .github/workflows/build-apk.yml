@@ -313,6 +313,46 @@ jobs:
           run_cmd "10 disable"                    ucode "$APPLY_UC" disable
           run_cmd "11 disable (idempotent)"       ucode "$APPLY_UC" disable
           run_cmd "12 boot-check"                 ucode "$APPLY_UC" boot-check
+          # === Shipped CLI sentinel gate ===
+          # The router blocker: the shipped wrapper `exec ucode "$UC" -- "$SUB"`
+          # inserts a `--` sentinel that the router's ucode passes through to
+          # apply.uc as ARGV[0], producing `unknown subcommand '--'`. The CI
+          # host ucode CONSUMES `--`, so the wrapper is green here regardless —
+          # which is exactly why the router regression escaped CI. This gate
+          # EXECUTES the real shipped wrappers (not apply.uc directly) so any
+          # future sentinel regression is visible, and explicitly forbids the
+          # `unknown subcommand` string in the shipped-CLI output.
+          export ZAPRET2_APPLY_UC="$APPLY_UC"
+          WRAP="$REPO_FILES/usr/sbin/zapret2-orchestra-apply"
+          PROF="$REPO_FILES/usr/sbin/zapret2-orchestra-profile"
+          export ZAPRET2_APPLY="$WRAP"
+          run_cmd "13 shipped-apply status"           sh "$WRAP" status
+          run_cmd "14 shipped-apply validate-config"  sh "$WRAP" validate-config
+          run_cmd "15 shipped-apply validate-profile" sh "$WRAP" validate-profile orchestra-tls-mvp
+          run_cmd "16 shipped-apply lock-test"        sh "$WRAP" lock-test
+          run_cmd "17 shipped-profile status"         sh "$PROF" status
+          run_cmd "18 shipped-profile validate mvp"   sh "$PROF" validate orchestra-tls-mvp
+          # rollback --force --gen 1 must reach cmd_rollback with the flags
+          # preserved. In the clean sandbox there is no backup generation 1, so
+          # cmd_rollback fails with "backup generation 1 not found" — which
+          # PROVES --gen 1 was parsed (target_gen=1) and that no sentinel leak
+          # occurred. rc!=0 is expected; the gates are the absence of
+          # 'unknown subcommand' AND the presence of 'generation 1'.
+          set +e
+          RB_OUT=$(sh "$WRAP" rollback --force --gen 1 2>&1); RB_RC=$?
+          set -e
+          echo "--- 19 shipped-apply rollback --force --gen 1 ---" | tee -a "$SBX_LOG"
+          printf '%s\n' "$RB_OUT" | tee -a "$SBX_LOG"
+          echo "rc=$RB_RC" | tee -a "$SBX_LOG"
+          printf '%s\n' "$RB_OUT" | grep -q 'generation 1' \
+            || { echo "FAIL: rollback --gen 1 was not parsed (no 'generation 1' in output)" | tee -a "$SBX_LOG"; OVERALL=1; }
+          # Sentinel-leak check across the whole sandbox log: the string
+          # 'unknown subcommand' must NEVER appear in any shipped-CLI run.
+          if grep -q 'unknown subcommand' "$SBX_LOG"; then
+            echo "FAIL: shipped CLI emitted 'unknown subcommand' (sentinel leak)" | tee -a "$SBX_LOG"
+            grep -n 'unknown subcommand' "$SBX_LOG" | tee -a "$SBX_LOG"
+            OVERALL=1
+          fi
           echo "=== sandbox overall rc=$OVERALL ===" | tee -a "$SBX_LOG"
           if [ "$OVERALL" -ne 0 ]; then
             echo "FAIL: one or more sandbox steps failed (see $SBX_LOG)" | tee -a "$SBX_LOG"
@@ -350,6 +390,35 @@ jobs:
           set -eu
           sudo apt-get update
           sudo apt-get install -y zstd binutils file
+
+      - name: Build and install host ucode (pinned commit, for runtime artifact gate)
+        run: |
+          set -eu
+          sudo apt-get install -y cmake libjson-c-dev
+          git init /tmp/ucode-src
+          cd /tmp/ucode-src
+          git remote add origin https://github.com/jow-/ucode.git
+          git fetch --depth 1 origin "$UCODE_PIN"
+          git checkout FETCH_HEAD
+          echo "checked out: $(git rev-parse HEAD)"
+          cmake \
+            -DUBUS_SUPPORT=OFF \
+            -DUCI_SUPPORT=OFF \
+            -DULOOP_SUPPORT=OFF \
+            -DNL80211_SUPPORT=OFF \
+            -DRESOLV_SUPPORT=OFF \
+            -DRTNL_SUPPORT=OFF \
+            -DSTRUCT_SUPPORT=OFF \
+            -DFS_SUPPORT=ON \
+            -DMATH_SUPPORT=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            .
+          make -j"$(nproc)"
+          sudo make install
+          sudo ldconfig
+          echo "ucode: $(command -v ucode)"
+          printf 'import { stat } from "fs";\nprint("fs_ok");\n' | ucode - 2>&1 | grep -q fs_ok \
+            || { echo "FAIL: ucode fs import smoke test"; exit 1; }
 
       - name: Restore SDK archive cache
         id: sdk-archive-cache
@@ -683,6 +752,91 @@ jobs:
 
           echo "=== All contract checks complete ==="
 
+      - name: Runtime artifact gate — extracted shipped wrapper + apply.uc
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -eu
+          # Prove the PACKED pair works together: execute the wrapper and the
+          # apply.uc EXTRACTED FROM THE BUILT ORCHESTRA APK (not the repo tree),
+          # so a packaging mistake (wrong path/mode/content) is caught here, not
+          # on the router. This is a runtime gate, not a grep over file strings.
+          export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH:-}"
+          EXTRACT=/tmp/apk-orch
+          WRAP="$EXTRACT/usr/sbin/zapret2-orchestra-apply"
+          EXTRACT_UC="$EXTRACT/usr/share/zapret2-orchestra/apply.uc"
+          EXTRACT_PROFILES="$EXTRACT/usr/share/zapret2-orchestra/profiles"
+          EXTRACT_LUA="$EXTRACT/opt/zapret2/lua/orchestra-extra"
+          echo "extracted wrapper: $WRAP"
+          echo "extracted apply.uc: $EXTRACT_UC"
+          test -x "$WRAP" || { echo "FAIL: extracted wrapper not executable (mode != 0755)"; ls -l "$WRAP"; exit 1; }
+          test -f "$EXTRACT_UC" || { echo "FAIL: extracted apply.uc missing"; exit 1; }
+          ls -l "$WRAP" | tee /dev/stderr | grep -Eq '^-rwxr-xr-x' \
+            || { echo "FAIL: extracted wrapper mode is not 0755"; exit 1; }
+
+          SBX="$(mktemp -d /tmp/orch-art-gate-XXXXXX)"
+          trap 'rm -rf "$SBX"' EXIT
+          mkdir -p "$SBX/orch" "$SBX/runtime" "$SBX/orch/backup" "$SBX/profiles"
+          printf 'NFQWS2_OPT="--lua-desync --lua-init=circular_quality --filter-tls=1"\n' > "$SBX/config"
+          cp "$EXTRACT/etc/zapret2-orchestra/"*.json "$SBX/orch/" 2>/dev/null || true
+          # CI preload wrapper pointing at the extracted generate-preload.uc.
+          GEN_UC="$EXTRACT/usr/share/zapret2-orchestra/generate-preload.uc"
+          cat > "$SBX/preload-wrapper.sh" <<WRAPPER
+          #!/bin/sh
+          exec ucode "$GEN_UC" "\$@"
+          WRAPPER
+          chmod +x "$SBX/preload-wrapper.sh"
+
+          export ZAPRET2_APPLY_UC="$EXTRACT_UC"
+          export ZAPRET2_APPLY="$WRAP"
+          export ZAPRET2_CONFIG="$SBX/config"
+          export ZAPRET2_ORCHESTRA_DIR="$SBX/orch"
+          export ZAPRET2_RUNTIME_DIR="$SBX/runtime"
+          export ZAPRET2_STATE_FILE="$SBX/orch/manager-state.json"
+          export ZAPRET2_LOCK_DIR="$SBX/lock"
+          export ZAPRET2_CANDIDATE_FILE="$SBX/candidate.tmp"
+          export ZAPRET2_BACKUP_DIR="$SBX/orch/backup"
+          export ZAPRET2_USER_PROFILES_DIR="$SBX/profiles"
+          export ZAPRET2_BUILTIN_PROFILES_DIR="$EXTRACT_PROFILES"
+          export ZAPRET2_ORCHESTRA_LUA="$EXTRACT_LUA"
+          export ZAPRET2_PRELOAD_WRAPPER="$SBX/preload-wrapper.sh"
+          export ZAPRET2_VALIDATE_OUT="$SBX/runtime/validate-config.cfg"
+          export ORCHESTRA_STATE_DIR="$SBX/orch"
+          export ORCHESTRA_RUNTIME_DIR="$SBX/runtime"
+          export ORCHESTRA_PRELOAD_FILE="$SBX/runtime/preload.lua"
+          export ORCHESTRA_WHITELIST_FILE="$SBX/runtime/whitelist.txt"
+          export ORCHESTRA_MANIFEST_FILE="$SBX/runtime/manifest.json"
+          ARTLOG="$GITHUB_WORKSPACE/artifacts/artifact-gate.log"
+          : > "$ARTLOG"
+          fail=0
+          gate() {
+            local desc="$1"; shift
+            echo "--- $desc ---" | tee -a "$ARTLOG"
+            set +e
+            out=$("$@" 2>&1); rc=$?
+            set -e
+            printf '%s\n' "$out" | tee -a "$ARTLOG"
+            echo "rc=$rc" | tee -a "$ARTLOG"
+            [ "$rc" -eq 0 ] || { echo "FAIL: $desc rc=$rc" | tee -a "$ARTLOG"; fail=1; }
+            printf '%s\n' "$out" | grep -q 'unknown subcommand' \
+              && { echo "FAIL: $desc leaked 'unknown subcommand'" | tee -a "$ARTLOG"; fail=1; }
+          }
+          gate "extracted-wrapper status"            sh "$WRAP" status
+          gate "extracted-wrapper validate-config"   sh "$WRAP" validate-config
+          gate "extracted-wrapper validate-profile"  sh "$WRAP" validate-profile orchestra-tls-mvp
+          gate "extracted-wrapper lock-test"         sh "$WRAP" lock-test
+          gate "extracted-profile status"            sh "$EXTRACT/usr/sbin/zapret2-orchestra-profile" status
+          gate "extracted-profile validate mvp"      sh "$EXTRACT/usr/sbin/zapret2-orchestra-profile" validate orchestra-tls-mvp
+          # All six ready profiles must validate through the extracted frontend.
+          for p in orchestra-tls-mvp gui-tls-multisplit gui-tls-multidisorder \
+                   gui-tls-hostfakesplit gui-tls-syndata gui-circular; do
+            gate "extracted-profile validate $p"     sh "$EXTRACT/usr/sbin/zapret2-orchestra-profile" validate "$p"
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "FAIL: runtime artifact gate failed (see $ARTLOG)"
+            exit 1
+          fi
+          echo "=== runtime artifact gate PASS (packed wrapper+apply.uc work together) ===" | tee -a "$ARTLOG"
+
       - name: Stage 2 APK audit
         working-directory: ${{ env.SDK_DIR }}
         run: |
@@ -870,14 +1024,14 @@ jobs:
             || fail "packaged orchestra-tls-mvp.opt has no strategy=1"
           audit "OK: packaged MVP contains strategy=1"
 
-          echo "=== B7: orchestra release = r5 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
+          echo "=== B7: orchestra release = r6 ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
           ORCH_NAME="${{ steps.locate-apk.outputs.orch_apk_name }}"
           audit "orchestra apk name: $ORCH_NAME"
-          echo "$ORCH_NAME" | grep -Eq 'zapret2-orchestra-.*-r5\.apk$' \
-            || fail "orchestra APK release != 5 (name: $ORCH_NAME)"
-          grep -Eq '^PKG_RELEASE:=5$' "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile" \
-            || fail "orchestra Makefile PKG_RELEASE != 5"
-          audit "OK: orchestra release = r5"
+          echo "$ORCH_NAME" | grep -Eq 'zapret2-orchestra-.*-r6\.apk$' \
+            || fail "orchestra APK release != 6 (name: $ORCH_NAME)"
+          grep -Eq '^PKG_RELEASE:=6$' "$GITHUB_WORKSPACE/openwrt/zapret2-orchestra/Makefile" \
+            || fail "orchestra Makefile PKG_RELEASE != 6"
+          audit "OK: orchestra release = r6"
 
           echo "=== Stage 3 contract audit PASS ===" | tee -a "$ART_DIR/stage3-contract-audit.txt"
 

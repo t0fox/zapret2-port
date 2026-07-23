@@ -1295,9 +1295,21 @@ function cmd_boot_check() {
 // Dispatch
 // ---------------------------------------------------------------------------
 
-let sub = length(ARGV) > 0 ? ARGV[0] : '';
+// Some ucode builds pass the wrapper's "--" getopt sentinel through to the
+// script as ARGV[0] instead of consuming it themselves (observed on the
+// router's ucode-2026.01.16~85922056; the host build used in CI consumes it).
+// Accept an optional leading "--" so the shipped wrapper
+//   exec ucode "$UC" -- "$SUB" "$@"
+// works under both behaviors. Direct invocation (no sentinel) is unchanged:
+// offset stays 0. Subcommand arguments like rollback's --force/--gen are
+// preserved unchanged in ARGV regardless of the sentinel.
+let offset = 0;
+if (length(ARGV) > 0 && ARGV[0] == '--')
+	offset = 1;
+
+let sub = length(ARGV) > offset ? ARGV[offset] : '';
 let rest = [];
-for (let i = 1; i < length(ARGV); i++)
+for (let i = offset + 1; i < length(ARGV); i++)
 	push(rest, ARGV[i]);
 ARGV = rest;
 
