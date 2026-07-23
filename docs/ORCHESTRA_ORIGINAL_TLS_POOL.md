@@ -162,9 +162,9 @@ lines that share the same N (multiple `--lua-desync` on the same logical line sh
 
 | Class | Count | Strategies | Meaning |
 |---|---|---|---|
-| **circular-compatible** | 25 | 2, 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 | No `send` (the only proven voluntary-cutoff tripper for later steps). All steps are reachable inside `plan_instance_execute`. Candidates for the adaptive circular pool. |
-| **static-only** | 4 | 1, 4, 6, 7 | Contain `send` BEFORE later steps (`syndata`/`hostfakesplit_multi`/`tls_multisplit_sni`/`multisplit`/`pktmod`). `send` sets a voluntary cutoff (proven on router: `send_1_5` → `syndata_1_6/1_7` "not calling because of voluntary cutoff"). Later steps are UNREACHABLE inside circular → only the first step (`send`) executes. Work as STATIC (direct, no circular) but NOT as circular pool candidates. |
-| **incompatible** | 0 | (none) | All required functions exist: `send`/`syndata`/`multisplit`/`multidisorder`/`fake`/`pktmod` = core; `hostfakesplit_multi`/`tls_multisplit_sni` = `custom_funcs.lua` (shipped). |
+| **circular-compatible** | 24 | 3, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29 | No `send` (the only proven voluntary-cutoff tripper for later steps). All steps are reachable inside `plan_instance_execute`. Candidates for the adaptive circular pool. |
+| **static-only** | 3 | 4, 6, 7 | Contain `send` BEFORE later steps (`syndata`/`tls_multisplit_sni`/`multisplit`/`pktmod`). `send` sets a voluntary cutoff (proven on router). Later steps UNREACHABLE inside circular. Work as STATIC but NOT circular pool candidates. |
+| **incompatible** | 2 | 1, 2 | Use `hostfakesplit_multi`, which is defined in `zapret-multishake.lua:339` (NOT in `custom_funcs.lua` as the doc §3 initially claimed — verified by the importer: the shipped `custom_funcs.lua` is byte-identical to the pinned repo's and contains no `hostfakesplit_multi`). The port does NOT ship `zapret-multishake.lua`. Strategy 1 (`send`+`syndata`+`hostfakesplit_multi`) was "static-only" in the initial doc; strategy 2 (`hostfakesplit_multi` only) was "circular-compatible"; both reclassified `incompatible` (unavailable function takes precedence). To include them, ship `zapret-multishake.lua` verbatim from the pinned repo with provenance. |
 
 ### Blob-shipping gaps (blockers for verbatim original pool)
 
