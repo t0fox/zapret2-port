@@ -209,7 +209,6 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
 
 
 def hash31(data: str) -> str:
-    """djb2 variant rolling hash, 8 hex chars. Mirrors learner.uc hash31()."""
     h = 5381
     for c in data:
         h = ((h * 33) + ord(c)) & 0x7FFFFFFF

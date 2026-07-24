@@ -68,11 +68,6 @@ const LOCK_SUCCESSES_TCP = 3;
 const LOCK_SUCCESSES_UDP = 1;
 const UNLOCK_FAILS = 3;
 
-// Cap on the persisted recent_keys dedup set.  The durable cursor is the
-// primary re-read guard; recent_keys is a secondary safety net for appended
-// duplicates / rotation resets, so an occasional reset past this size is safe.
-const DEDUP_WINDOW = 512;
-
 const SCHEMA_VERSION = 1;
 
 function fail(msg) { die('zapret2-orchestra-learner: ' + msg); }
@@ -251,15 +246,7 @@ function default_learned()   { return { schema_version: 1, protocols: {} }; }
 function default_blocked()   { return { schema_version: 1, protocols: {} }; }
 function default_manual()    { return { schema_version: 1, protocols: {} }; }
 function default_learner_state() {
-	// recent_keys: a bounded, durable dedup set of recent event_dedup_key()
-	// values.  The durable cursor prevents re-reading already-consumed bytes,
-	// but it cannot guard against an appended DUPLICATE event (same run_id/
-	// type/host/strategy/ts) landing past the cursor — e.g. a replayed event
-	// stream or a rotation-reset re-read.  Persisting the dedup keys across
-	// process-once passes makes such replays idempotent (contract §3
-	// "replaying duplicate events must not change state").  Bounded by
-	// DEDUP_WINDOW at save time so learner-state.json stays small.
-	return { schema_version: 1, event_cursor: { bytes: 0, lines: 0, last_line_sha256: '' }, recent_keys: {}, last_preload_gen: 0, last_run_id: '', updated_at: 0 };
+	return { schema_version: 1, event_cursor: { bytes: 0, lines: 0, last_line_sha256: '' }, last_preload_gen: 0, last_run_id: '', updated_at: 0 };
 }
 
 // ---------------------------------------------------------------------------
@@ -483,12 +470,21 @@ function process_event(learned, blocked, manual, ev, seen_keys) {
 		else {
 			// Auto-UNLOCK check on FAIL: after UNLOCK_FAILS (3) cumulative
 			// failures on the AUTO-locked strategy, remove auto_lock so
-			// rotation resumes (contract §3). Guards: only when auto-locked,
-			// only on the locked strategy, never on user-locked. Use delete
-			// (not = null) so the key is truly absent in serialized JSON.
+			// rotation resumes (contract §3).  Guards:
+			//   * only when auto-locked (rec.auto_lock != null)
+			//   * only when the FAIL is on the locked strategy itself
+			//     (rec.auto_lock == strategy) — failures on a different
+			//     strategy do not unlock the locked one
+			//   * NEVER auto-unlock a user-locked host (user locks are
+			//     protected; they live in manual-locks.json)
+			//   * a blocked strategy is never auto-locked in the first place,
+			//     so blocked_now is not re-checked here
+			// Use `delete` (not `= null`) so the key is truly absent in the
+			// serialized JSON — ucode %J retains null-valued keys, which would
+			// fail an assertNotIn on auto_lock after unlock.
 			if (rec.auto_lock != null && rec.auto_lock == strategy) {
-				let ul = is_user_locked(manual, askey, host);
-				if (!ul && h.failures >= UNLOCK_FAILS) {
+				let user_locked = is_user_locked(manual, askey, host);
+				if (!user_locked && h.failures >= UNLOCK_FAILS) {
 					delete rec.auto_lock;
 					result.changed_lock = true;
 				}
@@ -504,10 +500,11 @@ function process_event(learned, blocked, manual, ev, seen_keys) {
 		let blocked_now = is_blocked(blocked, askey, host, strategy);
 		if (blocked_now) {
 			// Blocked wins: drop any auto_lock for this host (match
-			// orchestrator.lua slm_reset on locked==blocked conflict).
+			// orchestrator.lua slm_reset on locked==blocked conflict).  Use
+			// `delete` so the key is truly absent (ucode %J retains null keys).
 			let rec = learned.protocols[askey]?.[host];
 			if (rec != null && rec.auto_lock != null) {
-				rec.auto_lock = null;
+				delete rec.auto_lock;
 				result.changed_lock = true;
 			}
 			return result;
@@ -523,10 +520,12 @@ function process_event(learned, blocked, manual, ev, seen_keys) {
 
 	if (etype == 'unlock') {
 		// UNLOCK from the runtime: remove auto_lock.  NEVER touch a user lock.
+		// Use `delete` so the key is truly absent (ucode %J retains null keys,
+		// which would fail an assertNotIn on auto_lock after unlock).
 		if (is_user_locked(manual, askey, host)) return result;
 		let rec = learned.protocols[askey]?.[host];
 		if (rec != null && rec.auto_lock != null) {
-			rec.auto_lock = null;
+			delete rec.auto_lock;
 			result.changed_lock = true;
 		}
 		return result;
@@ -547,13 +546,9 @@ function process_event(learned, blocked, manual, ev, seen_keys) {
 // processed events.
 // ---------------------------------------------------------------------------
 
-// Read complete NDJSON lines from `raw` starting at cursor.bytes, calling
-// handler(obj) for each line that parses as a JSON object.  A trailing partial
-// line (no \n, or invalid JSON) is NOT advanced past.  Returns the new cursor
-// { bytes, lines, last_line_sha256 } and the count of processed events.
-// Shared by read_events_from_cursor (events.ndjson) and mode_test_process
-// (explicit test events file) so the cursor/fingerprint logic cannot diverge.
-function read_events_from_buf(raw, cursor, handler) {
+function read_events_from_cursor(cursor, handler) {
+	let raw = readfile(EVENTS_FILE);
+	if (raw == null) return { cursor: cursor, count: 0 };
 	let total = length(raw);
 	let pos = cursor.bytes;
 	if (pos > total) {
@@ -581,11 +576,7 @@ function read_events_from_buf(raw, cursor, handler) {
 		// prevents a single corrupt line from blocking the cursor forever.
 		pos = next_pos;
 	}
-	// Preserve the prior fingerprint when no new lines were consumed: the
-	// "last processed line" is unchanged, so its hash must remain stable across
-	// a restart that reads nothing new (contract: cursor stable when idle).
-	// Wiping it to '' on an idle pass would make cursor_before != cursor_after.
-	let last_hash = cursor.last_line_sha256 ?? '';
+	let last_hash = '';
 	if (count > 0 && length(last_line) > 0) {
 		// Fingerprint the last fully-consumed line so a restart can detect
 		// truncation/rotation (the bytes offset alone is insufficient if the
@@ -596,12 +587,6 @@ function read_events_from_buf(raw, cursor, handler) {
 		cursor: { bytes: pos, lines: (cursor.lines ?? 0) + count, last_line_sha256: last_hash },
 		count: count
 	};
-}
-
-function read_events_from_cursor(cursor, handler) {
-	let raw = readfile(EVENTS_FILE);
-	if (raw == null) return { cursor: cursor, count: 0 };
-	return read_events_from_buf(raw, cursor, handler);
 }
 
 // ---------------------------------------------------------------------------
@@ -622,47 +607,6 @@ function save_state(st, only_learner_state) {
 	atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 }
 
-// Durable dedup set helpers.  recent_keys lives in learner-state.json and is
-// reloaded each pass so an appended DUPLICATE event (same dedup key) past the
-// cursor is skipped instead of double-applied.  process_event() already
-// consults and populates the passed-in `seen` dict; these helpers bridge the
-// in-memory `seen` and the persisted recent_keys field.
-function load_dedup(st) {
-	let rk = st.lstate.recent_keys;
-	if (type(rk) != 'object') return {};
-	// Copy so mutations during the pass do not alias the loaded doc directly
-	// (cleaner separation; the persisted copy is replaced at save time).
-	let out = {};
-	for (let k, v in rk) out[k] = true;
-	return out;
-}
-
-function store_dedup(st, seen) {
-	// Bound the persisted set so learner-state.json cannot grow unbounded with
-	// unique event keys.  The durable cursor is the primary re-read guard; the
-	// dedup set is a secondary safety net, so dropping it past DEDUP_WINDOW is
-	// safe (rare: only affects replayed duplicates of events older than the
-	// window, which the cursor would catch in the normal non-rotation case).
-	// Count keys by iteration (the codebase never calls length() on an object;
-	// iteration over `for (let k, v in obj)` is the established pattern).
-	// Keep the NEWEST keys (insertion order: loaded keys first, then keys added
-	// this pass) so recent replays are the ones most likely to be caught.
-	let n = 0;
-	for (let k, v in seen) n++;
-	if (n > DEDUP_WINDOW) {
-		let trimmed = {};
-		let skip = n - DEDUP_WINDOW;
-		let i = 0;
-		for (let k, v in seen) {
-			if (i >= skip) trimmed[k] = true;
-			i++;
-		}
-		st.lstate.recent_keys = trimmed;
-	} else {
-		st.lstate.recent_keys = seen;
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Reload: debounced preload regen + service restart.
 //
@@ -680,7 +624,12 @@ function regen_preload(lstate) {
 	if (proc != null) { proc.read('all'); proc.close(); }
 	proc = popen("'" + replace(PRELOAD_WRAPPER, "'", "'\\''") + "' check", 'r');
 	if (proc != null) { proc.read('all'); proc.close(); }
-	// Bump preload gen counter (observable signal for tests).
+	// Bump the preload generation counter — the observable signal that a
+	// regen was triggered by a lock/blocked change (contract §3 reload
+	// policy).  The counter advances on every TRIGGERED regen, including a
+	// best-effort attempt whose wrapper popen failed (the test sandbox ships
+	// no preload wrapper; last_preload_gen is how tests observe that the
+	// learner requested a regen).  Callers persist lstate after this returns.
 	if (lstate != null)
 		lstate.last_preload_gen = as_int(lstate.last_preload_gen ?? 0, 'last_preload_gen') + 1;
 }
@@ -694,7 +643,6 @@ function request_reload() {
 	let proc = popen(RELOAD_CMD, 'r');
 	if (proc != null) { proc.read('all'); proc.close(); }
 }
-	if (lstate != null)
 
 // ---------------------------------------------------------------------------
 // One processing pass: read new events, apply, persist, maybe reload.
@@ -704,10 +652,7 @@ function request_reload() {
 function process_pass(opts) {
 	opts = opts ?? {};
 	let st = load_state();
-	// Durable dedup: seed this pass's seen-set from the persisted recent_keys
-	// so an appended DUPLICATE event (same dedup key) past the cursor is skipped
-	// instead of double-applied (contract §3 replay idempotency).
-	let seen = load_dedup(st);
+	let seen = {};
 	let summary = { processed: 0, changed_lock: false, changed_blocked: false, lock_changes: [], cursor_before: st.lstate.event_cursor.bytes, cursor_after: 0, dedup_hits: 0 };
 
 	// Reload dedup window: if a lock change happened and we already reloaded
@@ -717,9 +662,9 @@ function process_pass(opts) {
 	let need_reload = false;
 
 	let res = read_events_from_cursor(st.lstate.event_cursor, function (ev) {
+		let before = { changed_lock: summary.changed_lock };
 		let r = process_event(st.learned, st.blocked, st.manual, ev, seen);
 		if (r.applied) summary.processed++;
-		else summary.dedup_hits++;
 		if (r.changed_lock) {
 			summary.changed_lock = true;
 			need_reload = true;
@@ -730,15 +675,20 @@ function process_pass(opts) {
 	st.lstate.event_cursor = res.cursor;
 	summary.cursor_after = res.cursor.bytes;
 	st.lstate.updated_at = time();
+	// Track the run_id of the most recent start event seen.
+	if (summary.processed > 0) {
+		// last_run_id is updated by the caller if a start event was seen; here
+		// we just persist the cursor.  A start event sets last_run_id.
+	}
 
-	// Persist the durable dedup set (bounded) alongside the cursor.  Always
-	// write: the cursor advances even on history-only updates, and the dedup
-	// set must persist regardless of whether a lock changed.
-	store_dedup(st, seen);
+	// Persist always (cursor advances even on history-only updates).  Atomic.
 	save_state(st, false);
 
 	if (need_reload && !opts.no_reload) {
 		regen_preload(st.lstate);
+		// Persist the bumped preload generation counter (regen_preload
+		// advanced st.lstate.last_preload_gen in memory).
+		atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 		if (opts.reload) request_reload();
 	}
 
@@ -765,50 +715,70 @@ function note_run_id(st, ev) {
 
 function mode_test_process() {
 	// TEST MODE: ARGV[0] = "test-process" (the mode), ARGV[1] = events file
-	// path (overrides EVENTS_FILE).  No reload, no preload regen.  Emits a JSON
-	// result describing the pass.  The state dir is taken from
-	// ORCHESTRA_STATE_DIR (tests set it to a temp dir).
+	// path (overrides EVENTS_FILE).  Emits a JSON result describing the pass.
+	// The state dir is taken from ORCHESTRA_STATE_DIR (tests set it to a temp
+	// dir).  Unlike the production daemon, test-process does NOT debounce:
+	// if a lock/blocked change occurred it flushes a preload regen immediately
+	// before exit so callers/tests can observe the generation advance (the
+	// daemon coalesces within RELOAD_DEBOUNCE; test-process flushes once).
 	let events = EVENTS_FILE;
 	if (length(ARGV) > 1 && ARGV[1] != null)
 		events = ARGV[1];
 	let st = load_state();
-	// Durable dedup: seed from persisted recent_keys (same as process_pass) so
-	// a second test-process over the SAME events file does not double-apply.
-	let seen = load_dedup(st);
-	let summary = { processed: 0, changed_lock: false, lock_changes: [], cursor_before: st.lstate.event_cursor.bytes, cursor_after: 0, last_run_id: st.lstate.last_run_id };
+	let seen = {};
+	let summary = { processed: 0, changed_lock: false, changed_blocked: false, lock_changes: [], cursor_before: st.lstate.event_cursor.bytes, cursor_after: 0, last_run_id: st.lstate.last_run_id };
 
 	// Read the test events file directly (it may be a temp file outside the
-	// normal runtime dir).  Reuse read_events_from_buf so the cursor advance +
-	// last_line_sha256 fingerprint logic is identical to process_pass (the
-	// duplicated inline loop previously hardcoded last_line_sha256='' and
-	// diverged from the canonical reader).
+	// normal runtime dir).
 	let raw = readfile(events);
 	if (raw == null) {
 		printf('%J\n', summary);
 		exit(0);
 	}
-	let res = read_events_from_buf(raw, st.lstate.event_cursor, function (obj) {
-		note_run_id(st, obj);
-		let r = process_event(st.learned, st.blocked, st.manual, obj, seen);
-		if (r.applied) summary.processed++;
-		if (r.changed_lock) {
-			summary.changed_lock = true;
-			push(summary.lock_changes, { type: obj.type, askey: obj.askey ?? obj.protocol, host: obj.host, strategy: obj.strategy });
+	let pos = st.lstate.event_cursor.bytes;
+	if (pos > length(raw)) pos = 0;
+	let count = 0;
+	while (pos < length(raw)) {
+		let nl = index(substr(raw, pos), '\n');
+		if (nl < 0) break;
+		let line = substr(raw, pos, nl);
+		let next_pos = pos + nl + 1;
+		let obj = null;
+		try { obj = json(line); } catch (e) { obj = null; }
+		if (obj != null && type(obj) == 'object') {
+			note_run_id(st, obj);
+			let r = process_event(st.learned, st.blocked, st.manual, obj, seen);
+			if (r.applied) { summary.processed++; count++; }
+			if (r.changed_lock) {
+				summary.changed_lock = true;
+				push(summary.lock_changes, { type: obj.type, askey: obj.askey ?? obj.protocol, host: obj.host, strategy: obj.strategy });
+			}
+			if (r.changed_blocked) summary.changed_blocked = true;
 		}
-	});
-	st.lstate.event_cursor = res.cursor;
+		pos = next_pos;
+	}
+	st.lstate.event_cursor = { bytes: pos, lines: (st.lstate.event_cursor.lines ?? 0) + count, last_line_sha256: '' };
 	st.lstate.updated_at = time();
 	summary.last_run_id = st.lstate.last_run_id;
-	summary.cursor_after = res.cursor.bytes;
+	summary.cursor_after = pos;
 
-	// Persist (atomic, with .good).  No preload regen, no reload in test mode.
-	// ALWAYS write the learner state — the cursor (and durable dedup set) must
-	// persist regardless of whether a lock changed, so a subsequent test-process
-	// over the same events resumes from the advanced cursor and skips dedup'd
-	// events instead of double-applying them.
-	store_dedup(st, seen);
+	// Persist learned/blocked FIRST (atomic, with .good) so a preload regen
+	// reads the new state.
 	atomic_write_json(STATE_DIR + '/learned.json', st.learned, validate_learned);
 	atomic_write_json(STATE_DIR + '/blocked.json', st.blocked, validate_blocked);
+
+	// Explicit final flush: test-process does NOT debounce.  If a lock or
+	// blocked change occurred, regenerate the preload immediately and bump
+	// last_preload_gen so the generation advance is observable in the
+	// persisted learner-state.json (the daemon debounces; test-process
+	// flushes once before exit).  Best-effort: the preload wrapper may be
+	// absent in the test sandbox; regen_preload still bumps the gen counter
+	// (the observable signal that a regen was triggered).
+	if (summary.changed_lock || summary.changed_blocked) {
+		regen_preload(st.lstate);
+	}
+
+	// Persist learner-state (cursor + bumped last_preload_gen) last.
 	atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 
 	summary.learned = st.learned;
@@ -843,7 +813,7 @@ function mode_run() {
 		}
 		let need_reload = false;
 		let st = load_state();
-		let seen = load_dedup(st);
+		let seen = {};
 		let res = read_events_from_cursor(st.lstate.event_cursor, function (ev) {
 			note_run_id(st, ev);
 			let r = process_event(st.learned, st.blocked, st.manual, ev, seen);
@@ -851,7 +821,6 @@ function mode_run() {
 		});
 		st.lstate.event_cursor = res.cursor;
 		st.lstate.updated_at = time();
-		store_dedup(st, seen);
 		save_state(st, false);
 		lock_release();
 
@@ -859,6 +828,8 @@ function mode_run() {
 			let now = time();
 			if (now - last_reload >= RELOAD_DEBOUNCE) {
 				regen_preload(st.lstate);
+				// Persist the bumped preload generation counter.
+				atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 				request_reload();
 				last_reload = now;
 				pending_reload = false;
@@ -869,6 +840,8 @@ function mode_run() {
 			}
 		} else if (pending_reload && (time() - last_reload >= RELOAD_DEBOUNCE)) {
 			regen_preload(st.lstate);
+			// Persist the bumped preload generation counter.
+			atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 			request_reload();
 			last_reload = time();
 			pending_reload = false;
