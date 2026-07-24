@@ -208,6 +208,13 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
     return result
 
 
+def hash31(data: str) -> str:
+    """djb2 variant rolling hash, 8 hex chars. Mirrors learner.uc hash31()."""
+    h = 5381
+    for c in data:
+        h = ((h * 33) + ord(c)) & 0x7FFFFFFF
+    return f'{h:08x}'
+
 def read_events_from_cursor(raw: str, cursor: dict, handler) -> tuple[dict, int]:
     """Mirror of learner.uc read_events_from_cursor. Truncated last line is not advanced past."""
     total = len(raw)
@@ -229,7 +236,9 @@ def read_events_from_cursor(raw: str, cursor: dict, handler) -> tuple[dict, int]
             handler(obj)
             count += 1
         pos = next_pos
-    return {"bytes": pos, "lines": cursor.get("lines", 0) + count, "last_line_sha256": ""}, count
+    last_line = line if count > 0 else ""
+    last_hash = hash31(last_line) if last_line else ""
+    return {"bytes": pos, "lines": cursor.get("lines", 0) + count, "last_line_sha256": last_hash}, count
 
 
 def rating(rec: dict, strategy: int) -> float | None:
