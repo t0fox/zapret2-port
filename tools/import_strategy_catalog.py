@@ -1745,9 +1745,24 @@ def write_outputs(repo_root: Path, out_dir: Path, profile_dir: Path,
     out_dir.mkdir(parents=True, exist_ok=True)
     profile_dir.mkdir(parents=True, exist_ok=True)
     static_dir.mkdir(parents=True, exist_ok=True)
-    # Package files root: profile_dir = <pkg>/usr/share/zapret2-orchestra/profiles
+    # Package files root: profile_dir = <pkg>/files/usr/share/zapret2-orchestra/profiles
     # so parents[3] = <pkg>/files.  lua + lists live under that root (spec §6).
-    pkg_files = profile_dir.parents[3]
+    # But tests pass a shallow --profile-dir (e.g. <tmp>/profiles) with fewer
+    # parents — fall back to the repo root's package files tree if parents[3]
+    # doesn't reach the expected depth.
+    try:
+        pkg_files = profile_dir.parents[3]
+    except IndexError:
+        # Shallow profile_dir (test mode): derive from the repo root.
+        pkg_files = Path(os.environ.get("ZAPRET2_PKG_FILES_ROOT",
+                          str(Path(os.environ.get("ZAPRET2_PRESET_REPO_ROOT", ".")) /
+                              "openwrt" / "zapret2-orchestra" / "files")))
+    # Verify: if pkg_files doesn't have the expected subtree, it's wrong.
+    if not (pkg_files / "usr" / "share" / "zapret2-orchestra").is_dir():
+        # Fall back: look for the package files tree relative to cwd (repo root).
+        cwd_pkg = Path.cwd() / "openwrt" / "zapret2-orchestra" / "files"
+        if cwd_pkg.is_dir():
+            pkg_files = cwd_pkg
     lists_dir = pkg_files / "etc" / "zapret2-orchestra" / "lists"
     lua_dir = pkg_files / "opt" / "zapret2" / "lua"
     lists_dir.mkdir(parents=True, exist_ok=True)
