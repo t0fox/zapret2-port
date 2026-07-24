@@ -19,12 +19,12 @@ NFQWS2_OPT="
 --blob=tls1:@/opt/zapret2/bin/tls_clienthello_1.bin
 --blob=tls5:@/opt/zapret2/bin/tls_clienthello_5.bin
 --blob=tls7:@/opt/zapret2/bin/tls_clienthello_7.bin
+--ipcache-hostname
 --filter-tcp=80,443,1080,2053,2083,2087,2096,8443
 --ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt
 --payload=all
 --in-range=-d1000
 --out-range=-d10
---ipcache-hostname
 --lua-desync=circular_quality:key=tls:fails=3:failure_detector=combined_failure_detector:success_detector=combined_success_detector:lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:inseq=1:nld=3
 --lua-desync=tls_multisplit_sni:seqovl=652:seqovl_pattern=tls_google:strategy=1
 --lua-desync=multisplit:pos=1:seqovl=740:seqovl_pattern=stun_pat:strategy=2
