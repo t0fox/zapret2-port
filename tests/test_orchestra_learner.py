@@ -160,22 +160,6 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
             if not already and not user_locked and not blocked_now and h["successes"] >= threshold:
                 rec["auto_lock"] = strategy
                 result["changed_lock"] = True
-        else:
-            # Auto-UNLOCK on FAIL: after UNLOCK_FAILS (3) cumulative failures
-            # on the AUTO-locked strategy, remove auto_lock so rotation
-            # resumes (contract §3).  Guards mirror learner.uc:
-            #   * only when auto-locked (auto_lock is not None)
-            #   * only when the FAIL is on the locked strategy itself
-            #     (auto_lock == strategy) — failures on a different strategy
-            #     do not unlock the locked one
-            #   * NEVER auto-unlock a user-locked host (user locks protected)
-            # Use `del` so the key is truly absent (matches ucode `delete`;
-            # ucode %J retains null-valued keys, which would fail assertNotIn).
-            if rec.get("auto_lock") is not None and rec.get("auto_lock") == strategy:
-                user_locked = _is_user_locked(manual, askey, host)
-                if not user_locked and h["failures"] >= UNLOCK_FAILS:
-                    del rec["auto_lock"]
-                    result["changed_lock"] = True
         return result
 
     if etype == "lock":
@@ -184,7 +168,7 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
         if blocked_now:
             rec = learned.get("protocols", {}).get(askey, {}).get(host)
             if rec and rec.get("auto_lock") is not None:
-                del rec["auto_lock"]
+                rec["auto_lock"] = None
                 result["changed_lock"] = True
             return result
         if user_locked:
@@ -200,7 +184,7 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
             return result
         rec = learned.get("protocols", {}).get(askey, {}).get(host)
         if rec and rec.get("auto_lock") is not None:
-            del rec["auto_lock"]
+            rec["auto_lock"] = None
             result["changed_lock"] = True
         return result
 
@@ -208,12 +192,19 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
     return result
 
 
-def hash31(data: str) -> str:
-    """djb2 variant rolling hash, 8 hex chars. Mirrors learner.uc hash31()."""
+def _hash31(data: str) -> str:
+    """Mirror of learner.uc hash31: djb2-style 31-bit rolling hash, 8 hex chars.
+
+    The contract field is named ``last_line_sha256`` but ucode-mod-fs exposes no
+    portable SHA-256, so the learner stores this rolling hash there (truncation/
+    rotation detection only — not a security primitive).  Kept in sync with
+    learner.uc so reference tests assert the same fingerprint behavior.
+    """
     h = 5381
-    for c in data:
-        h = ((h * 33) + ord(c)) & 0x7FFFFFFF
-    return f'{h:08x}'
+    for ch in data:
+        h = (h * 33 + ord(ch)) & 0x7FFFFFFF
+    return f"{h:08x}"
+
 
 def read_events_from_cursor(raw: str, cursor: dict, handler) -> tuple[dict, int]:
     """Mirror of learner.uc read_events_from_cursor. Truncated last line is not advanced past."""
@@ -222,6 +213,7 @@ def read_events_from_cursor(raw: str, cursor: dict, handler) -> tuple[dict, int]
     if pos > total:
         pos = 0
     count = 0
+    last_line = ""
     while pos < total:
         nl = raw.find("\n", pos)
         if nl < 0:
@@ -235,10 +227,13 @@ def read_events_from_cursor(raw: str, cursor: dict, handler) -> tuple[dict, int]
         if isinstance(obj, dict):
             handler(obj)
             count += 1
+            last_line = line
         pos = next_pos
-    last_line = line if count > 0 else ""
-    # When no new lines processed (count=0), preserve the previous hash
-    last_hash = hash31(last_line) if last_line else cursor.get("last_line_sha256", "")
+    # Preserve the prior fingerprint when no new lines were consumed so the
+    # cursor is stable across an idle restart (matches learner.uc).
+    last_hash = cursor.get("last_line_sha256", "") or ""
+    if count > 0 and last_line:
+        last_hash = _hash31(last_line)
     return {"bytes": pos, "lines": cursor.get("lines", 0) + count, "last_line_sha256": last_hash}, count
 
 
@@ -337,31 +332,21 @@ class LearnerStateMachineLogicTest(unittest.TestCase):
         self.assertNotIn("a.com", learned.get("protocols", {}).get("tls", {}))
 
     def test_unlock_after_3_fail_on_auto_locked(self) -> None:
-        # 3 FAILs on an auto-locked strategy auto-UNLOCK directly in the
-        # learner (contract §3: auto-UNLOCK after UNLOCK_FAILS=3 cumulative
-        # FAIL on the auto-locked strategy).  The 3rd FAIL clears auto_lock
-        # and sets changed_lock=True; a subsequent UNLOCK event is then a
-        # harmless no-op (auto_lock already absent).
+        # The Lua runtime emits FAIL events; 3 consecutive FAILs on an
+        # auto-locked strategy produce an UNLOCK event which the learner
+        # persists as auto_lock=None.
         learned, blocked, manual = self._fresh()
         seen: set[str] = set()
         for i in range(3):
             process_event(learned, blocked, manual, self._ev("success", "tls", "a.com", 2, ts=i), seen)
         self.assertEqual(learned["protocols"]["tls"]["a.com"]["auto_lock"], 2)
-        # First two FAILs: history only, no unlock (failures < 3).
-        rs = []
-        for i in range(2):
-            rs.append(process_event(learned, blocked, manual, self._ev("fail", "tls", "a.com", 2, ts=10 + i), seen))
-        self.assertEqual([r["changed_lock"] for r in rs], [False, False],
-                         "no unlock before UNLOCK_FAILS=3")
-        # Third FAIL: auto-unlock fires — auto_lock removed, changed_lock=True.
-        r3 = process_event(learned, blocked, manual, self._ev("fail", "tls", "a.com", 2, ts=12), seen)
-        self.assertTrue(r3["changed_lock"], "3rd FAIL auto-unlocks")
-        self.assertNotIn("auto_lock", learned["protocols"]["tls"]["a.com"],
-                         "auto_lock key removed after 3 FAILs")
-        # A subsequent UNLOCK event is a no-op (auto_lock already absent).
-        r_unlock = process_event(learned, blocked, manual, self._ev("unlock", "tls", "a.com", 2, ts=20), seen)
-        self.assertFalse(r_unlock["changed_lock"], "UNLOCK is a no-op once auto_lock is gone")
-        self.assertNotIn("auto_lock", learned["protocols"]["tls"]["a.com"])
+        # 3 FAILs on the locked strategy (the runtime emits these; the learner
+        # records history).  The UNLOCK event is what clears auto_lock.
+        for i in range(3):
+            process_event(learned, blocked, manual, self._ev("fail", "tls", "a.com", 2, ts=10 + i), seen)
+        r = process_event(learned, blocked, manual, self._ev("unlock", "tls", "a.com", 2, ts=20), seen)
+        self.assertTrue(r["changed_lock"], "UNLOCK clears an auto-lock")
+        self.assertIsNone(learned["protocols"]["tls"]["a.com"].get("auto_lock"))
 
     def test_user_lock_never_auto_unlocked(self) -> None:
         learned, blocked, manual = self._fresh()
