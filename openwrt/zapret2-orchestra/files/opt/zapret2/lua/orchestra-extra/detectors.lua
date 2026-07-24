@@ -58,15 +58,16 @@ function combined_success_detector(desync, crec)
     end
     dlog("combined_success_detector: no success dir="
         .. (desync.outgoing and "out" or "in") .. " seq=" .. tostring(current_seq(desync)))
-    -- Fallback SUCCESS: any incoming TCP reply = the server answered.
+    -- Fallback SUCCESS: incoming TCP reply WITH PAYLOAD = server sent data.
     -- standard_success_detector requires seq > inseq but seq stays 0-1 for
     -- the first reply packets (empty/control), and nft ct reply packets 1-10
     -- limits how many replies nfqws2 sees. The failure detector already
-    -- ruled out RST/retransmission (caller checks `not failure` first), so
-    -- an incoming TCP packet on a TLS connection = success.
-    if not desync.outgoing and desync.dis and desync.dis.tcp then
+    -- ruled out RST/retransmission (caller checks `not failure` first).
+    -- ONLY count as SUCCESS if the reply has a non-empty payload (TLS
+    -- ServerHello/Application Data), NOT SYN/ACK/RST/FIN-only control packets.
+    if not desync.outgoing and desync.dis and desync.dis.tcp and desync.dis.payload and #desync.dis.payload > 0 then
         crec.orchestra_success_confirmed = true
-        dlog("combined_success_detector: SUCCESS (fallback: incoming TCP reply)")
+        dlog("combined_success_detector: SUCCESS (fallback: incoming TCP reply with payload)")
         return true
     end
     return false
