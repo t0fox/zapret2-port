@@ -160,6 +160,22 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
             if not already and not user_locked and not blocked_now and h["successes"] >= threshold:
                 rec["auto_lock"] = strategy
                 result["changed_lock"] = True
+        else:
+            # Auto-UNLOCK on FAIL: after UNLOCK_FAILS (3) cumulative failures
+            # on the AUTO-locked strategy, remove auto_lock so rotation
+            # resumes (contract §3).  Guards mirror learner.uc:
+            #   * only when auto-locked (auto_lock is not None)
+            #   * only when the FAIL is on the locked strategy itself
+            #     (auto_lock == strategy) — failures on a different strategy
+            #     do not unlock the locked one
+            #   * NEVER auto-unlock a user-locked host (user locks protected)
+            # Use `del` so the key is truly absent (matches ucode `delete`;
+            # ucode %J retains null-valued keys, which would fail assertNotIn).
+            if rec.get("auto_lock") is not None and rec.get("auto_lock") == strategy:
+                user_locked = _is_user_locked(manual, askey, host)
+                if not user_locked and h["failures"] >= UNLOCK_FAILS:
+                    del rec["auto_lock"]
+                    result["changed_lock"] = True
         return result
 
     if etype == "lock":
@@ -168,7 +184,7 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
         if blocked_now:
             rec = learned.get("protocols", {}).get(askey, {}).get(host)
             if rec and rec.get("auto_lock") is not None:
-                rec["auto_lock"] = None
+                del rec["auto_lock"]
                 result["changed_lock"] = True
             return result
         if user_locked:
@@ -184,7 +200,7 @@ def process_event(learned: dict, blocked: dict, manual: dict, ev: dict, seen: se
             return result
         rec = learned.get("protocols", {}).get(askey, {}).get(host)
         if rec and rec.get("auto_lock") is not None:
-            rec["auto_lock"] = None
+            del rec["auto_lock"]
             result["changed_lock"] = True
         return result
 
@@ -311,21 +327,31 @@ class LearnerStateMachineLogicTest(unittest.TestCase):
         self.assertNotIn("a.com", learned.get("protocols", {}).get("tls", {}))
 
     def test_unlock_after_3_fail_on_auto_locked(self) -> None:
-        # The Lua runtime emits FAIL events; 3 consecutive FAILs on an
-        # auto-locked strategy produce an UNLOCK event which the learner
-        # persists as auto_lock=None.
+        # 3 FAILs on an auto-locked strategy auto-UNLOCK directly in the
+        # learner (contract §3: auto-UNLOCK after UNLOCK_FAILS=3 cumulative
+        # FAIL on the auto-locked strategy).  The 3rd FAIL clears auto_lock
+        # and sets changed_lock=True; a subsequent UNLOCK event is then a
+        # harmless no-op (auto_lock already absent).
         learned, blocked, manual = self._fresh()
         seen: set[str] = set()
         for i in range(3):
             process_event(learned, blocked, manual, self._ev("success", "tls", "a.com", 2, ts=i), seen)
         self.assertEqual(learned["protocols"]["tls"]["a.com"]["auto_lock"], 2)
-        # 3 FAILs on the locked strategy (the runtime emits these; the learner
-        # records history).  The UNLOCK event is what clears auto_lock.
-        for i in range(3):
-            process_event(learned, blocked, manual, self._ev("fail", "tls", "a.com", 2, ts=10 + i), seen)
-        r = process_event(learned, blocked, manual, self._ev("unlock", "tls", "a.com", 2, ts=20), seen)
-        self.assertTrue(r["changed_lock"], "UNLOCK clears an auto-lock")
-        self.assertIsNone(learned["protocols"]["tls"]["a.com"].get("auto_lock"))
+        # First two FAILs: history only, no unlock (failures < 3).
+        rs = []
+        for i in range(2):
+            rs.append(process_event(learned, blocked, manual, self._ev("fail", "tls", "a.com", 2, ts=10 + i), seen))
+        self.assertEqual([r["changed_lock"] for r in rs], [False, False],
+                         "no unlock before UNLOCK_FAILS=3")
+        # Third FAIL: auto-unlock fires — auto_lock removed, changed_lock=True.
+        r3 = process_event(learned, blocked, manual, self._ev("fail", "tls", "a.com", 2, ts=12), seen)
+        self.assertTrue(r3["changed_lock"], "3rd FAIL auto-unlocks")
+        self.assertNotIn("auto_lock", learned["protocols"]["tls"]["a.com"],
+                         "auto_lock key removed after 3 FAILs")
+        # A subsequent UNLOCK event is a no-op (auto_lock already absent).
+        r_unlock = process_event(learned, blocked, manual, self._ev("unlock", "tls", "a.com", 2, ts=20), seen)
+        self.assertFalse(r_unlock["changed_lock"], "UNLOCK is a no-op once auto_lock is gone")
+        self.assertNotIn("auto_lock", learned["protocols"]["tls"]["a.com"])
 
     def test_user_lock_never_auto_unlocked(self) -> None:
         learned, blocked, manual = self._fresh()

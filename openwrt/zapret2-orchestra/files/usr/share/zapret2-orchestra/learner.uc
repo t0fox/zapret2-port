@@ -467,6 +467,29 @@ function process_event(learned, blocked, manual, ev, seen_keys) {
 				result.changed_lock = true;
 			}
 		}
+		else {
+			// Auto-UNLOCK check on FAIL: after UNLOCK_FAILS (3) cumulative
+			// failures on the AUTO-locked strategy, remove auto_lock so
+			// rotation resumes (contract §3).  Guards:
+			//   * only when auto-locked (rec.auto_lock != null)
+			//   * only when the FAIL is on the locked strategy itself
+			//     (rec.auto_lock == strategy) — failures on a different
+			//     strategy do not unlock the locked one
+			//   * NEVER auto-unlock a user-locked host (user locks are
+			//     protected; they live in manual-locks.json)
+			//   * a blocked strategy is never auto-locked in the first place,
+			//     so blocked_now is not re-checked here
+			// Use `delete` (not `= null`) so the key is truly absent in the
+			// serialized JSON — ucode %J retains null-valued keys, which would
+			// fail an assertNotIn on auto_lock after unlock.
+			if (rec.auto_lock != null && rec.auto_lock == strategy) {
+				let user_locked = is_user_locked(manual, askey, host);
+				if (!user_locked && h.failures >= UNLOCK_FAILS) {
+					delete rec.auto_lock;
+					result.changed_lock = true;
+				}
+			}
+		}
 		return result;
 	}
 
@@ -477,10 +500,11 @@ function process_event(learned, blocked, manual, ev, seen_keys) {
 		let blocked_now = is_blocked(blocked, askey, host, strategy);
 		if (blocked_now) {
 			// Blocked wins: drop any auto_lock for this host (match
-			// orchestrator.lua slm_reset on locked==blocked conflict).
+			// orchestrator.lua slm_reset on locked==blocked conflict).  Use
+			// `delete` so the key is truly absent (ucode %J retains null keys).
 			let rec = learned.protocols[askey]?.[host];
 			if (rec != null && rec.auto_lock != null) {
-				rec.auto_lock = null;
+				delete rec.auto_lock;
 				result.changed_lock = true;
 			}
 			return result;
@@ -496,10 +520,12 @@ function process_event(learned, blocked, manual, ev, seen_keys) {
 
 	if (etype == 'unlock') {
 		// UNLOCK from the runtime: remove auto_lock.  NEVER touch a user lock.
+		// Use `delete` so the key is truly absent (ucode %J retains null keys,
+		// which would fail an assertNotIn on auto_lock after unlock).
 		if (is_user_locked(manual, askey, host)) return result;
 		let rec = learned.protocols[askey]?.[host];
 		if (rec != null && rec.auto_lock != null) {
-			rec.auto_lock = null;
+			delete rec.auto_lock;
 			result.changed_lock = true;
 		}
 		return result;
@@ -590,7 +616,7 @@ function save_state(st, only_learner_state) {
 // Lua packet path.  In test mode this is a no-op.
 // ---------------------------------------------------------------------------
 
-function regen_preload() {
+function regen_preload(lstate) {
 	// Delegate to the preload wrapper (generate + check).  Best-effort: a
 	// failure is logged but does not roll back learned state (the next poll
 	// retries).  We use popen via a shell-quoted controlled path.
@@ -598,6 +624,14 @@ function regen_preload() {
 	if (proc != null) { proc.read('all'); proc.close(); }
 	proc = popen("'" + replace(PRELOAD_WRAPPER, "'", "'\\''") + "' check", 'r');
 	if (proc != null) { proc.read('all'); proc.close(); }
+	// Bump the preload generation counter — the observable signal that a
+	// regen was triggered by a lock/blocked change (contract §3 reload
+	// policy).  The counter advances on every TRIGGERED regen, including a
+	// best-effort attempt whose wrapper popen failed (the test sandbox ships
+	// no preload wrapper; last_preload_gen is how tests observe that the
+	// learner requested a regen).  Callers persist lstate after this returns.
+	if (lstate != null)
+		lstate.last_preload_gen = as_int(lstate.last_preload_gen ?? 0, 'last_preload_gen') + 1;
 }
 
 function request_reload() {
@@ -651,7 +685,10 @@ function process_pass(opts) {
 	save_state(st, false);
 
 	if (need_reload && !opts.no_reload) {
-		regen_preload();
+		regen_preload(st.lstate);
+		// Persist the bumped preload generation counter (regen_preload
+		// advanced st.lstate.last_preload_gen in memory).
+		atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 		if (opts.reload) request_reload();
 	}
 
@@ -678,15 +715,18 @@ function note_run_id(st, ev) {
 
 function mode_test_process() {
 	// TEST MODE: ARGV[0] = "test-process" (the mode), ARGV[1] = events file
-	// path (overrides EVENTS_FILE).  No reload, no preload regen.  Emits a JSON
-	// result describing the pass.  The state dir is taken from
-	// ORCHESTRA_STATE_DIR (tests set it to a temp dir).
+	// path (overrides EVENTS_FILE).  Emits a JSON result describing the pass.
+	// The state dir is taken from ORCHESTRA_STATE_DIR (tests set it to a temp
+	// dir).  Unlike the production daemon, test-process does NOT debounce:
+	// if a lock/blocked change occurred it flushes a preload regen immediately
+	// before exit so callers/tests can observe the generation advance (the
+	// daemon coalesces within RELOAD_DEBOUNCE; test-process flushes once).
 	let events = EVENTS_FILE;
 	if (length(ARGV) > 1 && ARGV[1] != null)
 		events = ARGV[1];
 	let st = load_state();
 	let seen = {};
-	let summary = { processed: 0, changed_lock: false, lock_changes: [], cursor_before: st.lstate.event_cursor.bytes, cursor_after: 0, last_run_id: st.lstate.last_run_id };
+	let summary = { processed: 0, changed_lock: false, changed_blocked: false, lock_changes: [], cursor_before: st.lstate.event_cursor.bytes, cursor_after: 0, last_run_id: st.lstate.last_run_id };
 
 	// Read the test events file directly (it may be a temp file outside the
 	// normal runtime dir).
@@ -713,6 +753,7 @@ function mode_test_process() {
 				summary.changed_lock = true;
 				push(summary.lock_changes, { type: obj.type, askey: obj.askey ?? obj.protocol, host: obj.host, strategy: obj.strategy });
 			}
+			if (r.changed_blocked) summary.changed_blocked = true;
 		}
 		pos = next_pos;
 	}
@@ -721,9 +762,23 @@ function mode_test_process() {
 	summary.last_run_id = st.lstate.last_run_id;
 	summary.cursor_after = pos;
 
-	// Persist (atomic, with .good).  No preload regen, no reload in test mode.
+	// Persist learned/blocked FIRST (atomic, with .good) so a preload regen
+	// reads the new state.
 	atomic_write_json(STATE_DIR + '/learned.json', st.learned, validate_learned);
 	atomic_write_json(STATE_DIR + '/blocked.json', st.blocked, validate_blocked);
+
+	// Explicit final flush: test-process does NOT debounce.  If a lock or
+	// blocked change occurred, regenerate the preload immediately and bump
+	// last_preload_gen so the generation advance is observable in the
+	// persisted learner-state.json (the daemon debounces; test-process
+	// flushes once before exit).  Best-effort: the preload wrapper may be
+	// absent in the test sandbox; regen_preload still bumps the gen counter
+	// (the observable signal that a regen was triggered).
+	if (summary.changed_lock || summary.changed_blocked) {
+		regen_preload(st.lstate);
+	}
+
+	// Persist learner-state (cursor + bumped last_preload_gen) last.
 	atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 
 	summary.learned = st.learned;
@@ -772,7 +827,9 @@ function mode_run() {
 		if (need_reload) {
 			let now = time();
 			if (now - last_reload >= RELOAD_DEBOUNCE) {
-				regen_preload();
+				regen_preload(st.lstate);
+				// Persist the bumped preload generation counter.
+				atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 				request_reload();
 				last_reload = now;
 				pending_reload = false;
@@ -782,7 +839,9 @@ function mode_run() {
 				log_line('reload: deferred (within debounce window)');
 			}
 		} else if (pending_reload && (time() - last_reload >= RELOAD_DEBOUNCE)) {
-			regen_preload();
+			regen_preload(st.lstate);
+			// Persist the bumped preload generation counter.
+			atomic_write_json(LEARNER_STATE, st.lstate, validate_learner_state);
 			request_reload();
 			last_reload = time();
 			pending_reload = false;
