@@ -1266,7 +1266,6 @@ def build_adaptive_opt(catalog: dict[str, Any]) -> str:
     # by the port; declared here for a complete, intent-faithful profile.
     lines.append("--blob=stun_pat:@/opt/zapret2/bin/stun.bin")
     # Filter: Discord ipset (shipped), TLS client hello.
-    lines.append("--ipcache-hostname
 --filter-tcp=80,443,1080,2053,2083,2087,2096,8443")
     lines.append("--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt")
     lines.append("--payload=tls_client_hello")
