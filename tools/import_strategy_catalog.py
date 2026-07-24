@@ -298,10 +298,11 @@ class Block:
                     v.strip() for v in s[len("--filter-l7="):].split(",") if v.strip()
                 )
                 self.filter_lines.append(s)
-            elif s.startswith("--ipcache-hostname
---filter-tcp="):
-                self.filter_tcp.append(s[len("--ipcache-hostname
---filter-tcp="):])
+            elif s.startswith("--ipcache-hostname"):
+                # Global option (hostname→IP cache for incoming reply correlation)
+                pass  # not a filter line, just acknowledged
+            elif s.startswith("--filter-tcp="):
+                self.filter_tcp.append(s[len("--filter-tcp="):])
                 self.filter_lines.append(s)
             elif s.startswith("--filter-udp="):
                 self.filter_udp.append(s[len("--filter-udp="):])
