@@ -672,7 +672,7 @@ function store_dedup(st, seen) {
 // Lua packet path.  In test mode this is a no-op.
 // ---------------------------------------------------------------------------
 
-function regen_preload() {
+function regen_preload(lstate) {
 	// Delegate to the preload wrapper (generate + check).  Best-effort: a
 	// failure is logged but does not roll back learned state (the next poll
 	// retries).  We use popen via a shell-quoted controlled path.
@@ -681,6 +681,9 @@ function regen_preload() {
 	proc = popen("'" + replace(PRELOAD_WRAPPER, "'", "'\\''") + "' check", 'r');
 	if (proc != null) { proc.read('all'); proc.close(); }
 }
+	// Bump preload gen counter (observable signal for tests).
+	if (lstate != null)
+		lstate.last_preload_gen = as_int(lstate.last_preload_gen ?? 0, 'last_preload_gen') + 1;
 
 function request_reload() {
 	if (length(RELOAD_CMD) == 0) {
@@ -691,6 +694,9 @@ function request_reload() {
 	let proc = popen(RELOAD_CMD, 'r');
 	if (proc != null) { proc.read('all'); proc.close(); }
 }
+	// Bump preload gen counter (observable signal for tests).
+	if (lstate != null)
+		lstate.last_preload_gen = as_int(lstate.last_preload_gen ?? 0, 'last_preload_gen') + 1;
 
 // ---------------------------------------------------------------------------
 // One processing pass: read new events, apply, persist, maybe reload.
