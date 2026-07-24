@@ -298,8 +298,10 @@ class Block:
                     v.strip() for v in s[len("--filter-l7="):].split(",") if v.strip()
                 )
                 self.filter_lines.append(s)
-            elif s.startswith("--filter-tcp="):
-                self.filter_tcp.append(s[len("--filter-tcp="):])
+            elif s.startswith("--ipcache-hostname
+--filter-tcp="):
+                self.filter_tcp.append(s[len("--ipcache-hostname
+--filter-tcp="):])
                 self.filter_lines.append(s)
             elif s.startswith("--filter-udp="):
                 self.filter_udp.append(s[len("--filter-udp="):])
@@ -1263,7 +1265,8 @@ def build_adaptive_opt(catalog: dict[str, Any]) -> str:
     # by the port; declared here for a complete, intent-faithful profile.
     lines.append("--blob=stun_pat:@/opt/zapret2/bin/stun.bin")
     # Filter: Discord ipset (shipped), TLS client hello.
-    lines.append("--filter-tcp=80,443,1080,2053,2083,2087,2096,8443")
+    lines.append("--ipcache-hostname
+--filter-tcp=80,443,1080,2053,2083,2087,2096,8443")
     lines.append("--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt")
     lines.append("--payload=tls_client_hello")
     # --in-range MUST be set (non-x): nfqws2 defaults --in-range=x (never),
@@ -1377,17 +1380,20 @@ def parse_original_pool(text: str) -> list[dict[str, Any]]:
     segments = re.split(r"(?m)^[ \t]*--new[ \t]*$", text)
     pool_seg: str | None = None
     for seg in segments:
-        # The TLS circular pool: has --filter-tcp= AND a `circular` selector.
+        # The TLS circular pool: has --ipcache-hostname
+--filter-tcp= AND a `circular` selector.
         # The first block (--lua-desync=pass) and the UDP pool (--filter-udp=)
         # are excluded by this conjunction.
-        if "--filter-tcp=" in seg and re.search(
+        if "--ipcache-hostname
+--filter-tcp=" in seg and re.search(
                 r"--lua-desync=circular(?!_quality)(?::|$)", seg):
             pool_seg = seg
             break
     if pool_seg is None:
         raise ValueError(
             "original TLS circular pool block not found in preset "
-            "(expected a --filter-tcp= block with --lua-desync=circular:)")
+            "(expected a --ipcache-hostname
+--filter-tcp= block with --lua-desync=circular:)")
 
     # Collect steps grouped by original strategy number, preserving order.
     grouped: dict[int, list[dict[str, Any]]] = {}
@@ -1555,7 +1561,8 @@ def _build_original_pool_opt(chains: list[dict[str, Any]]) -> str:
     lines.append("--lua-init=@/opt/zapret2/lua/custom_funcs.lua")
     for b in bin_blobs:
         lines.append(f"--blob={b}:{_original_bin_blob_port_path(b)}")
-    lines.append("--filter-tcp=80,443,1080,2053,2083,2087,2096,8443")
+    lines.append("--ipcache-hostname
+--filter-tcp=80,443,1080,2053,2083,2087,2096,8443")
     lines.append("--ipset=/etc/zapret2-orchestra/lists/ipset-discord.txt")
     lines.append("--payload=all")
     # --in-range=-d1000: see discord-adaptive.opt.  Required for SUCCESS detection.

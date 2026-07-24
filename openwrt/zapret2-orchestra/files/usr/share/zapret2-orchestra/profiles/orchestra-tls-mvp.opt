@@ -1,5 +1,6 @@
 NFQWS2_OPT="
 --lua-init=@/opt/zapret2/lua/orchestra-extra/init.lua
+--ipcache-hostname
 --filter-tcp=443 --filter-l7=tls <HOSTLIST> --payload=tls_client_hello --in-range=-d1000 --out-range=-d10 --lua-desync=circular_quality:key=tls:fails=1:failure_detector=combined_failure_detector:success_detector=combined_success_detector:lock_successes=3:unlock_fails=3:lock_tests=5:lock_rate=0.6:inseq=1:nld=3
 --lua-desync=multisplit:pos=1,midsld:strategy=1
 "
