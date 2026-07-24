@@ -1829,7 +1829,7 @@ DEFAULT_OUT_DIR = Path("strategy-sources")
 DEFAULT_PROFILE_DIR = Path(
     "openwrt/zapret2-orchestra/files/usr/share/zapret2-orchestra/profiles"
 )
-DEFAULT_STATIC_SRC = Path(os.environ.get("ZAPRET2_STATIC_SRC", "H:/zapret-port/strategy-research/port/r7"))
+DEFAULT_STATIC_SRC = Path(os.environ.get("ZAPRET2_STATIC_SRC", ""))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1858,7 +1858,9 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = args.repo_root.resolve()
     out_dir = args.out_dir
     profile_dir = args.profile_dir
-    static_src = args.static_src.resolve()
+    static_src = args.static_src
+    if not static_src or not str(static_src).strip() or not static_src.exists():
+        static_src = repo_root  # fall back to preset repo root
     original_pool_preset = args.original_pool_preset
 
     # The static fallback ships into the package profiles/lua/lists tree which

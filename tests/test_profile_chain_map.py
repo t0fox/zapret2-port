@@ -316,7 +316,7 @@ class ProfileChainMapRuntimeTest(unittest.TestCase):
     def setUp(self) -> None:
         if self.ucode is None:
             self.skipTest("ucode executable not found on PATH")
-        self.tmp = tempfile.mkdtemp(prefix="orchestra-pcm-")
+        self.tmp = Path(tempfile.mkdtemp(prefix="orchestra-pcm-"))
         self.state_dir = Path(self.tmp) / "state"
         self.runtime_dir = Path(self.tmp) / "runtime"
         self.builtin_profiles = Path(self.tmp) / "builtin-profiles"
