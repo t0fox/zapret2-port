@@ -680,10 +680,10 @@ function regen_preload(lstate) {
 	if (proc != null) { proc.read('all'); proc.close(); }
 	proc = popen("'" + replace(PRELOAD_WRAPPER, "'", "'\\''") + "' check", 'r');
 	if (proc != null) { proc.read('all'); proc.close(); }
-}
 	// Bump preload gen counter (observable signal for tests).
 	if (lstate != null)
 		lstate.last_preload_gen = as_int(lstate.last_preload_gen ?? 0, 'last_preload_gen') + 1;
+}
 
 function request_reload() {
 	if (length(RELOAD_CMD) == 0) {
@@ -694,9 +694,7 @@ function request_reload() {
 	let proc = popen(RELOAD_CMD, 'r');
 	if (proc != null) { proc.read('all'); proc.close(); }
 }
-	// Bump preload gen counter (observable signal for tests).
 	if (lstate != null)
-		lstate.last_preload_gen = as_int(lstate.last_preload_gen ?? 0, 'last_preload_gen') + 1;
 
 // ---------------------------------------------------------------------------
 // One processing pass: read new events, apply, persist, maybe reload.
