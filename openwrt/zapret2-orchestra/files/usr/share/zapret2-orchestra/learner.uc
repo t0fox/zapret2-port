@@ -757,7 +757,7 @@ function mode_test_process() {
 		}
 		pos = next_pos;
 	}
-	st.lstate.event_cursor = { bytes: pos, lines: (st.lstate.event_cursor.lines ?? 0) + count, last_line_sha256: '' };
+	st.lstate.event_cursor = { bytes: pos, lines: (st.lstate.event_cursor.lines ?? 0) + count, last_line_sha256: res.cursor.last_line_sha256 };
 	st.lstate.updated_at = time();
 	summary.last_run_id = st.lstate.last_run_id;
 	summary.cursor_after = pos;
