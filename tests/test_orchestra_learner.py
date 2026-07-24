@@ -237,7 +237,8 @@ def read_events_from_cursor(raw: str, cursor: dict, handler) -> tuple[dict, int]
             count += 1
         pos = next_pos
     last_line = line if count > 0 else ""
-    last_hash = hash31(last_line) if last_line else ""
+    # When no new lines processed (count=0), preserve the previous hash
+    last_hash = hash31(last_line) if last_line else cursor.get("last_line_sha256", "")
     return {"bytes": pos, "lines": cursor.get("lines", 0) + count, "last_line_sha256": last_hash}, count
 
 
